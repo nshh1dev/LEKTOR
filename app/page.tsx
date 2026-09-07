@@ -1,4 +1,4 @@
-import { LektorMarketplace } from "@/components/tomotrade-marketplace"
+import { LektorMarketplace } from "@/components/lektor-marketplace"
 
 export default function HomePage() {
   return <LektorMarketplace />
