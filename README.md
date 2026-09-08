@@ -76,6 +76,40 @@ LEKTOR/
 └── package.json
 ```
 
+## Trabajo en equipo (Git)
+
+Trabajamos todos sobre la rama `main`. Para coordinar los cambios sin romperse entre sí:
+
+1. **Clonar** el repo (una sola vez):
+
+   ```bash
+   git clone https://github.com/Lucianop5/LEKTOR.git
+   ```
+
+2. **Antes de empezar a trabajar**, baja los últimos cambios:
+
+   ```bash
+   git pull
+   ```
+
+3. **Mientras trabajas**, no edites el mismo archivo que otro miembro al mismo tiempo. Si ambos tocan el mismo archivo en paralelo, el segundo que suba tendrá un conflicto.
+
+4. **Al terminar**, sube tus cambios:
+
+   ```bash
+   git add .
+   git commit -m "descripción del cambio"
+   git push
+   ```
+
+### Si aparece un conflicto
+
+Git te avisará con un mensaje tipo `CONFLICT` / `Merge conflict`. La solución:
+
+1. Baja y fusiona: `git pull`
+2. Abre el archivo marcado y decide qué líneas se quedan (las marcas `<<<<<<<` / `=======` / `>>>>>>>` indican las partes en conflicto).
+3. Sube el resultado: `git add .` → `git commit -m "resolver conflicto"` → `git push`
+
 ## Licencia
 
 Proyecto académico de título. Todos los derechos reservados.

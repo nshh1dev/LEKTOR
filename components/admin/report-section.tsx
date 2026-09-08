@@ -125,7 +125,7 @@ export function ReportSection() {
               </EmptyMedia>
               <EmptyTitle>Sin reporte generado</EmptyTitle>
               <EmptyDescription>
-                Seleccione una fecha y haga clic en "Generar reporte" para ver los movimientos del día.
+                Seleccione una fecha y haga clic en &ldquo;Generar reporte&rdquo; para ver los movimientos del día.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
