@@ -43,6 +43,13 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import { useInventoryStore, type Product } from "@/lib/store"
 
@@ -56,6 +63,8 @@ type FormState = {
   proveedor: string
 }
 
+type StockFilter = "todos" | "sin-stock" | "bajo-minimo" | "ok"
+
 const emptyForm: FormState = { sku: "", nombre: "", stockActual: 0, stockMinimo: 0, proveedor: "" }
 
 export function ProductsView() {
@@ -65,6 +74,7 @@ export function ProductsView() {
   const deleteProduct = useInventoryStore((s) => s.deleteProduct)
 
   const [search, setSearch] = useState("")
+  const [stockFilter, setStockFilter] = useState<StockFilter>("todos")
   const [page, setPage] = useState(1)
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
@@ -72,14 +82,16 @@ export function ProductsView() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
-    if (!q) return products
-    return products.filter(
-      (p) =>
+    return products.filter((p) => {
+      const matchesSearch =
+        !q ||
         p.sku.toLowerCase().includes(q) ||
         p.nombre.toLowerCase().includes(q) ||
-        p.proveedor.toLowerCase().includes(q),
-    )
-  }, [products, search])
+        p.proveedor.toLowerCase().includes(q)
+      const matchesStock = stockFilter === "todos" || stockStatus(p).key === stockFilter
+      return matchesSearch && matchesStock
+    })
+  }, [products, search, stockFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -131,9 +143,11 @@ export function ProductsView() {
   }
 
   const stockStatus = (p: Product) => {
-    if (p.stockActual === 0) return { label: "Sin stock", variant: "destructive" as const }
-    if (p.stockActual <= p.stockMinimo) return { label: "Bajo mínimo", variant: "secondary" as const }
-    return { label: "OK", variant: "default" as const }
+    if (p.stockActual === 0)
+      return { key: "sin-stock" as StockFilter, label: "Sin stock", variant: "destructive" as const }
+    if (p.stockActual <= p.stockMinimo)
+      return { key: "bajo-minimo" as StockFilter, label: "Bajo mínimo", variant: "secondary" as const }
+    return { key: "ok" as StockFilter, label: "OK", variant: "default" as const }
   }
 
   return (
@@ -229,17 +243,36 @@ export function ProductsView() {
         <CardHeader>
           <CardTitle className="text-base">Catálogo</CardTitle>
           <CardDescription>{filtered.length} productos</CardDescription>
-          <div className="relative max-w-sm pt-2">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por SKU, nombre o proveedor..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value)
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por SKU, nombre o proveedor..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setPage(1)
+                }}
+                className="pl-9"
+              />
+            </div>
+            <Select
+              value={stockFilter}
+              onValueChange={(value: StockFilter) => {
+                setStockFilter(value)
                 setPage(1)
               }}
-              className="pl-9"
-            />
+            >
+              <SelectTrigger className="w-full sm:w-[190px]">
+                <SelectValue placeholder="Estado de stock" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los estados</SelectItem>
+                <SelectItem value="sin-stock">Sin stock</SelectItem>
+                <SelectItem value="bajo-minimo">Bajo mínimo</SelectItem>
+                <SelectItem value="ok">OK</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
