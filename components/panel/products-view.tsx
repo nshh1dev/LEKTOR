@@ -1,12 +1,30 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import {
+  AlertTriangle,
+  PackageSearch,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react"
+import { StockMovementDialog } from "@/components/panel/stock-movement-dialog"
+import { avisar } from "@/components/notificacion/avisar"
+import { Aviso } from "@/components/notificacion/avisos"
+import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
+import { mensajeDeFallo } from "@/lib/avisos"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -15,386 +33,434 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { toast } from "@/hooks/use-toast"
-import { useInventoryStore, type Product } from "@/lib/store"
+import { CATEGORIAS, type Categoria, type EstadoPublicacion } from "@/lib/catalog"
+import { ESTADO_PUBLICACION_LABEL, formatCLP, formatDate } from "@/lib/format"
+import { panelEnviar, usePanelQuery } from "@/lib/panel-client"
+import { cn } from "@/lib/utils"
 
-const PAGE_SIZE = 5
-
-type FormState = {
-  sku: string
-  nombre: string
-  stockActual: number
+type PublicacionPanel = {
+  id: string
+  titulo: string
+  autor: string
+  editorial: string
+  volumen: number | null
+  categoria: Categoria
+  condicion: string
+  precio: number
+  stock: number
   stockMinimo: number
-  proveedor: string
+  isbn: string | null
+  estado: EstadoPublicacion
+  fechaPublicacion: string
+  vendedorId: string
+  vendedorNombre: string
+  vendedorComuna: string | null
+  unidadesVendidas: number
+  ventas: number
+  ordenesActivas: number
 }
 
-type StockFilter = "todos" | "sin-stock" | "bajo-minimo" | "ok"
+type Respuesta = {
+  publicaciones: PublicacionPanel[]
+  vendedores: { id: string; nombre: string }[]
+  resumen: Record<string, { total: number; unidades: number }>
+  paginacion: { pagina: number; porPagina: number; total: number; paginas: number }
+}
 
-const emptyForm: FormState = { sku: "", nombre: "", stockActual: 0, stockMinimo: 0, proveedor: "" }
+const ESTADOS: { value: string; label: string }[] = [
+  { value: "todas", label: "Todos los estados" },
+  { value: "activa", label: "Activas" },
+  { value: "pausada", label: "Pausadas" },
+  { value: "agotada", label: "Agotadas" },
+]
 
-export function ProductsView() {
-  const products = useInventoryStore((s) => s.products)
-  const addProduct = useInventoryStore((s) => s.addProduct)
-  const updateProduct = useInventoryStore((s) => s.updateProduct)
-  const deleteProduct = useInventoryStore((s) => s.deleteProduct)
+const ESTADO_BADGE: Record<EstadoPublicacion, string> = {
+  activa: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200",
+  pausada: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200",
+  agotada: "border-border bg-muted text-muted-foreground",
+}
 
-  const [search, setSearch] = useState("")
-  const [stockFilter, setStockFilter] = useState<StockFilter>("todos")
-  const [page, setPage] = useState(1)
-  const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<Product | null>(null)
-  const [form, setForm] = useState<FormState>(emptyForm)
+export function ProductsView({ esAdmin }: { esAdmin: boolean }) {
+  const [busqueda, setBusqueda] = useState("")
+  const [q, setQ] = useState("")
+  const [estado, setEstado] = useState("todas")
+  const [categoria, setCategoria] = useState("todas")
+  const [vendedorId, setVendedorId] = useState("todos")
+  const [orden, setOrden] = useState("recientes")
+  const [pagina, setPagina] = useState(1)
+  const [movimiento, setMovimiento] = useState<PublicacionPanel | null>(null)
+  const [porEliminar, setPorEliminar] = useState<PublicacionPanel | null>(null)
+  const [ocupado, setOcupado] = useState<string | null>(null)
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim()
-    return products.filter((p) => {
-      const matchesSearch =
-        !q ||
-        p.sku.toLowerCase().includes(q) ||
-        p.nombre.toLowerCase().includes(q) ||
-        p.proveedor.toLowerCase().includes(q)
-      const matchesStock = stockFilter === "todos" || stockStatus(p).key === stockFilter
-      return matchesSearch && matchesStock
-    })
-  }, [products, search, stockFilter])
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setQ(busqueda)
+      setPagina(1)
+    }, 350)
+    return () => clearTimeout(timer)
+  }, [busqueda])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const currentPage = Math.min(page, totalPages)
-  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+  const url = useMemo(() => {
+    const params = new URLSearchParams()
+    if (q) params.set("q", q)
+    params.set("estado", estado)
+    params.set("categoria", categoria)
+    params.set("orden", orden)
+    params.set("porPagina", "20")
+    params.set("pagina", String(pagina))
+    if (vendedorId !== "todos") params.set("vendedorId", vendedorId)
+    return `/api/panel/publicaciones?${params.toString()}`
+  }, [q, estado, categoria, orden, pagina, vendedorId])
 
-  const openNew = () => {
-    setEditing(null)
-    setForm(emptyForm)
-    setOpen(true)
-  }
+  const { data, cargando, error, recargar } = usePanelQuery<Respuesta>(url)
 
-  const openEdit = (p: Product) => {
-    setEditing(p)
-    setForm({ ...p })
-    setOpen(true)
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (editing) {
-      updateProduct(editing.sku, {
-        nombre: form.nombre,
-        stockActual: Number(form.stockActual),
-        stockMinimo: Number(form.stockMinimo),
-        proveedor: form.proveedor,
+  const alternarEstado = async (publicacion: PublicacionPanel) => {
+    const siguiente = publicacion.estado === "pausada" ? "activa" : "pausada"
+    setOcupado(publicacion.id)
+    try {
+      await panelEnviar(`/api/publications/${publicacion.id}`, "PATCH", { estado: siguiente })
+      avisar.ok({
+        titulo: siguiente === "pausada" ? "Publicación pausada" : "Publicación reactivada",
+        descripcion:
+          siguiente === "pausada"
+            ? "Dejó de aparecer en el catálogo. El enlace sigue funcionando."
+            : "Volvió al catálogo con el stock que tiene ahora.",
+        referencia: publicacion.titulo,
       })
-      toast({ title: "Producto actualizado", description: form.nombre })
-      setOpen(false)
-      return
+      recargar()
+    } catch (fallo) {
+      avisar.falla({
+        titulo: "No se pudo actualizar la publicación",
+        descripcion: mensajeDeFallo(fallo, "El estado sigue igual."),
+        referencia: publicacion.titulo,
+      })
+    } finally {
+      setOcupado(null)
     }
-    const result = addProduct({
-      sku: form.sku.trim().toUpperCase(),
-      nombre: form.nombre.trim(),
-      stockActual: Number(form.stockActual),
-      stockMinimo: Number(form.stockMinimo),
-      proveedor: form.proveedor.trim(),
-    })
-    if (!result.ok) {
-      toast({ title: "No se pudo crear", description: result.message, variant: "destructive" })
-      return
-    }
-    toast({ title: "Producto creado", description: form.nombre })
-    setOpen(false)
   }
 
-  const handleDelete = (sku: string, nombre: string) => {
-    deleteProduct(sku)
-    toast({ title: "Producto eliminado", description: nombre })
-  }
-
-  const stockStatus = (p: Product) => {
-    if (p.stockActual === 0)
-      return { key: "sin-stock" as StockFilter, label: "Sin stock", variant: "destructive" as const }
-    if (p.stockActual <= p.stockMinimo)
-      return { key: "bajo-minimo" as StockFilter, label: "Bajo mínimo", variant: "secondary" as const }
-    return { key: "ok" as StockFilter, label: "OK", variant: "default" as const }
+  const eliminar = async () => {
+    if (!porEliminar) return
+    setOcupado(porEliminar.id)
+    try {
+      await panelEnviar(`/api/publications/${porEliminar.id}`, "DELETE")
+      avisar.ok({
+        titulo: "Publicación eliminada",
+        descripcion: "El ejemplar salió del catálogo.",
+        referencia: porEliminar.titulo,
+      })
+      setPorEliminar(null)
+      recargar()
+    } catch (fallo) {
+      avisar.falla({
+        titulo: "No se pudo eliminar la publicación",
+        descripcion: mensajeDeFallo(fallo, "Si tiene reservas activas, ciérralas primero."),
+        referencia: porEliminar.titulo,
+        duracion: 8000,
+      })
+    } finally {
+      setOcupado(null)
+    }
   }
 
   return (
     <main className="flex-1 space-y-6 p-4 md:p-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Productos</h1>
-          <p className="text-sm text-muted-foreground">Gestión del catálogo y niveles de stock</p>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Publicaciones</h1>
+          <p className="text-sm text-muted-foreground">Moderación del catálogo, stock y estado de los exemplares</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openNew} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nuevo producto
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <form onSubmit={handleSubmit}>
-              <DialogHeader>
-                <DialogTitle>{editing ? "Editar producto" : "Nuevo producto"}</DialogTitle>
-                <DialogDescription>
-                  {editing
-                    ? "Actualiza los datos del producto en el catálogo"
-                    : "Completa la información para crear un nuevo SKU"}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="sku">SKU</Label>
-                  <Input
-                    id="sku"
-                    value={form.sku}
-                    onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                    placeholder="CARP01"
-                    disabled={!!editing}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="nombre">Nombre</Label>
-                  <Input
-                    id="nombre"
-                    value={form.nombre}
-                    onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                    placeholder="Carpa Iglú 4 Personas"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="stockActual">Stock actual</Label>
-                    <Input
-                      id="stockActual"
-                      type="number"
-                      min={0}
-                      value={form.stockActual}
-                      onChange={(e) => setForm({ ...form, stockActual: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="stockMinimo">Stock mínimo</Label>
-                    <Input
-                      id="stockMinimo"
-                      type="number"
-                      min={0}
-                      value={form.stockMinimo}
-                      onChange={(e) => setForm({ ...form, stockMinimo: Number(e.target.value) })}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="proveedor">Proveedor</Label>
-                  <Input
-                    id="proveedor"
-                    value={form.proveedor}
-                    onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
-                    placeholder="Doite"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit">{editing ? "Guardar cambios" : "Crear producto"}</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button variant="outline" className="gap-2 bg-transparent" onClick={recargar} disabled={cargando}>
+          <RefreshCw className={cn("h-4 w-4", cargando && "animate-spin")} />
+          Actualizar
+        </Button>
       </header>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Catálogo</CardTitle>
-          <CardDescription>{filtered.length} productos</CardDescription>
-          <div className="flex flex-wrap items-center gap-2 pt-2">
-            <div className="relative max-w-sm flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por SKU, nombre o proveedor..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value)
-                  setPage(1)
-                }}
-                className="pl-9"
-              />
-            </div>
-            <Select
-              value={stockFilter}
-              onValueChange={(value: StockFilter) => {
-                setStockFilter(value)
-                setPage(1)
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-[190px]">
-                <SelectValue placeholder="Estado de stock" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los estados</SelectItem>
-                <SelectItem value="sin-stock">Sin stock</SelectItem>
-                <SelectItem value="bajo-minimo">Bajo mínimo</SelectItem>
-                <SelectItem value="ok">OK</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4" />
+            Filtros
+          </CardTitle>
+          <CardDescription>Busca por título, autor, editorial o ISBN</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="overflow-x-auto rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Proveedor</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
-                  <TableHead className="text-right">Mínimo</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginated.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
-                      No se encontraron productos
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginated.map((p) => {
-                    const status = stockStatus(p)
-                    return (
-                      <TableRow key={p.sku}>
-                        <TableCell className="font-mono text-xs">{p.sku}</TableCell>
-                        <TableCell className="font-medium">{p.nombre}</TableCell>
-                        <TableCell className="text-muted-foreground">{p.proveedor}</TableCell>
-                        <TableCell className="text-right font-mono">{p.stockActual}</TableCell>
-                        <TableCell className="text-right font-mono">{p.stockMinimo}</TableCell>
-                        <TableCell>
-                          <Badge variant={status.variant}>{status.label}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button size="icon" variant="ghost" onClick={() => openEdit(p)}>
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">Editar</span>
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button size="icon" variant="ghost" className="text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                  <span className="sr-only">Eliminar</span>
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Eliminar producto?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Se eliminará <strong>{p.nombre}</strong> ({p.sku}) del catálogo. Esta acción no se
-                                    puede deshacer.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(p.sku, p.nombre)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Eliminar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <div className="relative sm:col-span-2">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busqueda}
+              onChange={(evento) => setBusqueda(evento.target.value)}
+              placeholder="Buscar publicación…"
+              aria-label="Buscar publicación por título, autor, editorial o ISBN"
+              className="pl-9"
+            />
           </div>
+          <Select value={orden} onValueChange={setOrden}>
+            <SelectTrigger aria-label="Ordenar publicaciones">
+              <SelectValue placeholder="Orden" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recientes">Más recientes</SelectItem>
+              <SelectItem value="titulo">Título (A-Z)</SelectItem>
+              <SelectItem value="stock">Menor stock</SelectItem>
+              <SelectItem value="precio_desc">Mayor precio</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={estado}
+            onValueChange={(valor) => {
+              setEstado(valor)
+              setPagina(1)
+            }}
+          >
+            <SelectTrigger aria-label="Filtrar por estado de publicación">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              {ESTADOS.map((opcion) => (
+                <SelectItem key={opcion.value} value={opcion.value}>
+                  {opcion.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={categoria}
+            onValueChange={(valor) => {
+              setCategoria(valor)
+              setPagina(1)
+            }}
+          >
+            <SelectTrigger aria-label="Filtrar por categoría">
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas las categorías</SelectItem>
+              {CATEGORIAS.map((valor) => (
+                <SelectItem key={valor} value={valor}>
+                  {valor}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={vendedorId}
+            onValueChange={(valor) => {
+              setVendedorId(valor)
+              setPagina(1)
+            }}
+          >
+            <SelectTrigger aria-label="Filtrar por vendedor">
+              <SelectValue placeholder="Vendedor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos los vendedores</SelectItem>
+              {(data?.vendedores ?? []).map((vendedor) => (
+                <SelectItem key={vendedor.id} value={vendedor.id}>
+                  {vendedor.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
-          {totalPages > 1 && (
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setPage((p) => Math.max(1, p - 1))
-                    }}
-                    aria-disabled={currentPage === 1}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                  />
-                </PaginationItem>
-                {Array.from({ length: totalPages }).map((_, i) => (
-                  <PaginationItem key={i}>
-                    <PaginationLink
-                      href="#"
-                      isActive={currentPage === i + 1}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        setPage(i + 1)
-                      }}
-                    >
-                      {i + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-                <PaginationItem>
-                  <PaginationNext
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setPage((p) => Math.min(totalPages, p + 1))
-                    }}
-                    aria-disabled={currentPage === totalPages}
-                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
+      {data && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {(["activa", "pausada", "agotada"] as EstadoPublicacion[]).map((valor) => (
+            <Card key={valor}>
+              <CardContent className="flex items-center justify-between py-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">{ESTADO_PUBLICACION_LABEL[valor]}</p>
+                  <p className="text-xl font-semibold">{data.resumen[valor]?.total ?? 0}</p>
+                </div>
+                <p className="font-mono text-sm text-muted-foreground">
+                  {data.resumen[valor]?.unidades ?? 0} uds.
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Catálogo moderado</CardTitle>
+          <CardDescription>
+            {data ? `${data.paginacion.total} publicaciones encontradas` : "Cargando publicaciones…"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error ? (
+            <Aviso
+              tono="falla"
+              titulo="No se pudo cargar el listado"
+              rotulo="Sin datos"
+              className="py-6"
+            >
+              {error} Vuelve a intentarlo o recarga la página.
+            </Aviso>
+          ) : null}
+          {cargando && !data ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, indice) => (
+                <Skeleton key={indice} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : null}
+          {data && data.publicaciones.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-center">
+              <PackageSearch className="size-6 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">No hay publicaciones con estos filtros</p>
+            </div>
+          ) : null}
+          {data && data.publicaciones.length > 0 && (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col">Publicación</TableHead>
+                    <TableHead scope="col">Vendedor</TableHead>
+                    <TableHead scope="col" className="text-right">Precio</TableHead>
+                    <TableHead scope="col" className="text-right">Stock</TableHead>
+                    <TableHead scope="col" className="text-right">Vendidas</TableHead>
+                    <TableHead scope="col">Estado</TableHead>
+                    <TableHead scope="col" className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.publicaciones.map((publicacion) => (
+                    <TableRow key={publicacion.id}>
+                      <TableCell>
+                        <div className="font-medium">{publicacion.titulo}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {publicacion.autor}
+                          {publicacion.isbn ? ` · ISBN ${publicacion.isbn}` : ""}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{formatDate(publicacion.fechaPublicacion)}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">{publicacion.vendedorNombre}</div>
+                        {publicacion.vendedorComuna && (
+                          <div className="text-xs text-muted-foreground">{publicacion.vendedorComuna}</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">{formatCLP(publicacion.precio)}</TableCell>
+                      <TableCell className="text-right font-mono">
+                        {publicacion.stock}
+                        <span className="text-xs text-muted-foreground"> / mín {publicacion.stockMinimo}</span>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {publicacion.unidadesVendidas}
+                        {publicacion.ordenesActivas > 0 && (
+                          <div className="text-xs text-amber-600">{publicacion.ordenesActivas} activas</div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
+                            ESTADO_BADGE[publicacion.estado],
+                          )}
+                        >
+                          {ESTADO_PUBLICACION_LABEL[publicacion.estado]}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setMovimiento(publicacion)}
+                            disabled={ocupado === publicacion.id}
+                          >
+                            Stock
+                          </Button>
+                          {esAdmin && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => void alternarEstado(publicacion)}
+                                disabled={ocupado === publicacion.id || publicacion.estado === "agotada"}
+                              >
+                                {publicacion.estado === "pausada" ? "Reactivar" : "Pausar"}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                aria-label={`Eliminar ${publicacion.titulo}`}
+                                onClick={() => setPorEliminar(publicacion)}
+                                disabled={ocupado === publicacion.id}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {data && data.paginacion.paginas > 1 && (
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            Página {data.paginacion.pagina} de {data.paginacion.paginas}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagina((valor) => Math.max(1, valor - 1))}
+              disabled={data.paginacion.pagina <= 1}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagina((valor) => Math.min(data.paginacion.paginas, valor + 1))}
+              disabled={data.paginacion.pagina >= data.paginacion.paginas}
+            >
+              Siguiente
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <StockMovementDialog
+        publicacion={movimiento}
+        onCerrar={() => setMovimiento(null)}
+        onGuardado={() => {
+          setMovimiento(null)
+          recargar()
+        }}
+      />
+
+
+      <ConfirmarAccion
+        abierto={Boolean(porEliminar)}
+        tono="falla"
+        titulo="¿Eliminar esta publicación?"
+        descripcion={`«${porEliminar?.titulo}» sale del catálogo junto con su historial de stock. Las órdenes ya cerradas se conservan. Esta acción no se puede deshacer.`}
+        confirmTexto="Eliminar"
+        cargando={Boolean(porEliminar) && ocupado === porEliminar?.id}
+        onConfirmar={() => void eliminar()}
+        onCerrar={() => setPorEliminar(null)}
+      />
+
+      {data && data.publicaciones.some((publicacion) => publicacion.estado === "agotada") && (
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          Las publicaciones agotadas se activan solas cuando ingresas ejemplares.
+        </p>
+      )}
     </main>
   )
 }

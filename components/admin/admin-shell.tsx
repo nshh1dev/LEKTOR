@@ -3,7 +3,6 @@
 import type React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
 import {
   Boxes,
   LayoutDashboard,
@@ -39,41 +38,53 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { useInventoryStore } from "@/lib/store"
 import { ThemeToggle } from "@/components/theme-toggle"
+import type { SesionUsuario } from "@/lib/catalog"
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+const ROL_LABEL: Record<SesionUsuario["rol"], string> = {
+  admin: "Administración",
+  worker: "Bodeguero",
+  lector: "Lector",
+}
+
+export function AdminShell({
+  user,
+  children,
+}: {
+  user: SesionUsuario
+  children: React.ReactNode
+}) {
   const pathname = usePathname()
   const router = useRouter()
-  const role = useInventoryStore((s) => s.role)
-  const email = useInventoryStore((s) => s.email)
-  const logout = useInventoryStore((s) => s.logout)
-  const [hydrated, setHydrated] = useState(false)
-
-  useEffect(() => setHydrated(true), [])
-  useEffect(() => {
-    if (hydrated && role !== "admin") router.replace("/")
-  }, [role, router, hydrated])
-
-  if (!hydrated || role !== "admin") {
-    return (
-      <div className="flex min-h-svh items-center justify-center">
-        <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-      </div>
-    )
-  }
 
   const items = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Productos", url: "/productos", icon: Package },
-    { title: "Reportes", url: "/reportes", icon: FileBarChart2 },
+    { title: "Reportes", url: "/reportes", icon: FileBarChart2, soloAdmin: true },
     { title: "Escáner", url: "/escaner", icon: ScanBarcode },
-    { title: "Usuarios", url: "/dashboard/usuarios", icon: Users },
-  ]
+    { title: "Usuarios", url: "/dashboard/usuarios", icon: Users, soloAdmin: true },
+  ].filter((item) => !item.soloAdmin || user.rol === "admin")
+
+  const cerrarSesion = async () => {
+    await fetch("/api/auth/logout", { method: "POST" })
+    router.push("/")
+    router.refresh()
+  }
+
+  const iniciales = user.nombre
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((parte) => parte[0] ?? "")
+    .join("")
+    .toUpperCase()
 
   return (
     <SidebarProvider>
+      <a href="#contenido-panel" className="skip-link">
+        Saltar al contenido
+      </a>
       <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
@@ -81,8 +92,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <Boxes className="h-5 w-5" />
             </div>
             <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-              <span className="text-sm font-semibold">El Teniente</span>
-              <span className="text-xs text-muted-foreground">Bodega Central</span>
+              <span className="text-sm font-semibold">LEKTOR</span>
+              <span className="text-xs text-muted-foreground">Panel de operación</span>
             </div>
           </div>
         </SidebarHeader>
@@ -114,7 +125,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Vista Bodeguero">
+                  <SidebarMenuButton asChild isActive={pathname === "/worker"} tooltip="Vista Bodeguero">
                     <Link href="/worker">
                       <Package className="h-4 w-4" />
                       <span>Vista bodeguero</span>
@@ -140,12 +151,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent">
                     <Avatar className="h-8 w-8 rounded-md">
                       <AvatarFallback className="rounded-md bg-primary text-primary-foreground text-xs font-semibold">
-                        DR
+                        {iniciales}
                       </AvatarFallback>
                     </Avatar>
                     <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-medium">Don Ricardo</span>
-                      <span className="truncate text-xs text-muted-foreground">{email}</span>
+                      <span className="truncate font-medium">{user.nombre}</span>
+                      <span className="truncate text-xs text-muted-foreground">{user.email}</span>
                     </div>
                     <ChevronUp className="ml-auto h-4 w-4" />
                   </SidebarMenuButton>
@@ -155,14 +166,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   align="end"
                   className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
                 >
-                  <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
+                  <DropdownMenuLabel className="flex items-center justify-between gap-2">
+                    Mi cuenta
+                    <Badge variant="secondary">{ROL_LABEL[user.rol]}</Badge>
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => {
-                      logout()
-                      router.push("/")
-                    }}
-                  >
+                  <DropdownMenuItem onClick={() => router.push("/")}>Volver a la tienda</DropdownMenuItem>
+                  <DropdownMenuItem onClick={cerrarSesion}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Cerrar sesión
                   </DropdownMenuItem>
@@ -178,15 +188,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Distribuidora</span>
+            <span className="text-muted-foreground">Panel</span>
             <span className="text-muted-foreground">/</span>
-            <span className="font-medium">El Teniente</span>
+            <span className="font-medium">LEKTOR</span>
           </div>
           <div className="ml-auto">
             <ThemeToggle />
           </div>
         </header>
-        <div className="flex flex-1 flex-col">{children}</div>
+        <div id="contenido-panel" tabIndex={-1} className="flex flex-1 flex-col">
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

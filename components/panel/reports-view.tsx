@@ -1,12 +1,28 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { CalendarIcon, Download, FileSpreadsheet, FileText, PackageMinus, PackagePlus } from "lucide-react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { useState } from "react"
+import { FileSpreadsheet, FileText, RefreshCw, TrendingUp } from "lucide-react"
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Aviso } from "@/components/notificacion/avisos"
 import {
   Select,
   SelectContent,
@@ -14,9 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
 import {
   Table,
   TableBody,
@@ -25,74 +38,76 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useInventoryStore } from "@/lib/store"
+import { type EstadoOrden, type MetodoEntrega } from "@/lib/catalog"
+import { ESTADO_ORDEN_LABEL, formatCLP, formatDateTime } from "@/lib/format"
+import { usePanelQuery } from "@/lib/panel-client"
 import { cn } from "@/lib/utils"
 
-type DateRange = { from?: Date; to?: Date }
-type TipoFiltro = "todos" | "entrada" | "salida"
+type Reporte = {
+  dias: number
+  desde: string
+  resumen: {
+    ordenes: number
+    unidades: number
+    recibidas: number
+    ventas: number
+    brutas: number
+    envios: number
+    canceladas: number
+    ticketPromedio: number
+    tasaCancelacion: number
+    movimientos: { entradas: number; salidas: number; ajustes: number; balance: number }
+  }
+  serie: { dia: string; ordenes: number; unidades: number; ventas: number; brutas: number; recibidas: number }[]
+  topTitulos: { titulo: string; unidades: number; ventas: number; ordenes: number }[]
+  porCategoria: { categoria: string; unidades: number; ventas: number }[]
+  porEstado: { estado: EstadoOrden; total: number }[]
+  vendedores: { id: string; nombre: string; ventas: number; ordenes: number }[]
+  entregas: { metodo: MetodoEntrega | string; total: number }[]
+  ordenesDetalle: {
+    id: string
+    tituloSnapshot: string
+    categoria: string | null
+    cantidad: number
+    total: number
+    envio: number
+    estado: EstadoOrden
+    metodoEntrega: string
+    fechaCreacion: string
+  }[]
+}
+
+const PERIODOS: { value: string; label: string }[] = [
+  { value: "7", label: "Últimos 7 días" },
+  { value: "30", label: "Últimos 30 días" },
+  { value: "90", label: "Últimos 90 días" },
+  { value: "365", label: "Último año" },
+]
+
+const COLORES = ["#6366f1", "#f59e0b", "#10b981", "#ec4899", "#0ea5e9", "#8b5cf6"]
 
 export function ReportsView() {
-  const products = useInventoryStore((s) => s.products)
-  const movements = useInventoryStore((s) => s.movements)
+  const [dias, setDias] = useState("30")
+  const { data, cargando, error, recargar } = usePanelQuery<Reporte>(`/api/panel/reportes?dias=${dias}`)
 
-  const [range, setRange] = useState<DateRange>({})
-  const [skuFiltro, setSkuFiltro] = useState<string>("todos")
-  const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>("todos")
-
-  const filtered = useMemo(() => {
-    return movements.filter((m) => {
-      const date = new Date(m.fecha)
-      if (range.from && date < range.from) return false
-      if (range.to) {
-        const end = new Date(range.to)
-        end.setHours(23, 59, 59, 999)
-        if (date > end) return false
-      }
-      if (skuFiltro !== "todos" && m.sku !== skuFiltro) return false
-      if (tipoFiltro !== "todos" && m.tipo !== tipoFiltro) return false
-      return true
-    })
-  }, [movements, range, skuFiltro, tipoFiltro])
-
-  const stats = useMemo(() => {
-    const entradas = filtered.filter((m) => m.tipo === "entrada").reduce((a, m) => a + m.cantidad, 0)
-    const salidas = filtered.filter((m) => m.tipo === "salida").reduce((a, m) => a + m.cantidad, 0)
-    const balance = entradas - salidas
-    return { total: filtered.length, entradas, salidas, balance }
-  }, [filtered])
-
-  const porProducto = useMemo(() => {
-    const map = new Map<string, { nombre: string; entradas: number; salidas: number }>()
-    for (const m of filtered) {
-      const cur = map.get(m.sku) ?? { nombre: m.nombreProducto, entradas: 0, salidas: 0 }
-      if (m.tipo === "entrada") cur.entradas += m.cantidad
-      else cur.salidas += m.cantidad
-      map.set(m.sku, cur)
-    }
-    return [...map.entries()]
-      .map(([sku, v]) => ({ sku, ...v, total: v.entradas + v.salidas }))
-      .sort((a, b) => b.total - a.total)
-  }, [filtered])
-
-  const maxBar = Math.max(1, ...porProducto.map((p) => p.total))
-
-  const exportCSV = () => {
-    const headers = ["Fecha", "SKU", "Producto", "Tipo", "Cantidad", "Usuario"]
-    const rows = filtered.map((m) => [
-      new Date(m.fecha).toLocaleString("es-CL"),
-      m.sku,
-      m.nombreProducto,
-      m.tipo,
-      m.cantidad.toString(),
-      m.usuario,
+  const exportarCSV = () => {
+    if (!data) return
+    const cabeceras = ["Fecha", "Publicación", "Categoría", "Estado", "Entrega", "Total"]
+    const filas = data.ordenesDetalle.map((orden) => [
+      new Date(orden.fechaCreacion).toLocaleString("es-CL"),
+      orden.tituloSnapshot,
+      orden.categoria ?? "—",
+      ESTADO_ORDEN_LABEL[orden.estado] ?? orden.estado,
+      orden.metodoEntrega,
+      orden.total.toString(),
     ])
-    const csv = [headers, ...rows].map((r) => r.map((v) => `"${v}"`).join(",")).join("\n")
+    const csv = [cabeceras, ...filas].map((fila) => fila.map((valor) => `"${valor}"`).join(",")).join("\n")
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `reporte-movimientos-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
+    const enlace = document.createElement("a")
+    enlace.href = url
+    enlace.download = `reporte-ordenes-${dias}d.csv`
+    enlace.click()
     URL.revokeObjectURL(url)
   }
 
@@ -101,10 +116,25 @@ export function ReportsView() {
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Reportes</h1>
-          <p className="text-sm text-muted-foreground">Análisis de movimientos de inventario</p>
+          <p className="text-sm text-muted-foreground">Ventas, órdenes y movimientos de inventario</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2 bg-transparent" onClick={exportCSV}>
+        <div className="flex flex-wrap gap-2">
+          <Select value={dias} onValueChange={setDias}>
+            <SelectTrigger className="w-48" aria-label="Período de análisis">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIODOS.map((periodo) => (
+                <SelectItem key={periodo.value} value={periodo.value}>
+                  {periodo.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" className="gap-2 bg-transparent" onClick={recargar} disabled={cargando}>
+            <RefreshCw className={cn("h-4 w-4", cargando && "animate-spin")} />
+          </Button>
+          <Button variant="outline" className="gap-2 bg-transparent" onClick={exportarCSV} disabled={!data}>
             <FileSpreadsheet className="h-4 w-4" />
             CSV
           </Button>
@@ -112,292 +142,335 @@ export function ReportsView() {
             <FileText className="h-4 w-4" />
             PDF
           </Button>
-          <Button className="gap-2" onClick={exportCSV}>
-            <Download className="h-4 w-4" />
-            Exportar
-          </Button>
         </div>
       </header>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base">Filtros</CardTitle>
-          <CardDescription>Refina el reporte por fecha, producto y tipo de movimiento</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "justify-start gap-2 text-left font-normal bg-transparent",
-                    !range.from && "text-muted-foreground",
+      {error ? <Aviso tono="falla" titulo="No se pudieron calcular los reportes" className="mb-4">{error}</Aviso> : null}
+
+      {cargando && !data ? (
+        <div className="grid gap-4 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, indice) => (
+            <Skeleton key={indice} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : null}
+
+      {data && (
+        <>
+          <div className="grid gap-4 md:grid-cols-4">
+            <ResumenCard label="Ventas completadas" value={formatCLP(data.resumen.ventas)} hint="Órdenes recibidas" />
+            <ResumenCard
+              label="Órdenes"
+              value={data.resumen.ordenes.toLocaleString("es-CL")}
+              hint={`${data.resumen.canceladas} canceladas · ${data.resumen.tasaCancelacion}%`}
+              tone={data.resumen.canceladas > 0 ? "warning" : "default"}
+            />
+            <ResumenCard
+              label="Ticket promedio"
+              value={formatCLP(data.resumen.ticketPromedio)}
+              hint={`${data.resumen.recibidas} ventas concretadas`}
+            />
+            <ResumenCard
+              label="Balance de bodega"
+              value={`${data.resumen.movimientos.balance >= 0 ? "+" : ""}${data.resumen.movimientos.balance}`}
+              hint={`${data.resumen.movimientos.entradas} entradas · ${data.resumen.movimientos.salidas} salidas`}
+              tone={data.resumen.movimientos.balance >= 0 ? "positive" : "warning"}
+            />
+          </div>
+
+          <Tabs defaultValue="movimientos" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="movimientos">Órdenes</TabsTrigger>
+              <TabsTrigger value="graficos">Gráficos</TabsTrigger>
+              <TabsTrigger value="analisis">Análisis</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="movimientos">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Detalle de órdenes</CardTitle>
+                  <CardDescription>
+                    {data.ordenesDetalle.length} órdenes del período (máximo 200 por reporte)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  {data.ordenesDetalle.length === 0 ? (
+                    <p className="py-10 text-center text-sm text-muted-foreground">
+                      No hay órdenes en el período seleccionado
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead scope="col">Fecha</TableHead>
+                          <TableHead scope="col">Publicación</TableHead>
+                          <TableHead scope="col">Categoría</TableHead>
+                          <TableHead scope="col">Estado</TableHead>
+                          <TableHead scope="col">Entrega</TableHead>
+                          <TableHead scope="col" className="text-right">Envío</TableHead>
+                          <TableHead scope="col" className="text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.ordenesDetalle.map((orden) => (
+                          <TableRow key={orden.id}>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {formatDateTime(orden.fechaCreacion)}
+                            </TableCell>
+                            <TableCell className="font-medium">{orden.tituloSnapshot}</TableCell>
+                            <TableCell className="text-muted-foreground">{orden.categoria ?? "—"}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{ESTADO_ORDEN_LABEL[orden.estado] ?? orden.estado}</Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{orden.metodoEntrega.replace(/_/g, " ")}</TableCell>
+                            <TableCell className="text-right font-mono">{formatCLP(orden.envio)}</TableCell>
+                            <TableCell className="text-right font-mono">{formatCLP(orden.total)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   )}
-                >
-                  <CalendarIcon className="h-4 w-4" />
-                  {range.from ? (
-                    range.to ? (
-                      <>
-                        {format(range.from, "dd MMM", { locale: es })} -{" "}
-                        {format(range.to, "dd MMM yyyy", { locale: es })}
-                      </>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="graficos" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Ventas por día</CardTitle>
+                  <CardDescription>Montos de órdenes recibidas y brutas del período</CardDescription>
+                </CardHeader>
+                <CardContent className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={data.serie}>
+                      <defs>
+                        <linearGradient id="ventas" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.5} />
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="dia" tickFormatter={(valor: string) => valor.slice(5)} fontSize={12} />
+                      <YAxis fontSize={12} tickFormatter={(valor: number) => `${Math.round(valor / 1000)}k`} />
+                      <Tooltip
+                        formatter={(valor: number) => formatCLP(valor)}
+                        labelFormatter={(etiqueta) => String(etiqueta)}
+                      />
+                      <Legend />
+                      <Area
+                        type="monotone"
+                        dataKey="ventas"
+                        name="Ventas"
+                        stroke="#6366f1"
+                        fill="url(#ventas)"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="brutas"
+                        name="Bruto"
+                        stroke="#f59e0b"
+                        fill="transparent"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Reparto por categoría</CardTitle>
+                    <CardDescription>Ventas completadas por tipo de ejemplar</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-64">
+                    {data.porCategoria.length === 0 ? (
+                      <p className="py-10 text-center text-sm text-muted-foreground">Sin datos</p>
                     ) : (
-                      format(range.from, "dd MMM yyyy", { locale: es })
-                    )
-                  ) : (
-                    "Rango de fechas"
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="range"
-                  selected={{ from: range.from, to: range.to } as never}
-                  onSelect={((r: { from?: Date; to?: Date } | undefined) =>
-                    setRange(r ?? {})) as never}
-                  numberOfMonths={1}
-                />
-              </PopoverContent>
-            </Popover>
-
-            <Select value={skuFiltro} onValueChange={setSkuFiltro}>
-              <SelectTrigger>
-                <SelectValue placeholder="Producto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los productos</SelectItem>
-                {products.map((p) => (
-                  <SelectItem key={p.sku} value={p.sku}>
-                    {p.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={tipoFiltro} onValueChange={(v: TipoFiltro) => setTipoFiltro(v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los tipos</SelectItem>
-                <SelectItem value="entrada">Entradas</SelectItem>
-                <SelectItem value="salida">Salidas</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setRange({})
-                setSkuFiltro("todos")
-                setTipoFiltro("todos")
-              }}
-            >
-              Limpiar filtros
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-4">
-        <SummaryCard label="Movimientos" value={stats.total.toString()} hint="Total filtrado" />
-        <SummaryCard
-          label="Entradas"
-          value={stats.entradas.toLocaleString("es-CL")}
-          hint="Unidades ingresadas"
-          tone="positive"
-        />
-        <SummaryCard
-          label="Salidas"
-          value={stats.salidas.toLocaleString("es-CL")}
-          hint="Unidades despachadas"
-          tone="warning"
-        />
-        <SummaryCard
-          label="Balance"
-          value={(stats.balance >= 0 ? "+" : "") + stats.balance.toLocaleString("es-CL")}
-          hint="Entradas - Salidas"
-          tone={stats.balance >= 0 ? "positive" : "warning"}
-        />
-      </div>
-
-      <Tabs defaultValue="movimientos" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="movimientos">Movimientos</TabsTrigger>
-          <TabsTrigger value="graficos">Gráficos</TabsTrigger>
-          <TabsTrigger value="analisis">Análisis</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="movimientos">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Detalle de movimientos</CardTitle>
-              <CardDescription>{filtered.length} registros encontrados</CardDescription>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Cantidad</TableHead>
-                    <TableHead>Usuario</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
-                        No hay movimientos para los filtros seleccionados
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filtered.map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {new Date(m.fecha).toLocaleString("es-CL")}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">{m.sku}</TableCell>
-                        <TableCell className="font-medium">{m.nombreProducto}</TableCell>
-                        <TableCell>
-                          <Badge variant={m.tipo === "entrada" ? "default" : "secondary"} className="gap-1">
-                            {m.tipo === "entrada" ? (
-                              <PackagePlus className="h-3 w-3" />
-                            ) : (
-                              <PackageMinus className="h-3 w-3" />
-                            )}
-                            {m.tipo}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono">{m.cantidad}</TableCell>
-                        <TableCell className="capitalize text-muted-foreground">{m.usuario}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="graficos">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Movimientos por producto</CardTitle>
-              <CardDescription>Distribución de entradas y salidas en el período</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {porProducto.length === 0 ? (
-                <p className="py-10 text-center text-sm text-muted-foreground">
-                  Sin datos para visualizar con los filtros actuales
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {porProducto.map((p) => (
-                    <div key={p.sku} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{p.nombre}</span>
-                          <span className="font-mono text-xs text-muted-foreground">{p.sku}</span>
-                        </div>
-                        <span className="font-mono text-xs text-muted-foreground">
-                          {p.entradas} entradas / {p.salidas} salidas
-                        </span>
-                      </div>
-                      <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full bg-emerald-500 transition-all"
-                          style={{ width: `${(p.entradas / maxBar) * 100}%` }}
-                        />
-                        <div
-                          className="h-full bg-amber-500 transition-all"
-                          style={{ width: `${(p.salidas / maxBar) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  <div className="flex items-center gap-4 pt-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full bg-emerald-500" />
-                      Entradas
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full bg-amber-500" />
-                      Salidas
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="analisis">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Top productos por movimiento</CardTitle>
-                <CardDescription>Mayor rotación en el período</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Producto</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {porProducto.slice(0, 5).map((p) => (
-                      <TableRow key={p.sku}>
-                        <TableCell className="font-medium">{p.nombre}</TableCell>
-                        <TableCell className="text-right font-mono">{p.total}</TableCell>
-                      </TableRow>
-                    ))}
-                    {porProducto.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={2} className="py-6 text-center text-sm text-muted-foreground">
-                          Sin datos
-                        </TableCell>
-                      </TableRow>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={data.porCategoria}
+                            dataKey="ventas"
+                            nameKey="categoria"
+                            innerRadius={45}
+                            outerRadius={80}
+                            paddingAngle={3}
+                          >
+                            {data.porCategoria.map((fila, indice) => (
+                              <Cell key={fila.categoria} fill={COLORES[indice % COLORES.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(valor: number) => formatCLP(valor)} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
                     )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Resumen ejecutivo</CardTitle>
-                <CardDescription>Indicadores clave del período seleccionado</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Row label="Total de movimientos" value={stats.total.toString()} />
-                <Row label="Productos involucrados" value={porProducto.length.toString()} />
-                <Row label="Promedio por movimiento" value={
-                  stats.total > 0
-                    ? ((stats.entradas + stats.salidas) / stats.total).toFixed(1)
-                    : "0"
-                } />
-                <Row
-                  label="Balance neto"
-                  value={(stats.balance >= 0 ? "+" : "") + stats.balance}
-                  badge={stats.balance >= 0 ? "Positivo" : "Negativo"}
-                  badgeVariant={stats.balance >= 0 ? "default" : "destructive"}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top títulos por venta</CardTitle>
+                    <CardDescription>Unidades recibidas en el período</CardDescription>
+                  </CardHeader>
+                  <CardContent className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={data.topTitulos} layout="vertical" margin={{ left: 12 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis type="number" allowDecimals={false} fontSize={12} />
+                        <YAxis
+                          type="category"
+                          dataKey="titulo"
+                          width={130}
+                          fontSize={12}
+                          tickFormatter={(valor: string) => (valor.length > 22 ? `${valor.slice(0, 22)}…` : valor)}
+                        />
+                        <Tooltip formatter={(valor: number) => `${valor} uds.`} />
+                        <Bar dataKey="unidades" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="analisis" className="space-y-4">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Top títulos</CardTitle>
+                    <CardDescription>Mayor rotación del período</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {data.topTitulos.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-muted-foreground">Sin ventas en el período</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead scope="col">Publicación</TableHead>
+                            <TableHead scope="col" className="text-right">Unidades</TableHead>
+                            <TableHead scope="col" className="text-right">Ventas</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {data.topTitulos.map((fila) => (
+                            <TableRow key={fila.titulo}>
+                              <TableCell className="font-medium">{fila.titulo}</TableCell>
+                              <TableCell className="text-right font-mono">{fila.unidades}</TableCell>
+                              <TableCell className="text-right font-mono">{formatCLP(fila.ventas)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Resumen ejecutivo</CardTitle>
+                    <CardDescription>Indicadores del período seleccionado</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <Fila label="Órdenes creadas" valor={data.resumen.ordenes.toString()} />
+                    <Fila
+                      label="Órdenes recibidas"
+                      valor={data.resumen.recibidas.toString()}
+                      badge={data.resumen.recibidas === 0 ? "Sin ventas" : undefined}
+                      badgeVariant="secondary"
+                    />
+                    <Fila label="Unidades en período" valor={data.resumen.unidades.toString()} />
+                    <Fila label="Ventas realizadas" valor={formatCLP(data.resumen.ventas)} />
+                    <Fila label="Ventas brutas" valor={formatCLP(data.resumen.brutas)} />
+                    <Fila label="Envíos cobrados" valor={formatCLP(data.resumen.envios)} />
+                    <Fila
+                      label="Tasa de cancelación"
+                      valor={`${data.resumen.tasaCancelacion}%`}
+                      badge={data.resumen.tasaCancelacion > 20 ? "Revisar" : "Normal"}
+                      badgeVariant={data.resumen.tasaCancelacion > 20 ? "destructive" : "secondary"}
+                    />
+                    <Fila
+                      label="Ajustes de inventario"
+                      valor={data.resumen.movimientos.ajustes.toString()}
+                      badge="Bodega"
+                      badgeVariant="secondary"
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-3">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Vendedores</CardTitle>
+                    <CardDescription>Ventas completadas</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {data.vendedores.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-muted-foreground">Sin datos</p>
+                    ) : (
+                      data.vendedores.map((fila) => (
+                        <div
+                          key={fila.id}
+                          className="flex items-center justify-between gap-3 border-b pb-2 last:border-0 last:pb-0"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{fila.nombre}</p>
+                            <p className="text-xs text-muted-foreground">{fila.ordenes} ventas</p>
+                          </div>
+                          <span className="shrink-0 font-mono text-sm">{formatCLP(fila.ventas)}</span>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Estados de orden</CardTitle>
+                    <CardDescription>Distribución del período</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {data.porEstado.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-muted-foreground">Sin datos</p>
+                    ) : (
+                      data.porEstado.map((fila) => (
+                        <Fila
+                          key={fila.estado}
+                          label={ESTADO_ORDEN_LABEL[fila.estado] ?? fila.estado}
+                          valor={fila.total.toString()}
+                        />
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Métodos de entrega</CardTitle>
+                    <CardDescription>Cómo reciben los compradores</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {data.entregas.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-muted-foreground">Sin datos</p>
+                    ) : (
+                      data.entregas.map((fila) => (
+                        <Fila key={fila.metodo} label={fila.metodo.replace(/_/g, " ")} valor={fila.total.toString()} />
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </main>
   )
 }
 
-function SummaryCard({
+function ResumenCard({
   label,
   value,
   hint,
@@ -411,7 +484,10 @@ function SummaryCard({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardDescription>{label}</CardDescription>
+        <CardDescription className="flex items-center gap-2">
+          {label === "Ventas completadas" && <TrendingUp className="h-3.5 w-3.5" />}
+          {label}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div
@@ -429,22 +505,22 @@ function SummaryCard({
   )
 }
 
-function Row({
+function Fila({
   label,
-  value,
+  valor,
   badge,
   badgeVariant,
 }: {
   label: string
-  value: string
+  valor: string
   badge?: string
   badgeVariant?: "default" | "destructive" | "secondary"
 }) {
   return (
-    <div className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+    <div className="flex items-center justify-between gap-3 border-b pb-2 last:border-0 last:pb-0">
       <span className="text-sm text-muted-foreground">{label}</span>
       <div className="flex items-center gap-2">
-        <span className="font-mono text-sm font-medium">{value}</span>
+        <span className="font-mono text-sm font-medium">{valor}</span>
         {badge && <Badge variant={badgeVariant}>{badge}</Badge>}
       </div>
     </div>

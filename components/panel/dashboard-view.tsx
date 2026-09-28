@@ -1,35 +1,24 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
   Boxes,
-  ChevronDown,
-  LogOut,
   Package,
   PackageMinus,
   PackagePlus,
-  Settings,
+  RefreshCw,
   TrendingUp,
-  User,
+  Wallet,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Aviso } from "@/components/notificacion/avisos"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
   TableBody,
@@ -38,235 +27,435 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useInventoryStore } from "@/lib/store"
+import { ESTADO_ORDEN_BADGE, ESTADO_ORDEN_LABEL, ESTADO_PUBLICACION_LABEL, formatCLP, formatDateTime } from "@/lib/format"
+import { type EstadoOrden, type EstadoPublicacion } from "@/lib/catalog"
+import { usePanelQuery } from "@/lib/panel-client"
+import { cn } from "@/lib/utils"
+
+type PanelResumen = {
+  kpis: {
+    publicaciones: number
+    unidades: number
+    bajoMinimo: number
+    agotadas: number
+    ordenes: number
+    ordenesHoy: number
+    recibidas: number
+    ventasMes: number
+    ventasMesPrevio: number
+    tendencia: number | null
+    ventasTotal: number
+    usuarios: number
+    usuariosActivos: number
+    usuariosNuevos: number
+    reservasPorVencer: number
+  }
+  publicacionesPorEstado: Record<string, number>
+  ordenesPorEstado: Record<string, number>
+  ordenesRecientes: {
+    id: string
+    tituloSnapshot: string
+    total: number
+    estado: EstadoOrden
+    fechaCreacion: string
+    comprador: string
+    vendedor: string
+  }[]
+  topPublicaciones: { publicacionId: string | null; titulo: string; unidades: number; ventas: number; stock: number }[]
+  topVendedores: { id: string; nombre: string; publicaciones: number; ventas: number }[]
+  movimientos: {
+    id: string
+    tipo: "entrada" | "salida" | "ajuste"
+    cantidad: number
+    motivo: string | null
+    fechaCreacion: string
+    titulo: string
+    usuario: string
+  }[]
+  alertasStock: {
+    id: string
+    titulo: string
+    stock: number
+    stockMinimo: number
+    estado: EstadoPublicacion
+    vendedor: string
+  }[]
+  reservaHoras: number
+}
 
 export function DashboardView() {
-  const router = useRouter()
-  const products = useInventoryStore((s) => s.products)
-  const movements = useInventoryStore((s) => s.movements)
-  const email = useInventoryStore((s) => s.email)
-  const logout = useInventoryStore((s) => s.logout)
+  const { data, cargando, error, recargar } = usePanelQuery<PanelResumen>("/api/panel/dashboard")
   const [tab, setTab] = useState("resumen")
 
-  const stats = useMemo(() => {
-    const totalProductos = products.length
-    const totalUnidades = products.reduce((acc, p) => acc + p.stockActual, 0)
-    const stockCritico = products.filter((p) => p.stockActual <= p.stockMinimo)
-    const today = new Date().toDateString()
-    const movsHoy = movements.filter((m) => new Date(m.fecha).toDateString() === today)
-    const entradasHoy = movsHoy.filter((m) => m.tipo === "entrada").reduce((a, m) => a + m.cantidad, 0)
-    const salidasHoy = movsHoy.filter((m) => m.tipo === "salida").reduce((a, m) => a + m.cantidad, 0)
-    return { totalProductos, totalUnidades, stockCritico, entradasHoy, salidasHoy, movsHoy }
-  }, [products, movements])
-
-  const initials = (email || "AD")
-    .split(/[@.]/)[0]
-    .slice(0, 2)
-    .toUpperCase()
+  const kpis = data?.kpis
 
   return (
     <main className="flex-1 space-y-6 p-4 md:p-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Resumen del inventario y operaciones del día</p>
+          <p className="text-sm text-muted-foreground">Estado del marketplace y operaciones del día</p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <Avatar className="h-7 w-7">
-                <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <span className="hidden text-sm font-medium sm:inline">{email}</span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              Perfil
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              Configuración
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                logout()
-                router.push("/")
-              }}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar sesión
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button variant="outline" className="gap-2 bg-transparent" onClick={recargar} disabled={cargando}>
+          <RefreshCw className={cn("h-4 w-4", cargando && "animate-spin")} />
+          Actualizar
+        </Button>
       </header>
 
-      {stats.stockCritico.length > 0 && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Stock crítico</AlertTitle>
-          <AlertDescription>
-            {stats.stockCritico.length} producto{stats.stockCritico.length > 1 ? "s" : ""} bajo el mínimo:{" "}
-            {stats.stockCritico
-              .slice(0, 3)
-              .map((p) => p.nombre)
-              .join(", ")}
-            {stats.stockCritico.length > 3 ? "..." : ""}
-          </AlertDescription>
-        </Alert>
+      {error ? (
+        <Aviso tono="falla" titulo="No pudimos cargar el resumen">
+          {error}
+        </Aviso>
+      ) : null}
+
+      {cargando && !data ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, indice) => (
+            <Skeleton key={indice} className="h-28 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : null}
+
+      {kpis && kpis.reservasPorVencer > 0 && (
+        <Aviso tono="revisar" titulo="Reservas por vencer">
+          {kpis.reservasPorVencer} reserva{kpis.reservasPorVencer > 1 ? "s" : ""} vence
+          {kpis.reservasPorVencer > 1 ? "n" : ""} dentro de 6 horas. La reserva dura {data?.reservaHoras} horas
+          desde su creación.
+        </Aviso>
       )}
 
-      <Tabs value={tab} onValueChange={setTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="resumen">Resumen</TabsTrigger>
-          <TabsTrigger value="alertas">Alertas</TabsTrigger>
-          <TabsTrigger value="actividad">Actividad</TabsTrigger>
-        </TabsList>
+      {kpis && kpis.bajoMinimo + kpis.agotadas > 0 && (
+        <Aviso tono="falla" titulo="Stock crítico">
+          {kpis.agotadas} publicación{kpis.agotadas > 1 ? "es" : ""} sin ejemplares y {kpis.bajoMinimo} bajo
+          stock mínimo.
+        </Aviso>
+      )}
 
-        <TabsContent value="resumen" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <KpiCard
-              icon={<Package className="h-4 w-4 text-muted-foreground" />}
-              label="Productos"
-              value={stats.totalProductos.toString()}
-              hint="SKUs registrados"
-            />
-            <KpiCard
-              icon={<Boxes className="h-4 w-4 text-muted-foreground" />}
-              label="Unidades"
-              value={stats.totalUnidades.toLocaleString("es-CL")}
-              hint="Stock total"
-            />
-            <KpiCard
-              icon={<ArrowUpRight className="h-4 w-4 text-emerald-600" />}
-              label="Entradas hoy"
-              value={stats.entradasHoy.toString()}
-              hint="Unidades ingresadas"
-              tone="positive"
-            />
-            <KpiCard
-              icon={<ArrowDownRight className="h-4 w-4 text-amber-600" />}
-              label="Salidas hoy"
-              value={stats.salidasHoy.toString()}
-              hint="Unidades despachadas"
-              tone="warning"
-            />
-          </div>
+      {data && kpis && (
+        <Tabs value={tab} onValueChange={setTab} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="resumen">Resumen</TabsTrigger>
+            <TabsTrigger value="alertas">Alertas</TabsTrigger>
+            <TabsTrigger value="actividad">Actividad</TabsTrigger>
+          </TabsList>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Productos con mejor rotación</CardTitle>
-              <CardDescription>Top 5 por movimientos registrados</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TopProductsTable />
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <TabsContent value="resumen" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <KpiCard
+                icon={<Package className="h-4 w-4 text-muted-foreground" />}
+                label="Publicaciones"
+                value={kpis.publicaciones.toLocaleString("es-CL")}
+                hint={`${data.publicacionesPorEstado.activa ?? 0} activas en catálogo`}
+              />
+              <KpiCard
+                icon={<Boxes className="h-4 w-4 text-muted-foreground" />}
+                label="Unidades"
+                value={kpis.unidades.toLocaleString("es-CL")}
+                hint="Ejemplares disponibles"
+              />
+              <KpiCard
+                icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
+                label="Órdenes"
+                value={kpis.ordenes.toLocaleString("es-CL")}
+                hint={`${kpis.ordenesHoy} creadas hoy · ${kpis.recibidas} completadas`}
+              />
+              <KpiCard
+                icon={
+                  kpis.tendencia === null ? (
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                  ) : kpis.tendencia < 0 ? (
+                    <ArrowDownRight className="h-4 w-4 text-amber-600" />
+                  ) : (
+                    <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+                  )
+                }
+                label="Ventas del mes"
+                value={formatCLP(kpis.ventasMes)}
+                hint={
+                  kpis.tendencia === null
+                    ? `Histórico: ${formatCLP(kpis.ventasTotal)}`
+                    : `${kpis.tendencia > 0 ? "+" : ""}${kpis.tendencia}% vs. mes anterior`
+                }
+                tone={
+                  kpis.tendencia === null
+                    ? "default"
+                    : kpis.tendencia < 0
+                      ? "warning"
+                      : "positive"
+                }
+              />
+            </div>
 
-        <TabsContent value="alertas">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-                Productos bajo stock mínimo
-              </CardTitle>
-              <CardDescription>Reabastecer cuanto antes para evitar quiebres</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {stats.stockCritico.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No hay productos en estado crítico</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Producto</TableHead>
-                      <TableHead className="text-right">Stock</TableHead>
-                      <TableHead className="text-right">Mínimo</TableHead>
-                      <TableHead>Estado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stats.stockCritico.map((p) => (
-                      <TableRow key={p.sku}>
-                        <TableCell className="font-mono text-xs">{p.sku}</TableCell>
-                        <TableCell className="font-medium">{p.nombre}</TableCell>
-                        <TableCell className="text-right font-mono">{p.stockActual}</TableCell>
-                        <TableCell className="text-right font-mono">{p.stockMinimo}</TableCell>
-                        <TableCell>
-                          <Badge variant={p.stockActual === 0 ? "destructive" : "secondary"}>
-                            {p.stockActual === 0 ? "Sin stock" : "Bajo mínimo"}
-                          </Badge>
-                        </TableCell>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-base">Publicaciones con más ventas</CardTitle>
+                  <CardDescription>Top 5 por unidades recibidas</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {data.topPublicaciones.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">Aún no hay ventas registradas</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead scope="col">Publicación</TableHead>
+                          <TableHead scope="col" className="text-right">Vendidas</TableHead>
+                          <TableHead scope="col" className="text-right">Venta</TableHead>
+                          <TableHead scope="col" className="text-right">Stock</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data.topPublicaciones.map((fila) => (
+                          <TableRow key={fila.publicacionId ?? fila.titulo}>
+                            <TableCell className="font-medium">{fila.titulo}</TableCell>
+                            <TableCell className="text-right font-mono">{fila.unidades}</TableCell>
+                            <TableCell className="text-right font-mono">{formatCLP(fila.ventas)}</TableCell>
+                            <TableCell className="text-right font-mono">{fila.stock}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Vendedores</CardTitle>
+                  <CardDescription>Mayor venta completada</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {data.topVendedores.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">Sin ventas por ahora</p>
+                  ) : (
+                    data.topVendedores.map((fila) => (
+                      <div key={fila.id} className="flex items-center justify-between gap-3 border-b pb-2 last:border-0 last:pb-0">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{fila.nombre}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {fila.publicaciones} publicación{fila.publicaciones === 1 ? "" : "es"}
+                          </p>
+                        </div>
+                        <span className="shrink-0 font-mono text-sm">{formatCLP(fila.ventas)}</span>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <EstadoCard titulo="Publicaciones" filas={data.publicacionesPorEstado} />
+              <EstadoCard titulo="Órdenes" filas={data.ordenesPorEstado} />
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Comunidad</CardTitle>
+                  <CardDescription>Cuentas registradas</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="text-sm text-muted-foreground">Total</span>
+                    <span className="font-mono text-sm font-medium">{kpis.usuarios}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="text-sm text-muted-foreground">Activas</span>
+                    <span className="font-mono text-sm font-medium">{kpis.usuariosActivos}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Nuevas (30 días)</span>
+                    <span className="font-mono text-sm font-medium">{kpis.usuariosNuevos}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="alertas" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  Publicaciones agotadas o bajo mínimo
+                </CardTitle>
+                <CardDescription>Reabastecer o pausar la publicación para evitar quiebres</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data.alertasStock.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">No hay publicaciones en estado crítico</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead scope="col">Publicación</TableHead>
+                        <TableHead scope="col">Vendedor</TableHead>
+                        <TableHead scope="col" className="text-right">Stock</TableHead>
+                        <TableHead scope="col" className="text-right">Mínimo</TableHead>
+                        <TableHead scope="col">Estado</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    </TableHeader>
+                    <TableBody>
+                      {data.alertasStock.map((fila) => (
+                        <TableRow key={fila.id}>
+                          <TableCell className="font-medium">{fila.titulo}</TableCell>
+                          <TableCell className="text-muted-foreground">{fila.vendedor}</TableCell>
+                          <TableCell className="text-right font-mono">{fila.stock}</TableCell>
+                          <TableCell className="text-right font-mono">{fila.stockMinimo}</TableCell>
+                          <TableCell>
+                            <Badge variant={fila.stock === 0 ? "destructive" : "secondary"}>
+                              {fila.stock === 0 ? "Sin stock" : "Bajo mínimo"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        <TabsContent value="actividad">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Movimientos recientes
-              </CardTitle>
-              <CardDescription>Últimos 10 movimientos registrados</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {movements.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">Sin movimientos registrados</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Producto</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead className="text-right">Cantidad</TableHead>
-                      <TableHead>Usuario</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {movements.slice(0, 10).map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {new Date(m.fecha).toLocaleString("es-CL")}
-                        </TableCell>
-                        <TableCell className="font-medium">{m.nombreProducto}</TableCell>
-                        <TableCell>
-                          <Badge variant={m.tipo === "entrada" ? "default" : "secondary"} className="gap-1">
-                            {m.tipo === "entrada" ? (
-                              <PackagePlus className="h-3 w-3" />
-                            ) : (
-                              <PackageMinus className="h-3 w-3" />
-                            )}
-                            {m.tipo}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono">{m.cantidad}</TableCell>
-                        <TableCell className="capitalize text-muted-foreground">{m.usuario}</TableCell>
+          <TabsContent value="actividad" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  Órdenes recientes
+                </CardTitle>
+                <CardDescription>Últimas 8 órdenes del marketplace</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data.ordenesRecientes.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">Sin órdenes registradas</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead scope="col">Fecha</TableHead>
+                        <TableHead scope="col">Publicación</TableHead>
+                        <TableHead scope="col">Comprador</TableHead>
+                        <TableHead scope="col">Vendedor</TableHead>
+                        <TableHead scope="col" className="text-right">Total</TableHead>
+                        <TableHead scope="col">Estado</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                    </TableHeader>
+                    <TableBody>
+                      {data.ordenesRecientes.map((orden) => (
+                        <TableRow key={orden.id}>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {formatDateTime(orden.fechaCreacion)}
+                          </TableCell>
+                          <TableCell className="font-medium">{orden.tituloSnapshot}</TableCell>
+                          <TableCell className="text-muted-foreground">{orden.comprador}</TableCell>
+                          <TableCell className="text-muted-foreground">{orden.vendedor}</TableCell>
+                          <TableCell className="text-right font-mono">{formatCLP(orden.total)}</TableCell>
+                          <TableCell>
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
+                                ESTADO_ORDEN_BADGE[orden.estado],
+                              )}
+                            >
+                              {ESTADO_ORDEN_LABEL[orden.estado]}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Movimientos de inventario</CardTitle>
+                <CardDescription>Entradas, salidas y ajustes registrados por el equipo</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {data.movimientos.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">Sin movimientos registrados</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead scope="col">Fecha</TableHead>
+                        <TableHead scope="col">Publicación</TableHead>
+                        <TableHead scope="col">Tipo</TableHead>
+                        <TableHead scope="col" className="text-right">Cantidad</TableHead>
+                        <TableHead scope="col">Motivo</TableHead>
+                        <TableHead scope="col">Registrado por</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.movimientos.map((movimiento) => (
+                        <TableRow key={movimiento.id}>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {formatDateTime(movimiento.fechaCreacion)}
+                          </TableCell>
+                          <TableCell className="font-medium">{movimiento.titulo}</TableCell>
+                          <TableCell>
+                            <Badge variant={movimiento.tipo === "entrada" ? "default" : "secondary"} className="gap-1">
+                              {movimiento.tipo === "entrada" ? (
+                                <PackagePlus className="h-3 w-3" />
+                              ) : (
+                                <PackageMinus className="h-3 w-3" />
+                              )}
+                              {movimiento.tipo}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-mono">{movimiento.cantidad}</TableCell>
+                          <TableCell className="text-muted-foreground">{movimiento.motivo ?? "—"}</TableCell>
+                          <TableCell className="text-muted-foreground">{movimiento.usuario}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      )}
     </main>
+  )
+}
+
+function EstadoCard({ titulo, filas }: { titulo: string; filas: Record<string, number> }) {
+  const entradas = Object.entries(filas).sort((a, b) => b[1] - a[1])
+  const total = entradas.reduce((suma, [, valor]) => suma + valor, 0)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{titulo}</CardTitle>
+        <CardDescription>{total} en total</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {entradas.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">Sin datos</p>
+        ) : (
+          entradas.map(([estado, total]) => {
+            const porcentaje = total === 0 ? 0 : (total / Math.max(...entradas.map(([, v]) => v))) * 100
+            const etiqueta =
+              estado in ESTADO_PUBLICACION_LABEL
+                ? ESTADO_PUBLICACION_LABEL[estado as EstadoPublicacion]
+                : ESTADO_ORDEN_LABEL[estado as EstadoOrden]
+            return (
+              <div key={estado} className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span>{etiqueta}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{total}</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${porcentaje}%` }} />
+                </div>
+              </div>
+            )
+          })
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -291,56 +480,16 @@ function KpiCard({
       </CardHeader>
       <CardContent>
         <div
-          className={
-            tone === "positive"
-              ? "text-2xl font-semibold text-emerald-600"
-              : tone === "warning"
-                ? "text-2xl font-semibold text-amber-600"
-                : "text-2xl font-semibold"
-          }
+          className={cn(
+            "text-2xl font-semibold",
+            tone === "positive" && "text-emerald-600",
+            tone === "warning" && "text-amber-600",
+          )}
         >
           {value}
         </div>
         <p className="text-xs text-muted-foreground">{hint}</p>
       </CardContent>
     </Card>
-  )
-}
-
-function TopProductsTable() {
-  const products = useInventoryStore((s) => s.products)
-  const movements = useInventoryStore((s) => s.movements)
-
-  const top = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const m of movements) counts.set(m.sku, (counts.get(m.sku) ?? 0) + m.cantidad)
-    return [...products]
-      .sort((a, b) => (counts.get(b.sku) ?? 0) - (counts.get(a.sku) ?? 0))
-      .slice(0, 5)
-      .map((p) => ({ ...p, total: counts.get(p.sku) ?? 0 }))
-  }, [products, movements])
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Producto</TableHead>
-          <TableHead className="text-right">Stock actual</TableHead>
-          <TableHead className="text-right">Movimientos</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {top.map((p) => (
-          <TableRow key={p.sku}>
-            <TableCell>
-              <div className="font-medium">{p.nombre}</div>
-              <div className="font-mono text-xs text-muted-foreground">{p.sku}</div>
-            </TableCell>
-            <TableCell className="text-right font-mono">{p.stockActual}</TableCell>
-            <TableCell className="text-right font-mono">{p.total}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
   )
 }

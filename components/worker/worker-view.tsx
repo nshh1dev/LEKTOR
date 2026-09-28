@@ -1,258 +1,369 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
+import Link from "next/link"
 import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
-  Boxes,
-  ChevronRight,
-  HardHat,
-  LogOut,
-  Moon,
-  ScanLine,
-  Sun,
+  AlertTriangle,
+  ClipboardList,
+  LoaderCircle,
+  PackageCheck,
+  RefreshCw,
+  Search,
+  Truck,
 } from "lucide-react"
-import { useTheme } from "next-themes"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { useInventoryStore } from "@/lib/store"
-import { ScanSheet } from "@/components/worker/scan-sheet"
-import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { avisar } from "@/components/notificacion/avisar"
+import { mensajeDeFallo } from "@/lib/avisos"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { StockMovementDialog, type PublicacionMovible } from "@/components/panel/stock-movement-dialog"
+import type { EstadoOrden, MetodoEntrega } from "@/lib/catalog"
+import {
+  ESTADO_ORDEN_BADGE,
+  ESTADO_ORDEN_LABEL,
+  formatCLP,
+  formatDateTime,
+  METODO_ENTREGA_LABEL,
+  ordenCode,
+  tiempoRestante,
+} from "@/lib/format"
+import { panelEnviar, usePanelQuery } from "@/lib/panel-client"
+
+type OrdenBodega = {
+  id: string
+  publicacionId: string | null
+  tituloSnapshot: string
+  cantidad: number
+  total: number
+  estado: EstadoOrden
+  reservaExpiraEn: string | null
+  fechaCreacion: string
+  datosDespacho: { metodoEntrega: MetodoEntrega } | null
+  comprador: { id: string; nombre: string; telefono: string | null; comuna: string | null }
+  vendedor: { id: string; nombre: string; telefono: string | null; comuna: string | null }
+}
+
+type RespuestaOrdenes = {
+  ordenes: OrdenBodega[]
+  estados: Record<string, number>
+  paginacion: { pagina: number; porPagina: number; total: number; paginas: number }
+}
+
+type PublicacionBodega = {
+  id: string
+  titulo: string
+  stock: number
+  stockMinimo: number
+  estado: "activa" | "pausada" | "agotada"
+  vendedorNombre: string
+}
+
+type RespuestaPublicaciones = { publicaciones: PublicacionBodega[] }
+
+const PESTANAS: { valor: string; etiqueta: string }[] = [
+  { valor: "reservada", etiqueta: "Por preparar" },
+  { valor: "en_preparacion", etiqueta: "En preparación" },
+  { valor: "despachada", etiqueta: "Despachadas" },
+  { valor: "todas", etiqueta: "Todas" },
+]
 
 export function WorkerView() {
-  const router = useRouter()
-  const role = useInventoryStore((s) => s.role)
-  const email = useInventoryStore((s) => s.email)
-  const movements = useInventoryStore((s) => s.movements)
-  const products = useInventoryStore((s) => s.products)
-  const logout = useInventoryStore((s) => s.logout)
-  const [hydrated, setHydrated] = useState(false)
-  const [scanOpen, setScanOpen] = useState(false)
+  const [pestana, setPestana] = useState("reservada")
+  const [busqueda, setBusqueda] = useState("")
+  const [consulta, setConsulta] = useState("")
+  const [procesando, setProcesando] = useState<string | null>(null)
+  const [movimiento, setMovimiento] = useState<PublicacionMovible | null>(null)
 
-  useEffect(() => setHydrated(true), [])
-  useEffect(() => {
-    if (hydrated && role !== "worker") router.replace("/")
-  }, [role, router, hydrated])
-
-  const recent = useMemo(() => movements.slice(0, 5), [movements])
-  const lowStockCount = useMemo(
-    () => products.filter((p) => p.stockActual <= p.stockMinimo).length,
-    [products],
+  const url = `/api/panel/ordenes?estado=${pestana}&porPagina=25${
+    consulta ? `&q=${encodeURIComponent(consulta)}` : ""
+  }`
+  const { data, cargando, error, recargar } = usePanelQuery<RespuestaOrdenes>(url)
+  const criticos = usePanelQuery<RespuestaPublicaciones>(
+    "/api/panel/publicaciones?orden=stock&porPagina=8&estado=todas&bajoMinimo=true",
   )
 
-  if (!hydrated || role !== "worker") {
-    return (
-      <div className="flex min-h-svh items-center justify-center">
-        <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
-      </div>
-    )
+  const transicionar = async (orden: OrdenBodega, estado: EstadoOrden) => {
+    setProcesando(orden.id)
+    const codigo = ordenCode(orden.id)
+    try {
+      await panelEnviar(`/api/orders/${orden.id}`, "PATCH", { estado })
+      avisar.ok({
+        titulo: "Orden actualizada",
+        descripcion: `${codigo} pasó a ${ESTADO_ORDEN_LABEL[estado].toLowerCase()}.`,
+        referencia: orden.tituloSnapshot,
+      })
+      recargar()
+    } catch (fallo) {
+      avisar.falla({
+        titulo: "No se pudo actualizar la orden",
+        descripcion: mensajeDeFallo(fallo, "La orden sigue en el estado anterior."),
+        referencia: codigo,
+      })
+    } finally {
+      setProcesando(null)
+    }
   }
 
+  // El servidor ya filtra por bajoMinimo (stock > 0 y <= stockMinimo), así que la
+  // paginación ya no se come con las publicaciones agotadas.
+  const criticosBajo = criticos.data?.publicaciones ?? []
+
   return (
-    <main className="min-h-svh bg-muted/30 pb-32">
-      <div className="mx-auto flex w-full max-w-[500px] flex-col">
-        {/* Top bar */}
-        <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <div className="flex items-center gap-3 px-4 py-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Boxes className="h-5 w-5" />
-            </div>
-            <div className="flex-1 leading-tight">
-              <p className="text-sm font-semibold">Bodega El Teniente</p>
-              <p className="text-xs text-muted-foreground">Panel de bodeguero</p>
-            </div>
-            <ThemeToggle />
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Cerrar sesión"
-              onClick={() => {
-                logout()
-                router.push("/")
-              }}
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </header>
+    <main className="flex-1 space-y-6 p-4 md:p-6">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Bodega</h1>
+        <p className="text-sm text-muted-foreground">
+          Prepara y despacha las órdenes reservadas, y controla el stock de los ejemplares
+        </p>
+      </header>
 
-        <div className="flex flex-col gap-5 p-4">
-          {/* Greeting card */}
-          <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-primary/5 via-card to-card">
-            <CardContent className="flex items-center gap-4 p-5">
-              <Avatar className="h-12 w-12 rounded-md">
-                <AvatarFallback className="rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-500">
-                  <HardHat className="h-6 w-6" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">Sesión activa</p>
-                <p className="truncate text-base font-semibold">Bodeguero</p>
-                <p className="truncate text-xs text-muted-foreground">{email}</p>
-              </div>
-              <Badge variant="secondary" className="rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
-                <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                En línea
-              </Badge>
-            </CardContent>
-          </Card>
-
-          {/* Quick stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <MiniStat label="Productos" value={products.length} />
-            <MiniStat
-              label="Stock bajo"
-              value={lowStockCount}
-              tone={lowStockCount > 0 ? "danger" : "default"}
-            />
-          </div>
-
-          {/* Primary action */}
-          <button
-            onClick={() => setScanOpen(true)}
-            className="group relative flex items-center gap-4 overflow-hidden rounded-xl border bg-primary p-5 text-left text-primary-foreground shadow-md shadow-primary/20 transition-transform active:scale-[0.99]"
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex gap-2">
+          <Input
+            value={busqueda}
+            onChange={(evento) => setBusqueda(evento.target.value)}
+            onKeyDown={(evento) => {
+              if (evento.key === "Enter") setConsulta(busqueda.trim())
+            }}
+            placeholder="Buscar por título, comprador, vendedor u orden"
+            aria-label="Buscar órdenes por título, comprador, vendedor u orden"
+            className="md:w-80"
+          />
+          <Button
+            variant="outline"
+            onClick={() => setConsulta(busqueda.trim())}
+            disabled={busqueda.trim() === consulta}
           >
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary-foreground/15">
-              <ScanLine className="h-6 w-6" />
-            </span>
-            <div className="flex-1">
-              <p className="text-base font-semibold">Escanear producto</p>
-              <p className="text-xs text-primary-foreground/80">
-                Registrar entrada o salida en bodega
-              </p>
-            </div>
-            <ChevronRight className="h-5 w-5 opacity-70 transition-transform group-hover:translate-x-1" />
-          </button>
-
-          {/* Recent movements timeline */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Últimos movimientos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recent.length === 0 ? (
-                <Empty className="py-8">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <ScanLine className="h-5 w-5" />
-                    </EmptyMedia>
-                    <EmptyTitle className="text-sm">Aún no hay movimientos</EmptyTitle>
-                    <EmptyDescription className="text-xs">
-                      Escanea un producto para registrar tu primer movimiento.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                <ol className="relative space-y-4 border-l border-border pl-6">
-                  {recent.map((m) => (
-                    <li key={m.id} className="relative">
-                      <span
-                        className={cn(
-                          "absolute -left-[33px] top-0.5 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-background",
-                          m.tipo === "entrada"
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                            : "bg-amber-500/15 text-amber-700 dark:text-amber-500",
-                        )}
-                      >
-                        {m.tipo === "entrada" ? (
-                          <ArrowDownToLine className="h-3 w-3" />
-                        ) : (
-                          <ArrowUpFromLine className="h-3 w-3" />
-                        )}
-                      </span>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{m.nombreProducto}</p>
-                          <p className="text-xs text-muted-foreground">
-                            <span className="font-mono">{m.sku}</span> ·{" "}
-                            {new Date(m.fecha).toLocaleString("es-CL", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              day: "2-digit",
-                              month: "short",
-                            })}
-                          </p>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "shrink-0 tabular-nums",
-                            m.tipo === "entrada"
-                              ? "border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
-                              : "border-amber-500/30 text-amber-700 dark:text-amber-500",
-                          )}
-                        >
-                          {m.tipo === "entrada" ? "+" : "−"}
-                          {m.cantidad}
-                        </Badge>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </CardContent>
-          </Card>
+            <Search className="mr-2 h-4 w-4" />
+            Buscar
+          </Button>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/escaner">Escanear ISBN</Link>
+          </Button>
+          <Button variant="outline" onClick={recargar}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Actualizar
+          </Button>
         </div>
       </div>
 
-      {/* Floating action button (mobile-first) */}
-      <button
-        onClick={() => setScanOpen(true)}
-        className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 transition-transform hover:scale-105 active:scale-95 sm:hidden"
-        aria-label="Escanear producto"
-      >
-        <ScanLine className="h-6 w-6" />
-      </button>
+      <Tabs value={pestana} onValueChange={setPestana}>
+        <TabsList>
+          {PESTANAS.map((item) => (
+            <TabsTrigger key={item.valor} value={item.valor}>
+              {item.etiqueta}
+              {data?.estados[item.valor] ? (
+                <span className="ml-1.5 font-mono text-xs text-muted-foreground">
+                  {data.estados[item.valor]}
+                </span>
+              ) : null}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      <ScanSheet open={scanOpen} onOpenChange={setScanOpen} />
-    </main>
-  )
-}
+        {PESTANAS.map((item) => (
+          <TabsContent key={item.valor} value={item.valor} className="mt-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  {item.etiqueta}
+                </CardTitle>
+                <CardDescription>
+                  {cargando
+                    ? "Cargando órdenes…"
+                    : `${data?.paginacion.total ?? 0} orden(es) en esta bandeja`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {error && <p className="text-sm text-destructive">{error}</p>}
+                {cargando ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : (data?.ordenes.length ?? 0) === 0 ? (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    No hay órdenes en esta bandeja por ahora.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead scope="col">Orden</TableHead>
+                          <TableHead scope="col">Ejemplar</TableHead>
+                          <TableHead scope="col">Comprador</TableHead>
+                          <TableHead scope="col">Vendedor</TableHead>
+                          <TableHead scope="col" className="text-right">Total</TableHead>
+                          <TableHead scope="col">Entrega</TableHead>
+                          <TableHead scope="col">Estado</TableHead>
+                          <TableHead scope="col" className="text-right">Acción</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {data?.ordenes.map((orden) => (
+                          <TableRow key={orden.id}>
+                            <TableCell>
+                              <div className="font-mono text-xs">{ordenCode(orden.id)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatDateTime(orden.fechaCreacion)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">{orden.tituloSnapshot}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {orden.cantidad} unidad(es)
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div>{orden.comprador.nombre}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {orden.comprador.comuna ?? "Sin comuna"}
+                                {orden.comprador.telefono ? ` · ${orden.comprador.telefono}` : ""}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{orden.vendedor.nombre}</TableCell>
+                            <TableCell className="text-right font-mono">{formatCLP(orden.total)}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {orden.datosDespacho
+                                ? (METODO_ENTREGA_LABEL[orden.datosDespacho.metodoEntrega] ??
+                                  orden.datosDespacho.metodoEntrega)
+                                : "Sin método"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={ESTADO_ORDEN_BADGE[orden.estado] as "default" | "secondary"}>
+                                {ESTADO_ORDEN_LABEL[orden.estado]}
+                              </Badge>
+                              {orden.estado === "reservada" && orden.reservaExpiraEn && (
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  {tiempoRestante(orden.reservaExpiraEn)}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {orden.estado === "reservada" && (
+                                <Button
+                                  size="sm"
+                                  disabled={procesando === orden.id}
+                                  onClick={() => void transicionar(orden, "en_preparacion")}
+                                >
+                                  {procesando === orden.id ? (
+                                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <PackageCheck className="mr-2 h-4 w-4" />
+                                  )}
+                                  Preparar
+                                </Button>
+                              )}
+                              {orden.estado === "en_preparacion" && (
+                                <Button
+                                  size="sm"
+                                  disabled={procesando === orden.id}
+                                  onClick={() => void transicionar(orden, "despachada")}
+                                >
+                                  {procesando === orden.id ? (
+                                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Truck className="mr-2 h-4 w-4" />
+                                  )}
+                                  Despachar
+                                </Button>
+                              )}
+                              {(orden.estado === "despachada" || orden.estado === "recibida") && (
+                                <span className="text-xs text-muted-foreground">
+                                  {orden.estado === "despachada" ? "Esperando al comprador" : "Cerrada"}
+                                </span>
+                              )}
+                              {orden.estado === "cancelada" && (
+                                <span className="text-xs text-muted-foreground">Cancelada</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
+      </Tabs>
 
-function MiniStat({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string
-  value: number
-  tone?: "default" | "danger"
-}) {
-  return (
-    <Card className="border-border/60">
-      <CardContent className="flex flex-col gap-1 p-4">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span
-          className={cn(
-            "text-2xl font-semibold tabular-nums",
-            tone === "danger" && value > 0 && "text-red-600 dark:text-red-400",
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Stock crítico
+          </CardTitle>
+          <CardDescription>
+            Ejemplares en o por debajo del mínimo configurado por el vendedor
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {criticos.cargando ? (
+            <Skeleton className="h-20 w-full" />
+          ) : criticosBajo.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Ninguna publicación está bajo su mínimo de stock.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {criticosBajo.map((publicacion) => (
+                <li
+                  key={publicacion.id}
+                  className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <div className="font-medium">{publicacion.titulo}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {publicacion.vendedorNombre} · stock {publicacion.stock} / mín{" "}
+                      {publicacion.stockMinimo}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setMovimiento({
+                        id: publicacion.id,
+                        titulo: publicacion.titulo,
+                        stock: publicacion.stock,
+                      })
+                    }
+                  >
+                    Registrar movimiento
+                  </Button>
+                </li>
+              ))}
+            </ul>
           )}
-        >
-          {value}
-        </span>
-      </CardContent>
-    </Card>
-  )
-}
+        </CardContent>
+      </Card>
 
-function ThemeToggle() {
-  const { theme, setTheme, resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
-  if (!mounted) return <div className="h-9 w-9" />
-  const isDark = (theme === "system" ? resolvedTheme : theme) === "dark"
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label="Cambiar tema"
-      onClick={() => setTheme(isDark ? "light" : "dark")}
-    >
-      {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </Button>
+      <StockMovementDialog
+        publicacion={movimiento}
+        onCerrar={() => setMovimiento(null)}
+        onGuardado={() => {
+          setMovimiento(null)
+          criticos.recargar()
+        }}
+      />
+    </main>
   )
 }
