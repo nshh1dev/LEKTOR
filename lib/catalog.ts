@@ -653,4 +653,5 @@ export type SesionUsuario = {
   rol: "admin" | "lector"
   activo: boolean
   avatarUrl?: string | null
+  telefono?: string | null
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowLeft, KeyRound, LayoutDashboard, LoaderCircle, Tag, Trash2, UserPen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -67,6 +67,7 @@ export function PerfilView({
   const {
     register,
     handleSubmit,
+    control,
     setValue,
     reset,
     formState: { errors },
@@ -111,6 +112,8 @@ export function PerfilView({
   useEffect(() => {
     void cargarTodo()
   }, [cargarTodo, intento])
+
+  const telefonoActual = useWatch({ control, name: "telefono" })
 
   const guardarPerfil = handleSubmit(async (values) => {
     setGuardando(true)
@@ -359,7 +362,7 @@ export function PerfilView({
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="perfil-telefono">Teléfono de contacto</Label>
-          <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" inputMode="tel" placeholder="+56 9 1234 5678" {...register("telefono", { onChange: (event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: event.target.value.length > 0 }) })} />
+          <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" inputMode="tel" autoComplete="tel" placeholder="+56 9 1234 5678" className="font-mono" value={telefonoActual ?? ""} onChange={(event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: true })} />
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="perfil-comuna">Comuna</Label>

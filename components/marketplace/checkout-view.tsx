@@ -57,7 +57,7 @@ export function CheckoutView({
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
       nombreRecibe: usuario.nombre,
-      telefono: "",
+      telefono: usuario.telefono ? formatearTelefono(usuario.telefono) : "",
       metodoEntrega: "envio_domicilio",
       direccion: "",
       comuna: "",
@@ -67,6 +67,7 @@ export function CheckoutView({
   })
 
   const metodoEntrega = useWatch({ control, name: "metodoEntrega" })
+  const telefonoActual = useWatch({ control, name: "telefono" })
   const envio = metodoEntrega === "envio_domicilio" ? COSTO_ENVIO_DOMICILIO : 0
   const total = publicacion.precio + envio
   const [datosDespacho, setDatosDespacho] = useState<CheckoutFormValues | null>(null)
@@ -216,7 +217,7 @@ export function CheckoutView({
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="telefono">Teléfono</Label>
-                  <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="telefono" type="tel" inputMode="tel" placeholder="+56 9 1234 5678" {...register("telefono", { onChange: (event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: event.target.value.length > 0 }) })} />
+                  <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="telefono" type="tel" inputMode="tel" autoComplete="tel" placeholder="+56 9 1234 5678" className="font-mono" value={telefonoActual ?? ""} onChange={(event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: true })} />
                   <MensajeError campo="telefono" mensaje={errors.telefono?.message} />
                 </div>
               </div>

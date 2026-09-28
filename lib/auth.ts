@@ -9,7 +9,7 @@ import { sessions, users, type User } from "@/db/schema"
 export const SESSION_COOKIE = "lektor_session"
 export const SESSION_DURATION_MS = 1000 * 60 * 60 * 24
 
-export type SafeUser = Pick<User, "id" | "email" | "nombre" | "rol" | "activo" | "avatarUrl"> & {
+export type SafeUser = Pick<User, "id" | "email" | "nombre" | "rol" | "activo" | "avatarUrl" | "telefono"> & {
   ultimoAcceso: string | null
 }
 
@@ -21,6 +21,7 @@ export function toSafeUser(user: User): SafeUser {
     rol: user.rol,
     activo: user.activo,
     avatarUrl: user.avatarUrl,
+    telefono: user.telefono,
     ultimoAcceso: user.ultimoAcceso?.toISOString() ?? null,
   }
 }

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChatOrden } from "@/components/marketplace/chat-orden"
 import { type EstadoOrden, type OrdenUI } from "@/lib/catalog"
+import { formatearTelefono } from "@/lib/entrada"
 import { ESTADO_ORDEN_BADGE, ESTADO_ORDEN_LABEL, ESTADO_ORDEN_PASOS, METODO_ENTREGA_LABEL, formatCLP, formatDateTime, ordenCode, tiempoRestante } from "@/lib/format"
 
 function PasoOrden({ estado }: { estado: EstadoOrden }) {
@@ -85,7 +86,7 @@ export function TarjetaOrden({
           <div>
             <p className="text-xs text-muted-foreground">Recibe</p>
             <p className="font-medium">{orden.datosDespacho.nombreRecibe}</p>
-            <p className="text-xs text-muted-foreground">{orden.datosDespacho.telefono}</p>
+            <p className="text-xs text-muted-foreground">{formatearTelefono(orden.datosDespacho.telefono)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Total</p>

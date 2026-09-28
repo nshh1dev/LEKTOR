@@ -70,6 +70,7 @@ export function PublicarView({
       volumen: "",
       categoria: "Mangas",
       condicion: "Como nuevo",
+      precio: "",
       stock: 1,
       isbn: "",
       descripcion: "",
@@ -78,6 +79,7 @@ export function PublicarView({
   })
 
   const isbnActual = useWatch({ control, name: "isbn" })
+  const precioActual = useWatch({ control, name: "precio" })
 
   const valorFotos = useWatch({ control, name: "fotos" })
   const fotosActuales = useMemo(() => listaFotosAUrls(valorFotos ?? ""), [valorFotos])
@@ -403,12 +405,8 @@ export function PublicarView({
                   autoComplete="off"
                   placeholder="$15.000"
                   className="font-mono"
-                  {...register("precio", {
-                    onChange: (evento) =>
-                      setValue("precio", formatearPrecio(evento.target.value), {
-                        shouldValidate: evento.target.value.length > 0,
-                      }),
-                  })}
+                  value={precioActual ?? ""}
+                  onChange={(event) => setValue("precio", formatearPrecio(event.target.value), { shouldValidate: true })}
                 />
                 <MensajeError campo="precio" mensaje={errors.precio?.message} />
               </div>
