@@ -4,7 +4,7 @@
 
 Marketplace entre lectores para comprar y vender **mangas, cómics y libros físicos de segunda mano**.
 
-Proyecto de título desarrollado en conjunto. Aplicación web para conectar vendedores y compradores de libros usados, con módulos de gestión de inventario, usuarios y reportes.
+Proyecto de título de desarrollo individual. Aplicación web para conectar vendedores y compradores de libros usados, con módulos de gestión de inventario, usuarios y reportes.
 
 > **Alcance:** es un proyecto académico, no un servicio en producción. No hay despliegue,
 > ni dominio, ni operación continua: se demuestra en desarrollo (`pnpm dev`) y con
@@ -229,9 +229,10 @@ LEKTOR/
 - Cabeceras `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`
   y `Cache-Control: no-store` en las APIs; el panel y la bodega se marcan `noindex`.
 
-## Trabajo en equipo (Git)
+## Trabajo con Git
 
-Trabajamos todos sobre la rama `main`. Para coordinar los cambios sin romperse entre sí:
+El proyecto se desarrolla en la rama `main`, committing con frecuencia para que el historial cuente
+qué se hizo y cuándo:
 
 1. **Clonar** el repo (una sola vez):
 
@@ -245,7 +246,9 @@ Trabajamos todos sobre la rama `main`. Para coordinar los cambios sin romperse e
    git pull
    ```
 
-3. **Mientras trabajas**, no edites el mismo archivo que otro miembro al mismo tiempo. Si ambos tocan el mismo archivo en paralelo, el segundo que suba tendrá un conflicto.
+3. **Mientras trabajas**, commitea a menudo y con un mensaje que describa el cambio, no un
+   `wip`. Si un cambio queda a medias, haz un commit aunque no compile todavía: así puedes volver
+   atrás con `git reset` sin perder lo demás.
 
 4. **Al terminar**, sube tus cambios:
 

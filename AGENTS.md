@@ -4,7 +4,7 @@ Guía de convenciones para asistentes de IA que trabajen en este repositorio.
 
 ## Proyecto
 
-LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y libros físicos de segunda mano. Es un proyecto de título desarrollado en conjunto por un equipo.
+LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y libros físicos de segunda mano. Es un proyecto de título de desarrollo individual.
 
 ## Stack
 
@@ -18,7 +18,7 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 ## Estructura de datos
 
 - `db/schema.ts` es la única fuente de verdad del esquema. Tras cambiarlo se ejecuta `pnpm db:generate` y se revisa la migración en `drizzle/`.
-- `lib/` concentra el dominio: `auth.ts` (sesiones y roles), `catalog.ts` (constantes y esquemas Zod), `orders.ts` (máquina de estados de órdenes), `panel.ts` (consultas del panel), `isbn.ts`, `format.ts`, `pago.ts` (formato, Luhn y vigencia de tarjeta), `api.ts` (respuestas y errores HTTP), `rate-limit.ts` (límite de intentos por IP).
+- `lib/` concentra el dominio: `auth.ts` (sesiones y roles), `catalog.ts` (constantes, esquemas Zod y `TRANSICIONES_ORDEN`), `orders.ts` (operaciones de orden sobre la base), `panel.ts` (consultas del panel), `avisos.ts` (vocabulario de avisos), `isbn.ts`, `format.ts`, `pago.ts` (formato, Luhn y vigencia de tarjeta), `api.ts` (respuestas y errores HTTP), `rate-limit.ts` (límite de intentos por IP).
 - `scripts/seed.ts` es idempotente: debe poder ejecutarse varias veces sin duplicar datos.
 - Conexión por `DATABASE_URL` (ver `.env.example`).
 
@@ -38,8 +38,9 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - TypeScript estricto y tipado explícito donde aporte claridad.
 - Usar los componentes base de `components/ui` (shadcn/ui) y no reimplementarlos.
 - Colocar componentes por área:
-  - `components/marketplace/` — vistas del marketplace público (`catalog-view`, `detail-view`, `sell-view`, `checkout-view`, `pago-view`, `profile-view`, `auth-view`, `order-card`, `product-card`, `hero`) más `types.ts`, `api.ts` y `shared.tsx`. El shell que las coordina sigue en `components/lektor-marketplace.tsx`.
+  - `components/marketplace/` — vistas del marketplace público (`catalog-view`, `detail-view`, `sell-view`, `checkout-view`, `pago-view`, `profile-view`, `auth-view`, `order-card`, `product-card`, `filter-index`, `hero`) más `types.ts`, `api.ts` y `shared.tsx`. El shell que las coordina sigue en `components/lektor-marketplace.tsx`.
   - `components/notificacion/` — sistema único de avisos: `avisar.tsx` (toasts), `avisos.tsx` (bloques en línea y lista de datos faltantes), `sello.tsx` (sello estampado), `toaster.tsx` y `confirmar-accion.tsx`.
+  - `components/escaner-isbn.tsx` — lector de ISBN por cámara, compartido por `sell-view` y el escáner del panel.
   - `components/admin/` — shell del panel.
   - `components/panel/` — vistas del panel principal.
   - `components/worker/` — vistas del trabajador.
@@ -68,6 +69,9 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   - `app/(panel)/` — área principal autenticada (dashboard, escaner, productos, reportes, usuarios).
   - `app/admin/` — entrada del panel de administración.
   - `app/worker/` — vista de bodega.
+  - `app/loading.tsx`, `app/error.tsx`, `app/not-found.tsx` y `app/robots.ts` — estados globales de la App
+    Router. Las rutas del panel y la bodega agregan su propio `loading.tsx` con
+    `components/panel/route-loading.tsx`.
 
 ## Flujo de trabajo
 
@@ -101,6 +105,8 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   tiene que seguir apareciendo **contigua en el código**, no partida por un salto de línea de JSX.
 - Seguir el estilo y patrones ya existentes en el proyecto.
 - Los commits deben ser descriptivos y en español.
+- `.gitattributes` fija LF en todo el repositorio y Git normaliza al commitear: da igual si el editor
+  guarda en CRLF, no hay que convertir archivos a mano.
 
 ## Nota
 

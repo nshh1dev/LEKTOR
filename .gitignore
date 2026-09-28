@@ -31,3 +31,9 @@ next-env.d.ts
 # Scratch de depuración (no trackear)
 scripts/tmp-*.ts
 scripts/scratch-*.ts
+
+# Herramientas de asistencia con IA: son de terceros y no son parte del
+# proyecto, así que viven solo en la máquina de quien las usa.
+.agents/
+opencode.json
+skills-lock.json
