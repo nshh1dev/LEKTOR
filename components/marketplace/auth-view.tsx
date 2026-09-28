@@ -39,6 +39,20 @@ const ANCLAS: Record<string, string> = {
   confirmarPassword: "auth-confirmar",
 }
 
+/**
+ * Atajos para la demostración: rellenan el formulario con las cuentas que crea
+ * `pnpm db:seed` y dejan que la persona pulse «Entrar» por su cuenta. Se borran
+ * borrando este bloque y `MOSTRAR_DEMO`; con el gate de NODE_ENV tampoco aparecen
+ * en un build de producción.
+ */
+const CUENTAS_DEMO = [
+  { etiqueta: "Lector", email: "nico@lektor.cl", password: "123456" },
+  { etiqueta: "Vendedor", email: "otaku@lektor.cl", password: "otaku123" },
+  { etiqueta: "Bodega", email: "worker@lektor.cl", password: "worker123" },
+  { etiqueta: "Admin", email: "admin@lektor.cl", password: "admin123" },
+]
+const MOSTRAR_DEMO = process.env.NODE_ENV !== "production"
+
 export function AuthView({
   onSuccess,
   onVolver,
@@ -285,6 +299,40 @@ export function AuthView({
               <Aviso tono="falla" titulo={rechazo} className="mt-1" />
             ) : null}
           </form>
+          {modo === "login" && MOSTRAR_DEMO && (
+            <div
+              role="group"
+              aria-label="Cuentas de demostración"
+              className="mt-6 flex flex-col gap-2 border-t border-border/60 pt-5"
+            >
+              <p className="rotulo text-muted-foreground">Accesos rápidos</p>
+              <div className="grid grid-cols-2 gap-2">
+                {CUENTAS_DEMO.map((cuenta) => (
+                  <Button
+                    key={cuenta.email}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => {
+                      setEmail(cuenta.email)
+                      setPassword(cuenta.password)
+                      setRechazo(null)
+                      avisar.dato({
+                        titulo: "Formulario listo",
+                        descripcion: `Pulsa Entrar para iniciar sesión como ${cuenta.etiqueta.toLowerCase()}.`,
+                      })
+                    }}
+                  >
+                    {cuenta.etiqueta}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Cuentas de la demostración: rellenan el formulario, tú decides cuándo entrar.
+              </p>
+            </div>
+          )}
           <Button variant="ghost" className="mt-4 w-full" onClick={onVolver}>
             Volver al catálogo
           </Button>

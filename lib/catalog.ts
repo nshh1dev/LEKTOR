@@ -321,6 +321,15 @@ export const passwordChangeSchema = z
   })
 
 export const ROLES_USUARIO = ["admin", "worker", "lector"] as const
+export const ROLES_STAFF = ["admin", "worker"] as const
+export type RolUsuario = (typeof ROLES_USUARIO)[number]
+
+/** Admin y bodeguero: los únicos que pueden entrar al panel. Vive aquí y no en
+ * `lib/panel.ts` porque la UI del marketplace también necesita saberlo. Acepta
+ * `string` porque el rol sale de un `varchar` y la base ya lo acota. */
+export function esStaff(rol: string): boolean {
+  return (ROLES_STAFF as readonly string[]).includes(rol)
+}
 export const ESTADOS_FILTRO = ["todas", ...ESTADOS_PUBLICACION] as const
 export const ESTADOS_ORDEN_FILTRO = ["todas", ...ESTADOS_ORDEN] as const
 export const TIPOS_MOVIMIENTO_UI = ["entrada", "salida", "ajuste"] as const
@@ -413,7 +422,6 @@ export type PanelOrdenesQuery = z.infer<typeof panelOrdenesQuerySchema>
 export type PanelMovimientosQuery = z.infer<typeof panelMovimientosQuerySchema>
 export type PanelReportesQuery = z.infer<typeof panelReportesQuerySchema>
 export type PanelMovimientoInput = z.infer<typeof panelMovimientoSchema>
-export type RolUsuario = (typeof ROLES_USUARIO)[number]
 
 export function envioSegunMetodo(metodo: MetodoEntrega): number {
   return metodo === "envio_domicilio" ? COSTO_ENVIO_DOMICILIO : 0

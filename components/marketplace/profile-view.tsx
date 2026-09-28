@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowLeft, KeyRound, LoaderCircle, Tag, Trash2, UserPen } from "lucide-react"
+import { ArrowLeft, KeyRound, LayoutDashboard, LoaderCircle, Tag, Trash2, UserPen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
@@ -16,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { avisar } from "@/components/notificacion/avisar"
 import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
 import { mensajeDeFallo } from "@/lib/avisos"
-import { REGIONES, perfilFormSchema, type EstadoOrden, type NotificacionUI, type OrdenUI, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
+import { REGIONES, esStaff, perfilFormSchema, type EstadoOrden, type NotificacionUI, type OrdenUI, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
 import { ESTADO_ORDEN_LABEL, ESTADO_PUBLICACION_LABEL, formatCLP, formatDate, formatDateTime } from "@/lib/format"
 import { normalizarFila, MensajeError } from "@/components/marketplace/shared"
 import { api } from "@/components/marketplace/api"
@@ -331,6 +332,13 @@ export function PerfilView({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {esStaff(usuario.rol) && (
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={usuario.rol === "worker" ? "/worker" : "/admin"}>
+                  <LayoutDashboard data-icon="inline-start" /> Ir al panel
+                </Link>
+              </Button>
+            )}
             <Button variant="secondary" size="sm" onClick={onNuevaPublicacion}>
               <Tag data-icon="inline-start" /> Publicar
             </Button>

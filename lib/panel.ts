@@ -6,7 +6,7 @@ import { redirect } from "next/navigation"
 import { db } from "@/db"
 import { bookMetadata, orders, publications, stockMovements, users } from "@/db/schema"
 import { ApiError, getSession, requireSession, type SafeUser } from "@/lib/auth"
-import { RESERVA_HORAS, estadoSegunStock } from "@/lib/catalog"
+import { RESERVA_HORAS, esStaff, estadoSegunStock } from "@/lib/catalog"
 import type {
   PanelMovimientoInput,
   PanelMovimientosQuery,
@@ -19,18 +19,12 @@ import type {
 import { claveDiaSantiago } from "@/lib/format"
 import { diaLocal, inicioDiaSantiago } from "@/lib/panel-sql"
 
-const ROLES_STAFF = ["admin", "worker"] as const
-
 const compradorAlias = alias(users, "panel_comprador")
 const vendedorAlias = alias(users, "panel_vendedor")
 
-export function esStaff(user: Pick<SafeUser, "rol">): boolean {
-  return (ROLES_STAFF as readonly string[]).includes(user.rol)
-}
-
 export async function requirePanelUser(): Promise<SafeUser> {
   const user = await requireSession()
-  if (!esStaff(user)) {
+  if (!esStaff(user.rol)) {
     throw new ApiError(403, "forbidden", "Necesitas una cuenta del equipo de LEKTOR")
   }
   return user
@@ -46,7 +40,7 @@ export async function requireAdminUser(): Promise<SafeUser> {
 
 export async function panelPageUser(): Promise<SafeUser> {
   const user = await getSession()
-  if (!user || !esStaff(user)) redirect("/")
+  if (!user || !esStaff(user.rol)) redirect("/")
   return user
 }
 

@@ -1,15 +1,16 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 import { useTheme } from "next-themes"
-import { LogIn, Moon, Search, Sun, Tag, UserCircle } from "lucide-react"
+import { LayoutDashboard, LogIn, Moon, Search, Sun, Tag, UserCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { avisar } from "@/components/notificacion/avisar"
 import { Sello } from "@/components/notificacion/sello"
 import { mensajeDeFallo } from "@/lib/avisos"
-import { type Categoria, type Condicion, type Facetas, type OrdenUI, type Paginacion, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
+import { esStaff, type Categoria, type Condicion, type Facetas, type OrdenUI, type Paginacion, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
 import { normalizarFila } from "@/components/marketplace/shared"
 import { api } from "@/components/marketplace/api"
 import { type Vista, type OrdenCatalogo } from "@/components/marketplace/types"
@@ -294,6 +295,17 @@ export function LektorMarketplace({
               {mounted && resolvedTheme === "dark" ? <Sun /> : <Moon />}
             </Button>
             <div className="hidden items-center gap-2 md:flex">
+              {usuario && esStaff(usuario.rol) && (
+                <Button
+                  variant="ghost"
+                  className="rounded-full text-muted-foreground hover:text-foreground"
+                  asChild
+                >
+                  <Link href={usuario.rol === "worker" ? "/worker" : "/admin"}>
+                    <LayoutDashboard data-icon="inline-start" /> Panel
+                  </Link>
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 className="rounded-full text-muted-foreground hover:text-foreground"
