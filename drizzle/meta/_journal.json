@@ -29,6 +29,13 @@
       "when": 1790356189337,
       "tag": "0003_spicy_zodiak",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790566371259,
+      "tag": "0004_little_bloodaxe",
+      "breakpoints": true
     }
   ]
 }

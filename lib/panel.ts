@@ -55,7 +55,7 @@ export function toSesionUsuario(user: SafeUser): SesionUsuario {
     id: user.id,
     email: user.email,
     nombre: user.nombre,
-    rol: user.rol === "admin" ? "admin" : user.rol === "worker" ? "worker" : "lector",
+    rol: user.rol === "admin" ? "admin" : "lector",
     activo: user.activo,
     avatarUrl: user.avatarUrl,
   }
@@ -89,8 +89,8 @@ export async function resumenPanel() {
     [{ recibidas = 0 } = { recibidas: 0 }],
     estadosPublicacion,
     estadosOrden,
-    [stock = { unidades: 0, bajoMinimo: 0, agotadas: 0 }] = [
-      { unidades: 0, bajoMinimo: 0, agotadas: 0 },
+    [stock = { unidades: 0, agotadas: 0 }] = [
+      { unidades: 0, agotadas: 0 },
     ],
   ] = await Promise.all([
     db.select({ totalUsuarios: sql<number>`count(*)::int` }).from(users),
@@ -137,7 +137,6 @@ export async function resumenPanel() {
     db
       .select({
         unidades: sql<number>`coalesce(sum(${publications.stock}), 0)::int`,
-        bajoMinimo: sql<number>`count(*) filter (where ${publications.stockMinimo} > 0 and ${publications.stock} <= ${publications.stockMinimo})::int`,
         agotadas: sql<number>`count(*) filter (where ${publications.stock} = 0)::int`,
       })
       .from(publications),
@@ -202,15 +201,12 @@ export async function resumenPanel() {
         id: publications.id,
         titulo: publications.titulo,
         stock: publications.stock,
-        stockMinimo: publications.stockMinimo,
         estado: publications.estado,
         vendedor: users.nombre,
       })
       .from(publications)
       .innerJoin(users, eq(publications.vendedorId, users.id))
-      .where(
-        sql`(${publications.stock} = 0) or (${publications.stockMinimo} > 0 and ${publications.stock} <= ${publications.stockMinimo})`,
-      )
+      .where(sql`${publications.stock} = 0`)
       .orderBy(asc(publications.stock), desc(publications.fechaPublicacion))
       .limit(8),
   ])
@@ -222,7 +218,6 @@ export async function resumenPanel() {
     kpis: {
       publicaciones: totalPublicaciones,
       unidades: stock.unidades,
-      bajoMinimo: stock.bajoMinimo,
       agotadas: stock.agotadas,
       ordenes: totalOrdenes,
       ordenesHoy: hoy,
@@ -274,11 +269,6 @@ export async function publicacionesPanel(filtros: PanelPublicacionesQuery) {
   if (filtros.estado !== "todas") condiciones.push(eq(publications.estado, filtros.estado))
   if (filtros.categoria !== "todas") condiciones.push(eq(publications.categoria, filtros.categoria))
   if (filtros.vendedorId) condiciones.push(eq(publications.vendedorId, filtros.vendedorId))
-  if (filtros.bajoMinimo) {
-    condiciones.push(
-      sql`${publications.stock} > 0 and ${publications.stock} <= ${publications.stockMinimo}`,
-    )
-  }
 
   const where = condiciones.length > 0 ? and(...condiciones) : undefined
 
@@ -294,7 +284,6 @@ export async function publicacionesPanel(filtros: PanelPublicacionesQuery) {
         condicion: publications.condicion,
         precio: publications.precio,
         stock: publications.stock,
-        stockMinimo: publications.stockMinimo,
         isbn: publications.isbn,
         estado: publications.estado,
         fechaPublicacion: publications.fechaPublicacion,
@@ -685,7 +674,7 @@ export async function registrarMovimiento(usuario: SafeUser, input: PanelMovimie
 
 export async function actualizarUsuarioPanel(
   actor: SafeUser,
-  cambios: { id: string; rol?: "admin" | "worker" | "lector"; activo?: boolean },
+  cambios: { id: string; rol?: "admin" | "lector"; activo?: boolean },
 ) {
   return db.transaction(async (tx) => {
     const bloqueado = await tx.execute<{ id: string; rol: string; activo: boolean }>(
@@ -698,7 +687,7 @@ export async function actualizarUsuarioPanel(
       throw new ApiError(400, "mismo-usuario", "No puedes cambiar tu propio rol ni desactivar tu cuenta")
     }
 
-    const rolFinal = cambios.rol ?? (objetivo.rol as "admin" | "worker" | "lector")
+    const rolFinal = cambios.rol ?? (objetivo.rol as "admin" | "lector")
     const activoFinal = cambios.activo ?? objetivo.activo
     const degradaAdmin = objetivo.rol === "admin" && objetivo.activo && (rolFinal !== "admin" || !activoFinal)
 
@@ -747,7 +736,6 @@ export async function buscarPorIsbn(isbn: string) {
       editorial: publications.editorial,
       precio: publications.precio,
       stock: publications.stock,
-      stockMinimo: publications.stockMinimo,
       estado: publications.estado,
       vendedor: users.nombre,
       movimientos: sql<number>`(select count(*) from stock_movements m where m.publicacion_id = publications.id)::int`,

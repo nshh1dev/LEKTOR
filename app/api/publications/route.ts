@@ -184,7 +184,6 @@ export async function POST(request: Request) {
         condicion: data.condicion,
         precio: data.precio,
         stock: data.stock,
-        stockMinimo: data.stockMinimo,
         isbn: data.isbn ? normalizeIsbn(data.isbn) : null,
         descripcion: data.descripcion || null,
         fotos: data.fotos ?? [],

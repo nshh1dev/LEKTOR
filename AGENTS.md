@@ -24,9 +24,10 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 
 ## Roles y acceso
 
-- Un único campo `users.rol` con `admin`, `worker` o `lector`. Es vendedor quien tenga publicaciones; no hay campo de rol separado.
+- Un único campo `users.rol` con `admin` o `lector`. Es vendedor quien tenga publicaciones; no hay campo de rol separado.
 - Las páginas del panel se protegen en el servidor con `panelPageUser()` de `lib/panel.ts`; las APIs usan `requirePanelUser()` o `requireAdminUser()`.
-- El `worker` opera órdenes (`en_preparacion`, `despachada`, `cancelada`) y stock; confirmar la recepción es del comprador.
+- El recorrido de la orden es del vendedor, que prepara y despacha; el comprador confirma la recepción y ambos pueden cancelar mientras esté reservada o en preparación.
+- El chat de la orden (`components/marketplace/chat-orden.tsx` sobre `app/api/orders/[id]/chat`) es privado: solo lo ven el comprador y el vendedor de esa orden, ni siquiera la administración.
 - No confiar solo en la UI para ocultar acciones: la validación va en el servidor.
 - La pasarela de pago (`components/marketplace/pago-view.tsx`) es el límite del dominio: la tarjeta se
   valida en el navegador con `pagoFormSchema` y **nunca** se envía a la API ni se guarda. `POST
@@ -43,7 +44,6 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   - `components/escaner-isbn.tsx` — lector de ISBN por cámara, compartido por `sell-view` y el escáner del panel.
   - `components/admin/` — shell del panel.
   - `components/panel/` — vistas del panel principal.
-  - `components/worker/` — vistas del trabajador.
   - `components/ui/` — componentes base shadcn/ui (no modificar salvo necesidad).
 - **Avisos**: todo aviso del proyecto pasa por `components/notificacion/`. No se llama a `toast.*`
   directamente fuera de `avisar.tsx`, ni se usa `AlertDialog` fuera de `confirmar-accion.tsx`, ni
@@ -68,9 +68,8 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - Mantener la estructura de `app/` según las rutas del App Router:
   - `app/(panel)/` — área principal autenticada (dashboard, escaner, productos, reportes, usuarios).
   - `app/admin/` — entrada del panel de administración.
-  - `app/worker/` — vista de bodega.
   - `app/loading.tsx`, `app/error.tsx`, `app/not-found.tsx` y `app/robots.ts` — estados globales de la App
-    Router. Las rutas del panel y la bodega agregan su propio `loading.tsx` con
+    Router. Las rutas del panel agregan su propio `loading.tsx` con
     `components/panel/route-loading.tsx`.
 
 ## Flujo de trabajo
@@ -83,9 +82,14 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - Esos mismos comandos corren en `.github/workflows/ci.yml` en cada `push` a `main` y en cada
   PR: si la CI falla, el cambio no entra. La CI no necesita PostgreSQL porque las pruebas del
   dominio son puras.
+- Todo cambio bueno y verificado se sube a GitHub en cuanto `pnpm typecheck`, `pnpm lint`,
+  `pnpm test` y `pnpm build` pasen: commit descriptivo en español y `push` a `main`. No esperar
+  a que lo pidan cuando el cambio ya está probado.
 - El proyecto no se despliega a producción: es académico y se demuestra con `pnpm dev` y
   `pnpm simular`. No agregar pasos de despliegue, variables de un entorno real ni secretos.
 - Si cambian el esquema o el seed: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`.
+- Las fotos del aviso salen de `POST /api/uploads`, que valida la firma de los bytes y escribe en
+  `public/uploads/`. Esa carpeta está en `.gitignore`: las imágenes del entorno local no se versionan.
 - Las pruebas viven en `tests/` y usan el runner nativo de Node con `tsx` (`node --import tsx --test`).
   Cubren el dominio puro (`lib/isbn.ts`, `lib/format.ts`, `lib/catalog.ts`, `lib/pago.ts`, `lib/rate-limit-store.ts`,
   `lib/panel-sql.ts`) y un guardián de codificación; lo que depende de Next o de la base de datos se

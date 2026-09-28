@@ -23,7 +23,6 @@ async function main() {
 
   const demoUsers = [
     { email: "admin@lektor.cl", password: "admin123", nombre: "Marcela R.", rol: "admin", bio: "Administradora de la comunidad LEKTOR.", telefono: "+56911110001", comuna: "Providencia", region: "Región Metropolitana" },
-    { email: "worker@lektor.cl", password: "worker123", nombre: "Pedro Bodeguero", rol: "worker", bio: "Apoyo a la Moderate.", telefono: "+56911110002", comuna: "Ñuñoa", region: "Región Metropolitana" },
     { email: "otaku@lektor.cl", password: "otaku123", nombre: "OtakuStore99", rol: "lector", bio: "Coleccionista de shonen y novelas negras.", telefono: "+56911110003", comuna: "Rancagua", region: "Región de O'Higgins" },
     { email: "nico@lektor.cl", password: "123456", nombre: "Nico R.", rol: "lector", bio: "Busco tomos de Lauper y ediciones difíciles.", telefono: "+56911110004", comuna: "Concepción", region: "Región del Biobío" },
     { email: "camila@lektor.cl", password: "123456", nombre: "Camila V.", rol: "lector", bio: "Comics de superhéroes, edición Chilean.", telefono: "+56911110005", comuna: "Las Condes", region: "Región Metropolitana" },
@@ -57,6 +56,10 @@ async function main() {
   })
 
   await db.execute(sql`delete from users where email like '%@tienda.cl'`)
+  // El rol de bodeguero ya no existe: se van sus filas heredadas y las cuentas
+  // que dejó la simulación, para que el panel muestre solo el equipo real.
+  await db.execute(sql`delete from users where rol = 'worker'`)
+  await db.execute(sql`delete from users where email like '%@sim.cl'`)
 
   const all = await db.select().from(schema.users)
   const byEmail = Object.fromEntries(all.map((u) => [u.email, u]))
@@ -567,7 +570,6 @@ async function main() {
           condicion: p.condicion,
           precio: p.precio,
           stock: p.stock,
-          stockMinimo: 1,
           isbn: corregirIsbn(p.isbn),
           descripcion: p.descripcion,
           fotos: [],
@@ -734,7 +736,7 @@ async function main() {
         stock: schema.publications.stock,
       })
       .from(schema.publications)
-    const staff = byEmail["admin@lektor.cl"] ?? byEmail["worker@lektor.cl"]
+    const staff = byEmail["admin@lektor.cl"]
 
     if (staff) {
       type DemoMovimiento = {

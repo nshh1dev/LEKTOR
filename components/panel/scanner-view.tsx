@@ -32,7 +32,6 @@ type Listado = {
   editorial: string
   precio: number
   stock: number
-  stockMinimo: number
   estado: EstadoPublicacion
   vendedor: string
   movimientos: number
@@ -235,10 +234,7 @@ export function ScannerView() {
                           </TableCell>
                           <TableCell className="text-muted-foreground">{publicacion.vendedor}</TableCell>
                           <TableCell className="text-right font-mono">{formatCLP(publicacion.precio)}</TableCell>
-                          <TableCell className="text-right font-mono">
-                            {publicacion.stock}
-                            <span className="text-xs text-muted-foreground"> / mín {publicacion.stockMinimo}</span>
-                          </TableCell>
+                          <TableCell className="text-right font-mono">{publicacion.stock}</TableCell>
                           <TableCell>
                             <Badge variant={publicacion.estado === "activa" ? "default" : "secondary"}>
                               {ESTADO_PUBLICACION_LABEL[publicacion.estado]}

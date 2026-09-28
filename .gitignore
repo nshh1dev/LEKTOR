@@ -28,6 +28,9 @@ node_modules
 next-env.d.ts
 *.tsbuildinfo
 
+# Imágenes subidas por vendedores (no versionadas)
+public/uploads/
+
 # Scratch de depuración (no trackear)
 scripts/tmp-*.ts
 scripts/scratch-*.ts

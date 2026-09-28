@@ -36,7 +36,6 @@ type PanelResumen = {
   kpis: {
     publicaciones: number
     unidades: number
-    bajoMinimo: number
     agotadas: number
     ordenes: number
     ordenesHoy: number
@@ -76,7 +75,6 @@ type PanelResumen = {
     id: string
     titulo: string
     stock: number
-    stockMinimo: number
     estado: EstadoPublicacion
     vendedor: string
   }[]
@@ -124,10 +122,9 @@ export function DashboardView() {
         </Aviso>
       )}
 
-      {kpis && kpis.bajoMinimo + kpis.agotadas > 0 && (
-        <Aviso tono="falla" titulo="Stock crítico">
-          {kpis.agotadas} publicación{kpis.agotadas > 1 ? "es" : ""} sin ejemplares y {kpis.bajoMinimo} bajo
-          stock mínimo.
+      {kpis && kpis.agotadas > 0 && (
+        <Aviso tono="falla" titulo="Agotadas">
+          {kpis.agotadas} publicación{kpis.agotadas > 1 ? "es" : ""} sin ejemplares disponibles.
         </Aviso>
       )}
 
@@ -290,7 +287,6 @@ export function DashboardView() {
                         <TableHead scope="col">Publicación</TableHead>
                         <TableHead scope="col">Vendedor</TableHead>
                         <TableHead scope="col" className="text-right">Stock</TableHead>
-                        <TableHead scope="col" className="text-right">Mínimo</TableHead>
                         <TableHead scope="col">Estado</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -300,11 +296,8 @@ export function DashboardView() {
                           <TableCell className="font-medium">{fila.titulo}</TableCell>
                           <TableCell className="text-muted-foreground">{fila.vendedor}</TableCell>
                           <TableCell className="text-right font-mono">{fila.stock}</TableCell>
-                          <TableCell className="text-right font-mono">{fila.stockMinimo}</TableCell>
                           <TableCell>
-                            <Badge variant={fila.stock === 0 ? "destructive" : "secondary"}>
-                              {fila.stock === 0 ? "Sin stock" : "Bajo mínimo"}
-                            </Badge>
+                            <Badge variant="destructive">Sin stock</Badge>
                           </TableCell>
                         </TableRow>
                       ))}

@@ -13,7 +13,6 @@ export async function GET(request: NextRequest) {
       categoria: params.get("categoria") ?? undefined,
       vendedorId: params.get("vendedorId") ?? undefined,
       orden: params.get("orden") ?? undefined,
-      bajoMinimo: params.get("bajoMinimo") ?? undefined,
       pagina: params.get("pagina") ?? undefined,
       porPagina: params.get("porPagina") ?? undefined,
     })

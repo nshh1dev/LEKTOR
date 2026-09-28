@@ -28,7 +28,6 @@ type Publicacion = {
   titulo: string
   precio: number
   stock: number
-  stockMinimo: number
   estado?: string
 }
 type Orden = {
@@ -63,6 +62,11 @@ function igual<T>(real: T, esperado: T, etiqueta: string): boolean {
     real === esperado,
     `${etiqueta}: esperaba ${JSON.stringify(esperado)}, obtuve ${JSON.stringify(real)}`,
   )
+}
+
+/** Como `igual`, pero comparando el contenido: `===` sobre dos arrays nunca coincide. */
+function igualLista<T>(real: T[], esperado: T[], etiqueta: string): boolean {
+  return igual(JSON.stringify(real), JSON.stringify(esperado), etiqueta)
 }
 
 function etapa(
@@ -159,7 +163,6 @@ const actor = {} as {
   vendedor: Actor
   comprador1: Actor
   comprador2: Actor
-  worker: Actor
   admin: Actor
 }
 const publicaciones: Publicacion[] = []
@@ -235,7 +238,7 @@ etapa(
 // ------------------------------------------------------------------ F2 login
 
 etapa(
-  "F2 · los cinco actores inician sesión",
+  "F2 · los cuatro actores inician sesión",
   async () => {
     const vend =
       origenVendedor === "seed"
@@ -243,13 +246,11 @@ etapa(
         : await entrar(VENDEDOR_NUEVO.email, CLAVE)
     const c1 = await entrar(COMPRADORES[0].email, COMPRADORES[0].password)
     const c2 = await entrar(COMPRADORES[1].email, COMPRADORES[1].password)
-    const w = await entrar("worker@lektor.cl", "worker123")
     const a = await entrar("admin@lektor.cl", "admin123")
-    if (!vend || !c1 || !c2 || !w || !a) return { ok: false, detalle: "faltaron sesiones" }
+    if (!vend || !c1 || !c2 || !a) return { ok: false, detalle: "faltaron sesiones" }
 
-    Object.assign(actor, { vendedor: vend, comprador1: c1, comprador2: c2, worker: w, admin: a })
+    Object.assign(actor, { vendedor: vend, comprador1: c1, comprador2: c2, admin: a })
     igual(a.rol, "admin", "rol del admin")
-    igual(w.rol, "worker", "rol del worker")
     check(actor.vendedor.cookie.length > 0, "el vendedor no recibió cookie")
 
     // Nadie puede comprar su propia publicación: los tres deben ser distintos.
@@ -283,9 +284,9 @@ etapa("F3 · el vendedor publica tres ejemplares", async () => {
     fotos: [],
   }
   const casos = [
-    { titulo: "Sim One Piece vol. 1", precio: 8000, stock: 3, stockMinimo: 1 },
-    { titulo: "Sim Berserk deluxe 3", precio: 12500, stock: 2, stockMinimo: 2 },
-    { titulo: "Sim Dune Messiah", precio: 9500, stock: 1, stockMinimo: 0 },
+    { titulo: "Sim One Piece vol. 1", precio: 8000, stock: 3 },
+    { titulo: "Sim Berserk deluxe 3", precio: 12500, stock: 2 },
+    { titulo: "Sim Dune Messiah", precio: 9500, stock: 1 },
   ]
   for (const caso of casos) {
     const r = await pedir("/api/publications", {
@@ -469,7 +470,7 @@ etapa("F6 · el perfil marca esVendedor y un ajuste de stock deja rastro", async
 
   const movimientos = await pedir(
     `/api/panel/movimientos?publicacionId=${objetivo.id}&tipo=ajuste`,
-    { cookie: actor.worker.cookie },
+    { cookie: actor.admin.cookie },
   )
   igual(movimientos.status, 200, "lectura del historial de movimientos")
   const hayAjuste = lista<Movimiento>(movimientos.datos, "movimientos").some(
@@ -483,44 +484,106 @@ etapa("F6 · el perfil marca esVendedor y un ajuste de stock deja rastro", async
 
 // ------------------------------------------------------------ F7 bodega
 
-etapa("F7 · la bodega ve las reservadas y filtra el stock bajo mínimo", async () => {
+etapa("F7 · la administración ve las reservadas y las agotadas", async () => {
   const r = await pedir("/api/panel/ordenes?estado=reservada&porPagina=50", {
-    cookie: actor.worker.cookie,
+    cookie: actor.admin.cookie,
   })
   igual(r.status, 200, "lectura de órdenes del panel")
   const ids = lista<{ id: string }>(r.datos, "ordenes").map((o) => o.id)
   for (const orden of ordenes) {
-    check(ids.includes(orden.id), `la orden ${orden.id} no aparece en la bodega`)
+    check(ids.includes(orden.id), `la orden ${orden.id} no aparece en el panel`)
   }
 
-  const bajo = await pedir("/api/panel/publicaciones?bajoMinimo=true&porPagina=50", {
-    cookie: actor.worker.cookie,
+  const bajo = await pedir("/api/panel/publicaciones?orden=stock&porPagina=50", {
+    cookie: actor.admin.cookie,
   })
-  igual(bajo.status, 200, "lectura del filtro bajoMinimo")
-  const todas = lista<Publicacion>(bajo.datos, "publications")
-  const cumple = todas.every((p) => p.stock > 0 && p.stock <= (p.stockMinimo ?? 0))
-  check(
-    todas.length === 0 || cumple,
-    "el filtro bajoMinimo trajo publicaciones con stock inconsistente",
-  )
+  igual(bajo.status, 200, "lectura de publicaciones ordenadas por stock")
+  const todas = lista<Publicacion>(bajo.datos, "publicaciones")
+  check(todas.length > 0, "el panel de publicaciones no devolvió filas")
+  // Ordenadas por stock ascendente: las primeras son las que exigen reposición.
+  const stocks = todas.map((p) => p.stock)
+  const ordenado = stocks.every((valor, indice) => indice === 0 || stocks[indice - 1] <= valor)
+  check(ordenado, `el panel no respetar el orden por stock: ${stocks.join(", ")}`)
 
-  return { ok: fallos === 0, detalle: `${ids.length} órdenes en bodega` }
+  return { ok: fallos === 0, detalle: `${ids.length} órdenes reservadas en el panel` }
 })
 
 // ----------------------------------------------------- F8/F9 ciclo de la orden
 
-etapa("F8 · el worker prepara y despacha la primera orden", async () => {
+etapa("F8 · el vendedor prepara y despacha la primera orden", async () => {
   const orden = ordenes[0]
   for (const estado of ["en_preparacion", "despachada"]) {
     const r = await pedir(`/api/orders/${orden.id}`, {
       method: "PATCH",
-      cookie: actor.worker.cookie,
+      cookie: actor.vendedor.cookie,
       body: { estado },
     })
     igual(r.status, 200, `transición a ${estado}`)
     igual((r.datos.order as Orden)?.estado, estado, `estado tras pedir ${estado}`)
   }
   return { ok: fallos === 0, detalle: "orden despachada" }
+})
+
+etapa("F8b · el chat de la orden es privado entre comprador y vendedor", async () => {
+  const orden = ordenes[0]
+  const hilo = `/api/orders/${orden.id}/chat`
+
+  const vacio = await pedir(hilo, { cookie: actor.comprador1.cookie })
+  igual(vacio.status, 200, "lectura del chat por el comprador")
+  igual(lista(vacio.datos, "mensajes").length, 0, "el chat arranca vacío")
+
+  const enviado = await pedir(hilo, {
+    method: "POST",
+    cookie: actor.comprador1.cookie,
+    body: { mensaje: "¿Te sirve entregar mañana a las 18?" },
+  })
+  igual(enviado.status, 201, "el comprador escribe en el chat")
+
+  const respuesta = await pedir(hilo, {
+    method: "POST",
+    cookie: actor.vendedor.cookie,
+    body: { mensaje: "Sí, te espero en el punto de retiro." },
+  })
+  igual(respuesta.status, 201, "el vendedor contesta en el chat")
+
+  // El hilo se lee completo y en orden para los dos participantes.
+  for (const [etiqueta, quien] of [
+    ["comprador", actor.comprador1],
+    ["vendedor", actor.vendedor],
+  ] as const) {
+    const leido = await pedir(hilo, { cookie: quien.cookie })
+    const mensajes = lista<{ mensaje: string; emisor: { nombre: string } }>(leido.datos, "mensajes")
+    igual(mensajes.length, 2, `el ${etiqueta} ve los dos mensajes`)
+    igualLista(
+      mensajes.map((m) => m.mensaje),
+      ["¿Te sirve entregar mañana a las 18?", "Sí, te espero en el punto de retiro."],
+      `orden del hilo leído por el ${etiqueta}`,
+    )
+  }
+
+  // Ni un tercero ni la administración entran: la conversación es de la orden.
+  for (const [etiqueta, quien] of [
+    ["otro comprador", actor.comprador2],
+    ["administración", actor.admin],
+  ] as const) {
+    const leer = await pedir(hilo, { cookie: quien.cookie })
+    igual(leer.status, 403, `el ${etiqueta} no puede leer el chat`)
+    const escribir = await pedir(hilo, {
+      method: "POST",
+      cookie: quien.cookie,
+      body: { mensaje: "Mensaje indebido" },
+    })
+    igual(escribir.status, 403, `el ${etiqueta} no puede escribir en el chat`)
+  }
+
+  const vacioTexto = await pedir(hilo, {
+    method: "POST",
+    cookie: actor.comprador1.cookie,
+    body: { mensaje: "   " },
+  })
+  igual(vacioTexto.status, 400, "el chat rechaza un mensaje vacío")
+
+  return { ok: fallos === 0, detalle: "2 mensajes, cerrado a terceros" }
 })
 
 etapa("F9 · el comprador la recibe y recibe notificación", async () => {
@@ -555,10 +618,10 @@ etapa("F9b · cancelar una reserva devuelve el stock con entrada auditada", asyn
 
   const r = await pedir(`/api/orders/${orden.id}`, {
     method: "PATCH",
-    cookie: actor.worker.cookie,
+    cookie: actor.vendedor.cookie,
     body: { estado: "cancelada" },
   })
-  igual(r.status, 200, "cancelación por bodega")
+  igual(r.status, 200, "cancelación por el vendedor")
   igual((r.datos.order as Orden)?.estado, "cancelada", "estado tras cancelar")
 
   // El ejemplar vuelve al catálogo y el movimiento queda registrado.
@@ -573,7 +636,7 @@ etapa("F9b · cancelar una reserva devuelve el stock con entrada auditada", asyn
 
   const historial = await pedir(
     `/api/panel/movimientos?publicacionId=${orden.publicacionId}&tipo=entrada`,
-    { cookie: actor.worker.cookie },
+    { cookie: actor.admin.cookie },
   )
   igual(historial.status, 200, "lectura del movimiento de devolución")
   const devoluciones = lista<Movimiento>(historial.datos, "movimientos")

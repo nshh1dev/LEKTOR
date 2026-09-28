@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo, useState, type ChangeEvent } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowLeft, Check, LoaderCircle, Search } from "lucide-react"
+import { ArrowLeft, Check, LoaderCircle, Search, X } from "lucide-react"
 import { EscanerIsbn } from "@/components/escaner-isbn"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,9 @@ import { api } from "@/components/marketplace/api"
 
 type PublicarForm = PublicarFormValues
 
+const MAX_FOTO_BYTES = 5 * 1024 * 1024
+const TIPOS_FOTO = ["image/jpeg", "image/png", "image/webp"]
+
 const ETIQUETAS_CAMPO: Record<string, string> = {
   titulo: "Título",
   autor: "Autor",
@@ -29,7 +32,6 @@ const ETIQUETAS_CAMPO: Record<string, string> = {
   volumen: "Volumen",
   precio: "Precio",
   stock: "Ejemplares",
-  stockMinimo: "Aviso desde",
   isbn: "ISBN",
   descripcion: "Descripción",
   fotos: "Fotos",
@@ -69,7 +71,6 @@ export function PublicarView({
       condicion: "Como nuevo",
       precio: 0,
       stock: 1,
-      stockMinimo: 0,
       isbn: "",
       descripcion: "",
       fotos: "",
@@ -77,6 +78,70 @@ export function PublicarView({
   })
 
   const isbnActual = useWatch({ control, name: "isbn" })
+
+  const valorFotos = useWatch({ control, name: "fotos" })
+  const fotosActuales = useMemo(() => listaFotosAUrls(valorFotos ?? ""), [valorFotos])
+  const [subiendo, setSubiendo] = useState(false)
+
+  const onSeleccionarArchivos = useCallback(
+    async (evento: ChangeEvent<HTMLInputElement>) => {
+      const archivos = Array.from(evento.target.files ?? [])
+      evento.target.value = ""
+      if (archivos.length === 0 || subiendo) return
+
+      const restantes = 6 - fotosActuales.length
+      if (restantes <= 0) {
+        avisar.falla({
+          titulo: "Límite de fotos alcanzado",
+          descripcion: "Cada publicación admite hasta 6 fotos. Quita alguna antes de subir otra.",
+        })
+        return
+      }
+
+      const eleccion = archivos.slice(0, restantes)
+      const invalidas = eleccion.filter((archivo) => archivo.size > MAX_FOTO_BYTES || !TIPOS_FOTO.includes(archivo.type))
+      if (invalidas.length > 0) {
+        avisar.revisar({
+          titulo: "Alguna imagen no cumple los requisitos",
+          descripcion: "Cada foto debe ser JPG, PNG o WebP y pesar 5 MB o menos.",
+        })
+        return
+      }
+
+      const form = new FormData()
+      eleccion.forEach((archivo) => form.append("archivos", archivo))
+      setSubiendo(true)
+      try {
+        const respuesta = await fetch("/api/uploads", { method: "POST", body: form })
+        const payload = (await respuesta.json().catch(() => ({}))) as { urls?: string[]; error?: string }
+        if (!respuesta.ok || !payload.urls) {
+          throw new Error(payload.error ?? "No se pudieron subir las imágenes")
+        }
+        const actuales = listaFotosAUrls(getValues("fotos") ?? "")
+        setValue("fotos", [...actuales, ...payload.urls].slice(0, 6).join(", "), { shouldValidate: true })
+        avisar.ok({
+          titulo: `${payload.urls.length} foto${payload.urls.length > 1 ? "s" : ""} subida${payload.urls.length > 1 ? "s" : ""}`,
+          descripcion: "Se agregó a la ficha del ejemplar.",
+        })
+      } catch (error) {
+        avisar.falla({
+          titulo: "No se pudieron subir las fotos",
+          descripcion: mensajeDeFallo(error, "Revisa que cada imagen sea JPG, PNG o WebP y que pese menos de 5 MB."),
+        })
+      } finally {
+        setSubiendo(false)
+      }
+    },
+    [fotosActuales.length, getValues, setValue, subiendo],
+  )
+
+  const quitarFoto = useCallback(
+    (url: string) => {
+      const restantes = listaFotosAUrls(getValues("fotos") ?? "").filter((actual) => actual !== url)
+      setValue("fotos", restantes.join(", "), { shouldValidate: true })
+    },
+    [getValues, setValue],
+  )
 
   const faltan = useMemo(
     () =>
@@ -154,7 +219,6 @@ export function PublicarView({
         condicion: values.condicion,
         precio: Number(values.precio),
         stock: Number(values.stock),
-        stockMinimo: Number(values.stockMinimo),
         isbn: values.isbn ? normalizeIsbn(values.isbn) : "",
         descripcion: values.descripcion,
         fotos: listaFotosAUrls(values.fotos),
@@ -326,7 +390,7 @@ export function PublicarView({
                 <MensajeError campo="volumen" mensaje={errors.volumen?.message} />
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="precio">Precio (CLP)</Label>
                 <Input aria-invalid={errors.precio ? true : undefined} aria-describedby={errors.precio ? "precio-error" : undefined} id="precio" type="number" min={0} step={100} {...register("precio", { valueAsNumber: true })} />
@@ -337,10 +401,6 @@ export function PublicarView({
                 <Input aria-invalid={errors.stock ? true : undefined} aria-describedby={errors.stock ? "stock-error" : undefined} id="stock" type="number" min={1} {...register("stock", { valueAsNumber: true })} />
                 <MensajeError campo="stock" mensaje={errors.stock?.message} />
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="stockMinimo">Aviso desde</Label>
-                <Input id="stockMinimo" type="number" min={0} {...register("stockMinimo", { valueAsNumber: true })} />
-              </div>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="fotos">Fotos (URLs separadas por coma)</Label>
@@ -349,6 +409,41 @@ export function PublicarView({
                 Hasta 6 fotos. Muestra el estado real del ejemplar: es lo que compra la gente.
               </p>
               <MensajeError campo="fotos" mensaje={errors.fotos?.message} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="archivos">Subir fotos desde el PC</Label>
+              <Input
+                id="archivos"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                className="cursor-pointer"
+                onChange={onSeleccionarArchivos}
+                disabled={subiendo}
+              />
+              <p className="text-xs text-muted-foreground">
+                {subiendo
+                  ? "Subiendo imágenes..."
+                  : "JPG, PNG o WebP, hasta 5 MB por imagen. Se suman a las fotos de arriba hasta llegar a 6."}
+              </p>
+              {fotosActuales.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {fotosActuales.map((url) => (
+                    <div key={url} className="group relative h-16 w-16 overflow-hidden rounded-lg ring-1 ring-border/60">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        aria-label="Quitar esta foto"
+                        className="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        onClick={() => quitarFoto(url)}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="descripcion">Descripción</Label>

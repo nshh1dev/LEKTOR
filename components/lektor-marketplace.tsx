@@ -301,7 +301,7 @@ export function LektorMarketplace({
                   className="rounded-full text-muted-foreground hover:text-foreground"
                   asChild
                 >
-                  <Link href={usuario.rol === "worker" ? "/worker" : "/admin"}>
+                  <Link href="/admin">
                     <LayoutDashboard data-icon="inline-start" /> Panel
                   </Link>
                 </Button>

@@ -25,13 +25,13 @@ Proyecto de título de desarrollo individual. Aplicación web para conectar vend
 
 ### Panel de operación
 
-- **Roles**: `admin`, `worker` (bodega) y lector; un usuario es vendedor si publica ejemplares.
+- **Roles**: `admin` y lector; un usuario es vendedor si publica ejemplares.
 - **Dashboard**: ventas del mes, reservas por vencer, alertas de stock, últimas órdenes, movimientos y tops de venta.
 - **Publicaciones**: moderación de catálogo (pausar, reactivar, eliminar), filtros por estado, categoría, vendedor y orden.
 - **Escáner**: ficha de un ISBN, publicaciones asociadas y ajuste de stock en el momento.
 - **Reportes**: serie diaria de ventas, top de títulos y vendedores, desglose por categoría, estado, método de entrega y detalle de órdenes.
 - **Usuarios**: gestión de rol y estado de cuentas (solo administración).
-- **Bodega** (`/worker`): bandeja de órdenes por preparar, en preparación y despachadas, con control de stock crítico.
+- **Órdenes**: el vendedor prepara y despacha sus ventas, el comprador confirma la recepción y ambos coordinan la entrega por el chat privado de la orden.
 - **Historial de movimientos** de stock (`entrada`, `salida`, `ajuste`) con usuario, motivo y stock anterior/resultante.
   Editar el stock desde el perfil del vendedor también genera un movimiento `ajuste`, siempre dentro de una
   transacción con bloqueo de fila para que no se pise con una compra simultánea.
@@ -80,7 +80,6 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 | Rol      | Correo              | Contraseña |
 | -------- | ------------------- | ---------- |
 | Admin    | `admin@lektor.cl`   | `admin123` |
-| Bodega   | `worker@lektor.cl`  | `worker123` |
 | Lector   | `otaku@lektor.cl`   | `otaku123` |
 
 El resto de lectores de ejemplo usa la contraseña `123456` (`nico@`, `camila@`, `felipe@`, `vale@`, `jorge@`, `fran@`).
@@ -138,8 +137,8 @@ el que recorre el flujo completo.
 
 ### Simulación de extremo a extremo
 
-`pnpm simular` recorre el marketplace contra el servidor real como cinco actores (vendedor, dos
-compradores, bodega y administración): registro, publicación, catálogo, favoritos, las tres formas
+`pnpm simular` recorre el marketplace contra el servidor real como cuatro actores (vendedor, dos
+compradores y administración): registro, publicación, catálogo, favoritos, las tres formas
 de entrega, ajuste de stock, preparación, despacho, recepción, **cancelación con devolución del
 ejemplar**, cuadre del inventario contra el historial de movimientos y reportes. Termina con `1` si
 alguna comprobación falla, así que sirve como puerta de calidad antes de un commit.
@@ -185,13 +184,11 @@ LEKTOR/
 │   │   └── reportes/       # Reportes y análisis
 │   ├── admin/              # Entrada del panel de administración
 │   ├── api/                # Route handlers (auth, catálogo, órdenes, panel)
-│   ├── worker/             # Vista de bodega
 │   └── layout.tsx          # Layout raíz
 ├── components/             # Componentes React
-│   ├── marketplace/        # Vistas del marketplace (catálogo, detalle, venta, checkout, perfil, auth)
+│   ├── marketplace/        # Vistas del marketplace (catálogo, detalle, venta, checkout, perfil, auth, chat)
 │   ├── admin/              # Shell del panel
 │   ├── panel/              # Vistas del panel principal
-│   ├── worker/             # Vistas del trabajador
 │   └── ui/                 # Componentes base (shadcn/ui)
 ├── db/                     # Esquema Drizzle y cliente de PostgreSQL
 ├── drizzle/                # Migraciones SQL generadas

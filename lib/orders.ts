@@ -1,10 +1,10 @@
 import "server-only"
 
 import { after } from "next/server"
-import { and, desc, eq, inArray, sql } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { db } from "@/db"
-import { notifications, orders, publications, stockMovements, users } from "@/db/schema"
+import { chatMessages, notifications, orders, publications, stockMovements, users } from "@/db/schema"
 import {
   RESERVA_HORAS,
   envioSegunMetodo,
@@ -193,7 +193,7 @@ export async function getOrderForUser(id: string, user: SafeUser) {
   if (!row) throw new ApiError(404, "not-found", "Orden no encontrada")
   const isBuyer = row.compradorId === user.id
   const isSeller = row.vendedorId === user.id
-  if (!isBuyer && !isSeller && user.rol !== "admin" && user.rol !== "worker") {
+  if (!isBuyer && !isSeller && user.rol !== "admin") {
     throw new ApiError(403, "forbidden", "No tienes acceso a esta orden")
   }
 
@@ -218,7 +218,7 @@ export async function transitionOrder(
 
     const isBuyer = current.compradorId === user.id
     const isSeller = current.vendedorId === user.id
-    const esOperador = user.rol === "admin" || user.rol === "worker"
+    const esOperador = user.rol === "admin"
     if (!isBuyer && !isSeller && !esOperador) {
       throw new ApiError(403, "forbidden", "No tienes acceso a esta orden")
     }
@@ -254,16 +254,7 @@ export async function transitionOrder(
       )
     }
 
-    if (user.rol === "worker") {
-      const permitidas = siguiente === "en_preparacion" || siguiente === "despachada" || siguiente === "cancelada"
-      if (!permitidas) {
-        throw new ApiError(
-          403,
-          "forbidden",
-          "Bodega solo puede preparar, despachar o cancelar órdenes",
-        )
-      }
-    } else if (user.rol !== "admin") {
+    if (user.rol !== "admin") {
       if ((siguiente === "en_preparacion" || siguiente === "despachada") && !isSeller) {
         throw new ApiError(403, "forbidden", "Solo el vendedor puede preparar o despachar la orden")
       }
@@ -333,6 +324,74 @@ async function releaseStock(
     stockAnterior,
     stockResultante,
     motivo,
+  })
+}
+
+/**
+ * El chat solo existe dentro de una orden y únicamente lo ven sus dos participantes:
+ * el comprador y el vendedor. Ni siquiera la administración entra, porque la
+ * conversación es entre las dos personas de la compra.
+ */
+function esParticipante(order: { compradorId: string; vendedorId: string }, user: SafeUser): boolean {
+  return order.compradorId === user.id || order.vendedorId === user.id
+}
+
+export async function leerChatDeOrden(id: string, user: SafeUser) {
+  const [order] = await db
+    .select({ compradorId: orders.compradorId, vendedorId: orders.vendedorId })
+    .from(orders)
+    .where(eq(orders.id, id))
+    .limit(1)
+  if (!order) throw new ApiError(404, "not-found", "Orden no encontrada")
+  if (!esParticipante(order, user)) {
+    throw new ApiError(403, "forbidden", "Este chat es entre el comprador y el vendedor")
+  }
+
+  return db
+    .select({
+      id: chatMessages.id,
+      mensaje: chatMessages.mensaje,
+      fechaCreacion: chatMessages.fechaCreacion,
+      emisor: { id: users.id, nombre: users.nombre },
+    })
+    .from(chatMessages)
+    .innerJoin(users, eq(chatMessages.userId, users.id))
+    .where(eq(chatMessages.orderId, id))
+    .orderBy(asc(chatMessages.fechaCreacion))
+    .limit(200)
+}
+
+export async function enviarMensajeDeOrden(id: string, user: SafeUser, mensaje: string) {
+  return db.transaction(async (tx) => {
+    const [order] = await tx
+      .select({ compradorId: orders.compradorId, vendedorId: orders.vendedorId, tituloSnapshot: orders.tituloSnapshot })
+      .from(orders)
+      .where(eq(orders.id, id))
+      .limit(1)
+    if (!order) throw new ApiError(404, "not-found", "Orden no encontrada")
+    if (!esParticipante(order, user)) {
+      throw new ApiError(403, "forbidden", "Este chat es entre el comprador y el vendedor")
+    }
+
+    const [mensajeNuevo] = await tx
+      .insert(chatMessages)
+      .values({ orderId: id, userId: user.id, mensaje })
+      .returning({
+        id: chatMessages.id,
+        mensaje: chatMessages.mensaje,
+        fechaCreacion: chatMessages.fechaCreacion,
+      })
+
+    const receptorId = order.compradorId === user.id ? order.vendedorId : order.compradorId
+    await tx.insert(notifications).values({
+      userId: receptorId,
+      tipo: "mensaje_chat",
+      titulo: `Nuevo mensaje por ${order.tituloSnapshot}`,
+      cuerpo: `${user.nombre}: ${mensaje.slice(0, 140)}`,
+      datos: { orderId: id },
+    })
+
+    return { ...mensajeNuevo!, emisor: { id: user.id, nombre: user.nombre } }
   })
 }
 

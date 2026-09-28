@@ -16,8 +16,11 @@ export const CATEGORIAS = ["Mangas", "Cómics", "Libros"] as const
 export const CONDICIONES = [
   "Sellado",
   "Como nuevo",
+  "Usado - Muy buen estado",
   "Usado - Buen estado",
   "Usado - Aceptable",
+  "Usado - Con mucho uso",
+  "Usado - Con anotaciones",
 ] as const
 export const ESTADOS_PUBLICACION = ["activa", "pausada", "agotada"] as const
 export const ESTADOS_ORDEN = [
@@ -110,10 +113,9 @@ export const publicationInputSchema = z.object({
   condicion: z.enum(CONDICIONES, { message: "Elige la condición física" }),
   precio: z.coerce.number().int().min(0, "El precio no puede ser negativo").max(10000000),
   stock: z.coerce.number().int().min(1, "El stock debe ser al menos 1").max(999).default(1),
-  stockMinimo: z.coerce.number().int().min(0).max(999).default(0),
   isbn: z.union([isbnField, z.literal("")]).optional(),
   descripcion: z.string().trim().max(2000).optional(),
-  fotos: z.array(z.string().trim().url("Las fotos deben ser URLs válidas")).max(6).default([]),
+  fotos: z.array(z.string().trim().refine(esUrlValida, "Las fotos deben ser URLs o rutas válidas")).max(6).default([]),
 })
 
 export const publicationUpdateSchema = publicationInputSchema
@@ -130,7 +132,7 @@ export const searchQuerySchema = z.object({
   categoria: z.array(z.enum(CATEGORIAS)).max(3).optional(),
   editorial: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
   autor: z.string().trim().max(200).optional(),
-  condicion: z.array(z.enum(CONDICIONES)).max(4).optional(),
+  condicion: z.array(z.enum(CONDICIONES)).max(6).optional(),
   comuna: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
   precioMin: z.coerce.number().int().min(0).optional(),
   precioMax: z.coerce.number().int().min(0).optional(),
@@ -246,6 +248,14 @@ export const orderTransitionSchema = z.object({
   motivo: z.string().trim().max(300).optional(),
 })
 
+export const chatMessageSchema = z.object({
+  mensaje: z
+    .string({ required_error: "Escribe un mensaje" })
+    .trim()
+    .min(1, "El mensaje no puede estar vacío")
+    .max(1000, "El mensaje es demasiado largo"),
+})
+
 const telefonoObligatorio = z
   .string({ required_error: "Indica un teléfono de contacto" })
   .trim()
@@ -320,11 +330,11 @@ export const passwordChangeSchema = z
     path: ["newPassword"],
   })
 
-export const ROLES_USUARIO = ["admin", "worker", "lector"] as const
-export const ROLES_STAFF = ["admin", "worker"] as const
+export const ROLES_USUARIO = ["admin", "lector"] as const
+export const ROLES_STAFF = ["admin"] as const
 export type RolUsuario = (typeof ROLES_USUARIO)[number]
 
-/** Admin y bodeguero: los únicos que pueden entrar al panel. Vive aquí y no en
+/** Admin: el único que entra al panel. Vive aquí y no en
  * `lib/panel.ts` porque la UI del marketplace también necesita saberlo. Acepta
  * `string` porque el rol sale de un `varchar` y la base ya lo acota. */
 export function esStaff(rol: string): boolean {
@@ -342,10 +352,6 @@ export const panelPublicacionesQuerySchema = z.object({
   categoria: z.union([z.enum(CATEGORIAS), z.literal("todas")]).default("todas"),
   vendedorId: z.string().uuid().optional(),
   orden: z.enum(["recientes", "titulo", "stock", "precio_desc"]).default("recientes"),
-  bajoMinimo: z
-    .union([z.literal("true"), z.literal("false")])
-    .optional()
-    .transform((valor) => valor === "true"),
   pagina: z.coerce.number().int().min(1).default(1),
   porPagina: z.coerce.number().int().min(1).max(100).default(20),
 })
@@ -428,6 +434,7 @@ export function envioSegunMetodo(metodo: MetodoEntrega): number {
 }
 
 function esUrlValida(valor: string): boolean {
+  if (valor.startsWith("/")) return true
   try {
     new URL(valor)
     return true
@@ -457,7 +464,6 @@ export const publicarFormSchema = z.object({
   condicion: z.enum(CONDICIONES, { message: "Elige la condición física" }),
   precio: z.coerce.number().int().min(0, "El precio no puede ser negativo").max(10000000),
   stock: z.coerce.number().int().min(1, "Debes tener al menos 1 ejemplar").max(999),
-  stockMinimo: z.coerce.number().int().min(0).max(999),
   isbn: z
     .string()
     .trim()
@@ -468,7 +474,7 @@ export const publicarFormSchema = z.object({
     .trim()
     .refine(
       (valor) => listaFotosAUrls(valor).every(esUrlValida),
-      "Las fotos deben ser URLs completas (https://...)",
+      "Las fotos deben ser URLs o rutas /uploads válidas",
     ),
 })
 
@@ -537,7 +543,6 @@ export type PublicacionListItem = {
   condicion: Condicion
   precio: number
   stock: number
-  stockMinimo?: number
   isbn: string | null
   descripcion?: string | null
   fotos: string[]
@@ -620,7 +625,7 @@ export type SesionUsuario = {
   id: string
   email: string
   nombre: string
-  rol: "admin" | "worker" | "lector"
+  rol: "admin" | "lector"
   activo: boolean
   avatarUrl?: string | null
 }

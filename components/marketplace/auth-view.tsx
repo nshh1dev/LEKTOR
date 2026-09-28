@@ -48,7 +48,6 @@ const ANCLAS: Record<string, string> = {
 const CUENTAS_DEMO = [
   { etiqueta: "Lector", email: "nico@lektor.cl", password: "123456" },
   { etiqueta: "Vendedor", email: "otaku@lektor.cl", password: "otaku123" },
-  { etiqueta: "Bodega", email: "worker@lektor.cl", password: "worker123" },
   { etiqueta: "Admin", email: "admin@lektor.cl", password: "admin123" },
 ]
 const MOSTRAR_DEMO = process.env.NODE_ENV !== "production"

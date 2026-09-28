@@ -45,7 +45,6 @@ export const publications = pgTable(
     condicion: varchar("condicion", { length: 60 }).notNull(),
     precio: integer("precio").notNull(),
     stock: integer("stock").notNull().default(1),
-    stockMinimo: integer("stock_minimo").notNull().default(0),
     isbn: varchar("isbn", { length: 20 }),
     descripcion: text("descripcion"),
     fotos: jsonb("fotos").$type<string[]>().notNull().default([]),
@@ -155,6 +154,25 @@ export const notifications = pgTable(
   ],
 )
 
+export const chatMessages = pgTable(
+  "chat_messages",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mensaje: text("mensaje").notNull(),
+    fechaCreacion: timestamp("fecha_creacion", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("chat_messages_orden_fecha_idx").on(table.orderId, table.fechaCreacion),
+    index("chat_messages_usuario_idx").on(table.userId),
+  ],
+)
+
 export const bookMetadata = pgTable("book_metadata", {
   isbn: varchar("isbn", { length: 20 }).primaryKey(),
   titulo: varchar("titulo", { length: 255 }),
@@ -210,3 +228,5 @@ export type NewStockMovement = typeof stockMovements.$inferInsert
 export type BookMetadata = typeof bookMetadata.$inferSelect
 export type Session = typeof sessions.$inferSelect
 export type Favorite = typeof favorites.$inferSelect
+export type ChatMessage = typeof chatMessages.$inferSelect
+export type NewChatMessage = typeof chatMessages.$inferInsert

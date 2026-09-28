@@ -46,9 +46,8 @@ type PublicacionPanel = {
   volumen: number | null
   categoria: Categoria
   condicion: string
-  precio: number
+precio: number
   stock: number
-  stockMinimo: number
   isbn: string | null
   estado: EstadoPublicacion
   fechaPublicacion: string
@@ -346,10 +345,7 @@ export function ProductsView({ esAdmin }: { esAdmin: boolean }) {
                         )}
                       </TableCell>
                       <TableCell className="text-right font-mono">{formatCLP(publicacion.precio)}</TableCell>
-                      <TableCell className="text-right font-mono">
-                        {publicacion.stock}
-                        <span className="text-xs text-muted-foreground"> / mín {publicacion.stockMinimo}</span>
-                      </TableCell>
+<TableCell className="text-right font-mono">{publicacion.stock}</TableCell>
                       <TableCell className="text-right font-mono">
                         {publicacion.unidadesVendidas}
                         {publicacion.ordenesActivas > 0 && (

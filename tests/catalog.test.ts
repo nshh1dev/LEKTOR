@@ -4,6 +4,7 @@ import assert from "node:assert/strict"
 import {
   COSTO_ENVIO_DOMICILIO,
   RESERVA_HORAS,
+  chatMessageSchema,
   datosDespachoSchema,
   listaFotosAUrls,
   panelMovimientoSchema,
@@ -158,9 +159,18 @@ test("panelMovimientoSchema valida el tipo y la cantidad", () => {
 test("panelUsuarioUpdateSchema exige rol o estado", () => {
   const id = "590a83f0-a633-438f-922e-f621a8bec093"
   assert.equal(panelUsuarioUpdateSchema.safeParse({ id }).success, false)
-  assert.equal(panelUsuarioUpdateSchema.safeParse({ id, rol: "worker" }).success, true)
+  assert.equal(panelUsuarioUpdateSchema.safeParse({ id, rol: "lector" }).success, true)
+  assert.equal(panelUsuarioUpdateSchema.safeParse({ id, rol: "admin" }).success, true)
+  assert.equal(panelUsuarioUpdateSchema.safeParse({ id, rol: "worker" }).success, false)
   assert.equal(panelUsuarioUpdateSchema.safeParse({ id, activo: false }).success, true)
   assert.equal(panelUsuarioUpdateSchema.safeParse({ id, rol: "super" }).success, false)
+})
+
+test("chatMessageSchema exige un mensaje utilizable", () => {
+  assert.equal(chatMessageSchema.safeParse({ mensaje: "¿Te sirve mañana a las 18?" }).success, true)
+  assert.equal(chatMessageSchema.safeParse({ mensaje: "  " }).success, false)
+  assert.equal(chatMessageSchema.safeParse({}).success, false)
+  assert.equal(chatMessageSchema.safeParse({ mensaje: "a".repeat(1001) }).success, false)
 })
 
 test("passwordChangeSchema exige una contraseña nueva y distinta", () => {

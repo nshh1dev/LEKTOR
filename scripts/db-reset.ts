@@ -15,6 +15,7 @@ const TABLAS = [
   "favorites",
   "stock_movements",
   "book_metadata",
+  "chat_messages",
   "orders",
   "publications",
   "sessions",

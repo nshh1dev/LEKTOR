@@ -334,7 +334,7 @@ export function PerfilView({
           <div className="flex flex-wrap items-center gap-2">
             {esStaff(usuario.rol) && (
               <Button variant="secondary" size="sm" asChild>
-                <Link href={usuario.rol === "worker" ? "/worker" : "/admin"}>
+                <Link href="/admin">
                   <LayoutDashboard data-icon="inline-start" /> Ir al panel
                 </Link>
               </Button>
@@ -494,9 +494,6 @@ export function PerfilView({
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <Badge variant="secondary">{ESTADO_PUBLICACION_LABEL[publicacion.estado]}</Badge>
-                      {publicacion.stock > 0 && publicacion.stock <= (publicacion.stockMinimo ?? 0) && (publicacion.stockMinimo ?? 0) > 0 && (
-                        <Badge variant="outline">Stock bajo</Badge>
-                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -543,7 +540,13 @@ export function PerfilView({
             </Card>
           ) : (
             ventas.map((orden) => (
-              <TarjetaOrden key={orden.id} orden={orden} rol="vendedor" alCambiarEstado={cambiarEstadoOrden} />
+              <TarjetaOrden
+                key={orden.id}
+                orden={orden}
+                rol="vendedor"
+                yoId={usuario.id}
+                alCambiarEstado={cambiarEstadoOrden}
+              />
             ))
           )}
         </div>
@@ -558,7 +561,13 @@ export function PerfilView({
             </Card>
           ) : (
             compras.map((orden) => (
-              <TarjetaOrden key={orden.id} orden={orden} rol="comprador" alCambiarEstado={cambiarEstadoOrden} />
+              <TarjetaOrden
+                key={orden.id}
+                orden={orden}
+                rol="comprador"
+                yoId={usuario.id}
+                alCambiarEstado={cambiarEstadoOrden}
+              />
             ))
           )}
         </div>

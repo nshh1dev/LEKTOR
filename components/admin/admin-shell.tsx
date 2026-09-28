@@ -45,7 +45,6 @@ import type { SesionUsuario } from "@/lib/catalog"
 
 const ROL_LABEL: Record<SesionUsuario["rol"], string> = {
   admin: "Administración",
-  worker: "Bodeguero",
   lector: "Lector",
 }
 
@@ -124,14 +123,6 @@ export function AdminShell({
             <SidebarGroupLabel>Operaciones</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/worker"} tooltip="Vista Bodeguero">
-                    <Link href="/worker">
-                      <Package className="h-4 w-4" />
-                      <span>Vista bodeguero</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton tooltip="Configuración" disabled>
                     <Settings className="h-4 w-4" />

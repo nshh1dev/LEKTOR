@@ -57,7 +57,6 @@ type Respuesta = {
 
 const ROL_LABEL: Record<RolUsuario, string> = {
   admin: "Administración",
-  worker: "Bodeguero",
   lector: "Lector",
 }
 
