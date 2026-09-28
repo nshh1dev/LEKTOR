@@ -16,11 +16,12 @@ import { avisar } from "@/components/notificacion/avisar"
 import { FaltanDatos } from "@/components/notificacion/avisos"
 import { mensajeDeFallo, resumenFaltantes } from "@/lib/avisos"
 import { CATEGORIAS, CONDICIONES, listaFotosAUrls, publicarFormSchema, type Categoria, type Condicion, type LibroIsbn, type PublicarFormValues } from "@/lib/catalog"
-import { isValidIsbn, normalizeIsbn } from "@/lib/isbn"
+import { formatearPrecio, precioANumero } from "@/lib/entrada"
+import { formatIsbn, isValidIsbn, normalizeIsbn } from "@/lib/isbn"
 import { MensajeError } from "@/components/marketplace/shared"
 import { api } from "@/components/marketplace/api"
 
-type PublicarForm = PublicarFormValues
+type PublicarForm = Omit<PublicarFormValues, "precio"> & { precio: string }
 
 const MAX_FOTO_BYTES = 5 * 1024 * 1024
 const TIPOS_FOTO = ["image/jpeg", "image/png", "image/webp"]
@@ -69,7 +70,6 @@ export function PublicarView({
       volumen: "",
       categoria: "Mangas",
       condicion: "Como nuevo",
-      precio: 0,
       stock: 1,
       isbn: "",
       descripcion: "",
@@ -217,7 +217,7 @@ export function PublicarView({
         volumen: values.volumen ? Number(values.volumen) : null,
         categoria: values.categoria,
         condicion: values.condicion,
-        precio: Number(values.precio),
+        precio: precioANumero(values.precio),
         stock: Number(values.stock),
         isbn: values.isbn ? normalizeIsbn(values.isbn) : "",
         descripcion: values.descripcion,
@@ -293,9 +293,10 @@ export function PublicarView({
               <Input
                 id="isbn"
                 inputMode="numeric"
-                placeholder="9788416096567"
+                placeholder="978-8-4160-9656-7"
+                className="font-mono"
                 value={isbnActual}
-                onChange={(event) => setValue("isbn", event.target.value, { shouldValidate: true })}
+                onChange={(event) => setValue("isbn", formatIsbn(event.target.value), { shouldValidate: true })}
                 aria-invalid={errors.isbn ? true : undefined}
                 aria-describedby={errors.isbn ? "isbn-error" : undefined}
               />
@@ -393,7 +394,22 @@ export function PublicarView({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="precio">Precio (CLP)</Label>
-                <Input aria-invalid={errors.precio ? true : undefined} aria-describedby={errors.precio ? "precio-error" : undefined} id="precio" type="number" min={0} step={100} {...register("precio", { valueAsNumber: true })} />
+                <Input
+                  aria-invalid={errors.precio ? true : undefined}
+                  aria-describedby={errors.precio ? "precio-error" : undefined}
+                  id="precio"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="$15.000"
+                  className="font-mono"
+                  {...register("precio", {
+                    onChange: (evento) =>
+                      setValue("precio", formatearPrecio(evento.target.value), {
+                        shouldValidate: evento.target.value.length > 0,
+                      }),
+                  })}
+                />
                 <MensajeError campo="precio" mensaje={errors.precio?.message} />
               </div>
               <div className="flex flex-col gap-2">

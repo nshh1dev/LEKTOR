@@ -43,9 +43,28 @@ export function toIsbn13(raw: string): string | null {
   return `${core}${check}`
 }
 
+/**
+ * Agrupa el ISBN con guiones. Sirve tanto para mostrar uno completo como para
+ * formatear mientras se escribe: los cortes de un ISBN-13 son 3-1-4-4-1 y los de
+ * un ISBN-10 son 1-4-4-1. Se decide por el prefijo 978/979, que es el de todo
+ * ISBN-13, para que un número a medio escribir ya salga con sus guiones.
+ */
 export function formatIsbn(raw: string): string {
   const value = normalizeIsbn(raw)
-  if (value.length === 13) return `${value.slice(0, 3)}-${value.slice(3, 4)}-${value.slice(4, 8)}-${value.slice(8, 12)}-${value.slice(12)}`
-  if (value.length === 10) return `${value.slice(0, 1)}-${value.slice(1, 5)}-${value.slice(5, 9)}-${value.slice(9)}`
-  return raw.trim()
+  if (value.length === 0) return raw.trim()
+
+  const esTrece = value.length === 13 || value.length > 10 || value.startsWith("978") || value.startsWith("979")
+  const cortes = esTrece ? [3, 4, 8, 12] : [1, 5, 9]
+
+  let salida = ""
+  let cursor = 0
+  for (const corte of cortes) {
+    if (cursor >= value.length) break
+    const trozo = value.slice(cursor, corte)
+    if (trozo.length === 0) break
+    salida += (salida.length > 0 ? "-" : "") + trozo
+    cursor = corte
+  }
+  if (cursor < value.length) salida += (salida.length > 0 ? "-" : "") + value.slice(cursor)
+  return salida
 }

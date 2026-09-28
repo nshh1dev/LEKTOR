@@ -15,6 +15,7 @@ import { FaltanDatos } from "@/components/notificacion/avisos"
 import { Sello } from "@/components/notificacion/sello"
 import { resumenFaltantes } from "@/lib/avisos"
 import { COSTO_ENVIO_DOMICILIO, REGIONES, RESERVA_HORAS, checkoutFormSchema, type CheckoutFormValues, type OrdenUI, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
+import { formatearTelefono } from "@/lib/entrada"
 import { METODO_ENTREGA_LABEL, formatCLP, ordenCode, tiempoRestante } from "@/lib/format"
 import { MensajeError } from "@/components/marketplace/shared"
 import { PagoView } from "@/components/marketplace/pago-view"
@@ -215,7 +216,7 @@ export function CheckoutView({
                 </div>
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="telefono">Teléfono</Label>
-                  <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="telefono" type="tel" placeholder="+56912345678" {...register("telefono")} />
+                  <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="telefono" type="tel" inputMode="tel" placeholder="+56 9 1234 5678" {...register("telefono", { onChange: (event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: event.target.value.length > 0 }) })} />
                   <MensajeError campo="telefono" mensaje={errors.telefono?.message} />
                 </div>
               </div>

@@ -18,6 +18,7 @@ import { avisar } from "@/components/notificacion/avisar"
 import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
 import { mensajeDeFallo } from "@/lib/avisos"
 import { REGIONES, esStaff, perfilFormSchema, type EstadoOrden, type NotificacionUI, type OrdenUI, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
+import { formatearTelefono } from "@/lib/entrada"
 import { ESTADO_ORDEN_LABEL, ESTADO_PUBLICACION_LABEL, formatCLP, formatDate, formatDateTime } from "@/lib/format"
 import { normalizarFila, MensajeError } from "@/components/marketplace/shared"
 import { api } from "@/components/marketplace/api"
@@ -89,7 +90,7 @@ export function PerfilView({
         reset({
           nombre: ficha.nombre,
           bio: ficha.bio ?? "",
-          telefono: ficha.telefono ?? "",
+          telefono: ficha.telefono ? formatearTelefono(ficha.telefono) : "",
           comuna: ficha.comuna ?? "",
           region: ficha.region ?? "",
         })
@@ -358,7 +359,7 @@ export function PerfilView({
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="perfil-telefono">Teléfono de contacto</Label>
-          <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" placeholder="+56912345678" {...register("telefono")} />
+          <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" inputMode="tel" placeholder="+56 9 1234 5678" {...register("telefono", { onChange: (event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: event.target.value.length > 0 }) })} />
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="perfil-comuna">Comuna</Label>

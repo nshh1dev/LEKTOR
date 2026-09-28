@@ -49,6 +49,29 @@ test("listaFotosAUrls limpia y limita a seis fotos", () => {
   assert.equal(listaFotosAUrls("1,2,3,4,5,6,7,8").length, 6)
 })
 
+test("el precio formateado se guarda como número", () => {
+  const base = {
+    titulo: "Chainsaw Man Vol. 1",
+    autor: "Tatsuki Fujimoto",
+    editorial: "Shueisha",
+    categoria: "Mangas",
+    condicion: "Como nuevo",
+    stock: 1,
+  }
+  const precio = publicationInputSchema.safeParse({ ...base, precio: "$19.990" })
+  assert.equal(precio.success, true)
+  assert.equal(precio.success ? precio.data.precio : 0, 19990)
+
+  // Un campo vacío tiene que fallar: coercionar a 0 publicaría a $0.
+  assert.equal(publicationInputSchema.safeParse({ ...base, precio: "" }).success, false)
+  assert.equal(publicationInputSchema.safeParse({ ...base, precio: "   " }).success, false)
+  assert.equal(publicationInputSchema.safeParse({ ...base, precio: null }).success, false)
+  assert.equal(publicationInputSchema.safeParse({ ...base, precio: "1.5" }).success, false)
+  assert.equal(publicationInputSchema.safeParse({ ...base, precio: "20000000" }).success, false)
+  // La API sigue mandando el precio como número.
+  assert.equal(publicationInputSchema.safeParse({ ...base, precio: 19990 }).success, true)
+})
+
 test("publicationInputSchema valida el anuncio", () => {
   const valido = {
     titulo: "Chainsaw Man Vol. 1",

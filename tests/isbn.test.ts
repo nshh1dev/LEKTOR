@@ -38,3 +38,19 @@ test("formatIsbn agrupa según el largo", () => {
   assert.equal(formatIsbn("0306406152"), "0-3064-0615-2")
   assert.equal(formatIsbn("no-es-isbn"), "no-es-isbn")
 })
+
+test("formatIsbn agrupa también mientras se escribe", () => {
+  // El prefijo 978/979 decide el formato, así un ISBN-13 a medio escribir no
+  // aparece con los cortes de un ISBN-10.
+  assert.equal(formatIsbn("9"), "9")
+  assert.equal(formatIsbn("978"), "978")
+  assert.equal(formatIsbn("9780"), "978-0")
+  assert.equal(formatIsbn("97803"), "978-0-3")
+  assert.equal(formatIsbn("97803064"), "978-0-3064")
+  assert.equal(formatIsbn("978030640615"), "978-0-3064-0615")
+  assert.equal(formatIsbn("9780306406157"), "978-0-3064-0615-7")
+  // Escribir y borrar deja el mismo valor, sin guiones pegados.
+  assert.equal(formatIsbn(formatIsbn("9780306406157").slice(0, -1)), "978-0-3064-0615")
+  assert.equal(formatIsbn("0"), "0")
+  assert.equal(formatIsbn("0306"), "0-306")
+})

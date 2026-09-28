@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { precioANumero } from "@/lib/entrada"
 import { isValidIsbn, normalizeIsbn } from "@/lib/isbn"
 import {
   LARGO_CODIGO_SEGURIDAD,
@@ -104,6 +105,23 @@ const isbnField = z
   .transform(normalizeIsbn)
   .refine(isValidIsbn, "El ISBN no es válido: revisa el dígito verificador")
 
+const PRECIO_MAXIMO = 10000000
+
+/**
+ * El precio llega formateado desde el formulario ($15.000) y como número desde la
+ * API, así que `precioANumero` traduce los dos. Se apoya en `preprocess` y no en
+ * `z.coerce.number()` a secas: ese convierte `""` y `null` en 0 y dejaría publicar
+ * ejemplares a $0.
+ */
+const precioEsquema = z.preprocess(
+  precioANumero,
+  z.coerce
+    .number({ invalid_type_error: "El precio es obligatorio" })
+    .int("El precio debe ser un número entero")
+    .min(0, "El precio no puede ser negativo")
+    .max(PRECIO_MAXIMO, "El precio es demasiado alto"),
+)
+
 export const publicationInputSchema = z.object({
   titulo: z.string().trim().min(1, "El título es obligatorio").max(255),
   autor: z.string().trim().min(1, "El autor es obligatorio").max(200),
@@ -111,7 +129,7 @@ export const publicationInputSchema = z.object({
   volumen: z.coerce.number().int().min(1, "El volumen debe ser un número").max(999).nullable().optional(),
   categoria: z.enum(CATEGORIAS, { message: "Elige una categoría" }),
   condicion: z.enum(CONDICIONES, { message: "Elige la condición física" }),
-  precio: z.coerce.number().int().min(0, "El precio no puede ser negativo").max(10000000),
+  precio: precioEsquema,
   stock: z.coerce.number().int().min(1, "El stock debe ser al menos 1").max(999).default(1),
   isbn: z.union([isbnField, z.literal("")]).optional(),
   descripcion: z.string().trim().max(2000).optional(),
@@ -462,7 +480,14 @@ export const publicarFormSchema = z.object({
     .default(""),
   categoria: z.enum(CATEGORIAS, { message: "Elige una categoría" }),
   condicion: z.enum(CONDICIONES, { message: "Elige la condición física" }),
-  precio: z.coerce.number().int().min(0, "El precio no puede ser negativo").max(10000000),
+  precio: z.preprocess(
+    precioANumero,
+    z.coerce
+      .number({ invalid_type_error: "El precio es obligatorio" })
+      .int("El precio debe ser un número entero")
+      .min(0, "El precio no puede ser negativo")
+      .max(PRECIO_MAXIMO, "El precio es demasiado alto"),
+  ),
   stock: z.coerce.number().int().min(1, "Debes tener al menos 1 ejemplar").max(999),
   isbn: z
     .string()

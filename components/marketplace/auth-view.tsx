@@ -17,6 +17,7 @@ import { avisar } from "@/components/notificacion/avisar"
 import { Aviso, FaltanDatos } from "@/components/notificacion/avisos"
 import { mensajeDeFallo, type Faltante } from "@/lib/avisos"
 import { REGIONES, type SesionUsuario } from "@/lib/catalog"
+import { formatearTelefono } from "@/lib/entrada"
 import { api, ApiFailure } from "@/components/marketplace/api"
 
 const CAMPOS: Record<string, string> = {
@@ -211,7 +212,7 @@ export function AuthView({
                     type="tel"
                     inputMode="tel"
                     value={telefono}
-                    onChange={(event) => setTelefono(event.target.value)}
+                    onChange={(event) => setTelefono(formatearTelefono(event.target.value))}
                     placeholder="+56 9 1234 5678"
                     minLength={6}
                     required

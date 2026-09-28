@@ -56,7 +56,7 @@ export function ScannerView() {
       setError("Ingresa un ISBN válido de 10 o 13 dígitos")
       return
     }
-    setEntrada(limpio)
+    setEntrada(formatIsbn(limpio))
     setIsbn(limpio)
     setBuscando(true)
     setError(null)
@@ -115,12 +115,13 @@ export function ScannerView() {
             <div className="flex gap-2">
               <Input
                 value={entrada}
-                onChange={(evento) => setEntrada(evento.target.value)}
+                onChange={(evento) => setEntrada(formatIsbn(evento.target.value))}
                 onKeyDown={(evento) => {
                   if (evento.key === "Enter") void consultar(entrada)
                 }}
-                placeholder="9780307474278"
+                placeholder="978-8-4160-9656-7"
                 inputMode="numeric"
+                className="font-mono"
                 aria-label="ISBN para consultar"
               />
               <Button onClick={() => void consultar(entrada)} disabled={buscando}>

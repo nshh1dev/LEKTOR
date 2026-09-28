@@ -18,7 +18,7 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 ## Estructura de datos
 
 - `db/schema.ts` es la única fuente de verdad del esquema. Tras cambiarlo se ejecuta `pnpm db:generate` y se revisa la migración en `drizzle/`.
-- `lib/` concentra el dominio: `auth.ts` (sesiones y roles), `catalog.ts` (constantes, esquemas Zod y `TRANSICIONES_ORDEN`), `orders.ts` (operaciones de orden sobre la base), `panel.ts` (consultas del panel), `avisos.ts` (vocabulario de avisos), `isbn.ts`, `format.ts`, `pago.ts` (formato, Luhn y vigencia de tarjeta), `api.ts` (respuestas y errores HTTP), `rate-limit.ts` (límite de intentos por IP).
+- `lib/` concentra el dominio: `auth.ts` (sesiones y roles), `catalog.ts` (constantes, esquemas Zod y `TRANSICIONES_ORDEN`), `orders.ts` (operaciones de orden sobre la base), `panel.ts` (consultas del panel), `avisos.ts` (vocabulario de avisos), `isbn.ts`, `entrada.ts` (máscaras de precio y teléfono), `format.ts`, `pago.ts` (formato, Luhn y vigencia de tarjeta), `api.ts` (respuestas y errores HTTP), `rate-limit.ts` (límite de intentos por IP).
 - `scripts/seed.ts` es idempotente: debe poder ejecutarse varias veces sin duplicar datos.
 - Conexión por `DATABASE_URL` (ver `.env.example`).
 
@@ -90,8 +90,14 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - Si cambian el esquema o el seed: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`.
 - Las fotos del aviso salen de `POST /api/uploads`, que valida la firma de los bytes y escribe en
   `public/uploads/`. Esa carpeta está en `.gitignore`: las imágenes del entorno local no se versionan.
+- Las entradas del usuario se formatean mientras se escriben con los helpers puros de `lib/entrada.ts`
+  (`formatearPrecio`, `formatearTelefono`) y de `lib/isbn.ts` (`formatIsbn`), no con lógica suelta en
+  cada vista. El esquema Zod acepta lo ya formateado y devuelve el valor canónico: `precioANumero`
+  convierte `$15.000` a `15000` y el teléfono se guarda con los espacios que la API ya acepta. Al
+  formatear en vivo, el `Input` va como `type="text"` con `inputMode="numeric"` y el `onChange` de
+  React Hook Form vuelve a escribir con `setValue`; no se usa `valueAsNumber` en campos formateados.
 - Las pruebas viven en `tests/` y usan el runner nativo de Node con `tsx` (`node --import tsx --test`).
-  Cubren el dominio puro (`lib/isbn.ts`, `lib/format.ts`, `lib/catalog.ts`, `lib/pago.ts`, `lib/rate-limit-store.ts`,
+  Cubren el dominio puro (`lib/isbn.ts`, `lib/format.ts`, `lib/catalog.ts`, `lib/entrada.ts`, `lib/pago.ts`, `lib/rate-limit-store.ts`,
   `lib/panel-sql.ts`) y un guardián de codificación; lo que depende de Next o de la base de datos se
   prueba con `pnpm simular`, que hace peticiones reales contra el dev server.
 - `scripts/simular-flujo.ts` (`pnpm simular`) es la puerta de calidad de los flujos: necesita

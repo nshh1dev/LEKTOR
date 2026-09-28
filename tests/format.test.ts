@@ -36,7 +36,8 @@ test("coverLabel usa las dos primeras palabras y recorta títulos largos", () =>
   assert.equal(coverLabel(""), "LEKTOR")
 })
 
-test("tiempoRestante formatea minutos, horas y días", () => {
+test("tiempoRestante formatea minutos, horas y días", (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: 1_700_000_000_000 })
   const desdeAhora = (ms: number) => new Date(Date.now() + ms).toISOString()
   assert.equal(tiempoRestante(desdeAhora(-1_000)), "expirada")
   assert.equal(tiempoRestante(desdeAhora(30 * 60_000)), "30 min")
