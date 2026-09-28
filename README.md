@@ -6,6 +6,11 @@ Marketplace entre lectores para comprar y vender **mangas, cómics y libros fís
 
 Proyecto de título desarrollado en conjunto. Aplicación web para conectar vendedores y compradores de libros usados, con módulos de gestión de inventario, usuarios y reportes.
 
+> **Alcance:** es un proyecto académico, no un servicio en producción. No hay despliegue,
+> ni dominio, ni operación continua: se demuestra en desarrollo (`pnpm dev`) y con
+> `pnpm simular`. La pasarela de pago es una simulación con fines de demostración y
+> los datos de `.env.example` apuntan a un PostgreSQL local.
+
 ## Características
 
 ### Marketplace
@@ -257,6 +262,25 @@ Git te avisará con un mensaje tipo `CONFLICT` / `Merge conflict`. La solución:
 1. Baja y fusiona: `git pull`
 2. Abre el archivo marcado y decide qué líneas se quedan (las marcas `<<<<<<<` / `=======` / `>>>>>>>` indican las partes en conflicto).
 3. Sube el resultado: `git add .` → `git commit -m "resolver conflicto"` → `git push`
+
+### Integración continua
+
+Cada `push` a `main` y cada PR ejecutan `.github/workflows/ci.yml`, que corre en dos trabajos:
+
+| Trabajo | Qué corre |
+| --- | --- |
+| Typecheck, lint y pruebas | `pnpm typecheck`, `pnpm lint`, `pnpm test` |
+| Build de producción | `pnpm build` |
+
+Las pruebas del dominio no tocan la base de datos, así que la CI no levanta PostgreSQL.
+Verás el resultado en la pestaña **Actions** del repo. Si la CI falla, corrige en local antes
+de volver a subir.
+
+### Fin de línea
+
+`.gitattributes` fija LF en todo el repositorio, para que nadie tenga que pelear con los
+finales de línea si trabaja en Windows, macOS o Linux a la vez. Si tu editor insists en
+guardar en CRLF, deja que lo guarde: Git lo normaliza al commitear.
 
 ## Licencia
 

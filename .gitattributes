@@ -1,0 +1,16 @@
+# El repositorio es de texto con LF en el índice. Sin esto, quien clone en
+# Windows con core.autocrlf=true y el resto en Linux genera conflictos de fin
+# de línea en cada archivo tocado.
+* text=auto eol=lf
+
+# El lockfile debe viajar siempre con LF: pnpm lo compara byte a byte.
+pnpm-lock.yaml text eol=lf
+
+# Binarios. Git los detecta solo, pero declararlos evita cualquier sorpresa.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary

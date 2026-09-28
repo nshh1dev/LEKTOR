@@ -76,6 +76,11 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   - `pnpm lint`
   - `pnpm test`
   - `pnpm build`
+- Esos mismos comandos corren en `.github/workflows/ci.yml` en cada `push` a `main` y en cada
+  PR: si la CI falla, el cambio no entra. La CI no necesita PostgreSQL porque las pruebas del
+  dominio son puras.
+- El proyecto no se despliega a producción: es académico y se demuestra con `pnpm dev` y
+  `pnpm simular`. No agregar pasos de despliegue, variables de un entorno real ni secretos.
 - Si cambian el esquema o el seed: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`.
 - Las pruebas viven en `tests/` y usan el runner nativo de Node con `tsx` (`node --import tsx --test`).
   Cubren el dominio puro (`lib/isbn.ts`, `lib/format.ts`, `lib/catalog.ts`, `lib/pago.ts`, `lib/rate-limit-store.ts`,
