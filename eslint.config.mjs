@@ -10,7 +10,20 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
     },
   },
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "node_modules/**"]),
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "node_modules/**",
+    "drizzle/**",
+    ".agents/**",
+    "skills-lock.json",
+    "opencode.json",
+    // Scratch de depuración; ya ignorado por git.
+    "scripts/tmp-*.ts",
+    "scripts/scratch-*.ts",
+  ]),
 ]);
 
 export default eslintConfig;

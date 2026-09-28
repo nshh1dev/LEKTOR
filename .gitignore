@@ -12,6 +12,7 @@ next.user-config.*
 .env*.local
 *.env
 .env.*
+!.env.example
 
 # Common ignores
 node_modules
@@ -25,3 +26,8 @@ node_modules
 
 # Generated files
 next-env.d.ts
+*.tsbuildinfo
+
+# Scratch de depuración (no trackear)
+scripts/tmp-*.ts
+scripts/scratch-*.ts
