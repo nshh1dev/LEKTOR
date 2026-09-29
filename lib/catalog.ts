@@ -186,6 +186,33 @@ export function parseSearchParams(params: URLSearchParams): SearchQuery {
   })
 }
 
+/** Los separadores no cuentan: el largo se mide sobre los dígitos. */
+const digitosTelefono = (valor: string) => valor.replace(/[^0-9]/g, "")
+
+/**
+ * El largo se valida contra el teléfono que existe de verdad: con código de
+ * país son once dígitos (el 56 más nueve) o diez si es un fijo, y E.164 no
+ * pasa de quince. Sin este refine la API aceptaba un +56 con lo que se
+ * escribiera detrás, que ya no es un teléfono.
+ */
+const largoTelefonoValido = (valor: string) => {
+  const digitos = digitosTelefono(valor)
+  if (digitos.length === 0) return true
+  if (digitos.length > 15) return false
+  if (!digitos.startsWith("56")) return true
+  return digitos.length === 10 || digitos.length === 11
+}
+
+const TELEFONO_SOLO_NUMEROS = /^[0-9+\-\s()]+$/
+
+const telefonoSchema = z
+  .string({ required_error: "Indica un teléfono de contacto" })
+  .trim()
+  .min(6, "Indica un teléfono de contacto")
+  .max(30)
+  .regex(TELEFONO_SOLO_NUMEROS, "El teléfono solo admite números")
+  .refine(largoTelefonoValido, "Revisa el teléfono: con +56 son ocho o nueve dígitos")
+
 /** Campos comunes al formulario de checkout y al contrato de la API. */
 const camposDespacho = {
   nombreRecibe: z
@@ -193,12 +220,7 @@ const camposDespacho = {
     .trim()
     .min(2, "Indica quién recibe el ejemplar")
     .max(120),
-  telefono: z
-    .string({ required_error: "Indica un teléfono de contacto" })
-    .trim()
-    .min(6, "Indica un teléfono de contacto")
-    .max(30)
-    .regex(/^[0-9+\-\s()]+$/, "El teléfono solo admite números"),
+  telefono: telefonoSchema,
   metodoEntrega: z.enum(METODOS_ENTREGA),
   comuna: z
     .string({ required_error: "Indica la comuna" })
@@ -274,12 +296,7 @@ export const chatMessageSchema = z.object({
     .max(1000, "El mensaje es demasiado largo"),
 })
 
-const telefonoObligatorio = z
-  .string({ required_error: "Indica un teléfono de contacto" })
-  .trim()
-  .min(6, "Indica un teléfono de contacto")
-  .max(30)
-  .regex(/^[0-9+\-\s()]+$/, "El teléfono solo admite números")
+const telefonoObligatorio = telefonoSchema
 
 export const registroSchema = z
   .object({
@@ -325,7 +342,8 @@ export const profileUpdateSchema = z.object({
     .string()
     .trim()
     .max(30)
-    .regex(/^[0-9+\-\s()]+$/, "El teléfono solo admite números")
+    .regex(TELEFONO_SOLO_NUMEROS, "El teléfono solo admite números")
+    .refine(largoTelefonoValido, "Revisa el teléfono: con +56 son ocho o nueve dígitos")
     .nullable()
     .optional(),
   comuna: z.string().trim().max(80).nullable().optional(),

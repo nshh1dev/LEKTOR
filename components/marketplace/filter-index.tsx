@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Heart, RotateCcw } from "lucide-react"
+import { useEffect, useState } from "react"
+import { RotateCcw } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import {
   type Categoria,
@@ -15,21 +16,28 @@ type Filtros = {
   editorial: string[]
   condicion: Condicion[]
   comuna: string[]
-  disponible: boolean
+  precioMin: number | null
+  precioMax: number | null
 }
 
-type FacetasIndice = Pick<Facetas, "totalActivos" | "categorias" | "condiciones" | "editoriales" | "comunas">
+type FacetasIndice = Pick<
+  Facetas,
+  | "totalActivos"
+  | "categorias"
+  | "condiciones"
+  | "editoriales"
+  | "comunas"
+  | "precioMin"
+  | "precioMax"
+>
 
 export function IndiceFiltros({
   facetas,
   filtros,
   alternarFiltro,
-  setDisponible,
+  setPrecioRango,
   limpiarFiltros,
   filtrosActivos,
-  soloFavoritos,
-  setSoloFavoritos,
-  favoritos,
   idRaiz,
 }: {
   facetas: FacetasIndice
@@ -38,12 +46,9 @@ export function IndiceFiltros({
     grupo: K,
     valor: string,
   ) => void
-  setDisponible: (value: boolean) => void
+  setPrecioRango: (min: number | null, max: number | null) => void
   limpiarFiltros: () => void
   filtrosActivos: number
-  soloFavoritos: boolean
-  setSoloFavoritos: (value: boolean) => void
-  favoritos: string[]
   idRaiz: string
 }) {
   return (
@@ -67,16 +72,6 @@ export function IndiceFiltros({
         )}
       </div>
 
-      <Bloque idRaiz={idRaiz} titulo="Mi selección">
-        <FilaAlternador
-          activo={soloFavoritos}
-          onToggle={() => setSoloFavoritos(!soloFavoritos)}
-          etiqueta="Solo favoritos"
-          conteo={favoritos.length}
-          icono={<Heart className="size-3.5" />}
-        />
-      </Bloque>
-
       <Bloque idRaiz={idRaiz} titulo="Tipo de lectura">
         {facetas.categorias.map((item) => (
           <FilaFiltro
@@ -99,10 +94,15 @@ export function IndiceFiltros({
             total={item.total}
           />
         ))}
-        <FilaAlternador
-          activo={filtros.disponible}
-          onToggle={() => setDisponible(!filtros.disponible)}
-          etiqueta="Solo con stock"
+      </Bloque>
+
+      <Bloque idRaiz={idRaiz} titulo="Precio">
+        <FiltroPrecio
+          minimo={filtros.precioMin}
+          maximo={filtros.precioMax}
+          cotaMinima={facetas.precioMin}
+          cotaMaxima={facetas.precioMax}
+          onAplicar={setPrecioRango}
         />
       </Bloque>
 
@@ -127,6 +127,105 @@ export function IndiceFiltros({
           </p>
         )}
       </Bloque>
+    </div>
+  )
+}
+
+const PRECIO_TOPE = 99999999
+
+/** El rango se escribe en pesos enteros, sin separador, para no pelear con el cursor. */
+function aPrecio(valor: string): number | null {
+  const digitos = valor.replace(/[^0-9]/g, "")
+  if (!digitos) return null
+  return Math.min(Number.parseInt(digitos, 10), PRECIO_TOPE)
+}
+
+function pesosBreves(valor: number): string {
+  return `$${valor.toLocaleString("es-CL")}`
+}
+
+/**
+ * El rango se aplica al soltar el campo o al dar Enter, no en cada tecla: elegir
+ * un precio no puede disparar una consulta por carácter. Si el lector invierte
+ * los extremos se corrigen solos, porque un rango al revés no tiene resultados.
+ */
+function FiltroPrecio({
+  minimo,
+  maximo,
+  cotaMinima,
+  cotaMaxima,
+  onAplicar,
+}: {
+  minimo: number | null
+  maximo: number | null
+  cotaMinima: number
+  cotaMaxima: number
+  onAplicar: (min: number | null, max: number | null) => void
+}) {
+  const [borrador, setBorrador] = useState({
+    desde: minimo === null ? "" : String(minimo),
+    hasta: maximo === null ? "" : String(maximo),
+  })
+
+  useEffect(() => {
+    setBorrador({
+      desde: minimo === null ? "" : String(minimo),
+      hasta: maximo === null ? "" : String(maximo),
+    })
+  }, [minimo, maximo])
+
+  const aplicar = () => {
+    const desde = aPrecio(borrador.desde)
+    const hasta = aPrecio(borrador.hasta)
+    const corregido =
+      desde !== null && hasta !== null && desde > hasta
+        ? { desde: hasta, hasta: desde }
+        : { desde, hasta }
+    if (corregido.desde === minimo && corregido.hasta === maximo) return
+    onAplicar(corregido.desde, corregido.hasta)
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-1.5"
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return
+        aplicar()
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter") return
+        event.preventDefault()
+        aplicar()
+      }}
+    >
+      <div className="flex items-center gap-1.5">
+        <Input
+          value={borrador.desde}
+          onChange={(event) => setBorrador((actual) => ({ ...actual, desde: event.target.value }))}
+          type="text"
+          inputMode="numeric"
+          placeholder={String(cotaMinima)}
+          aria-label="Precio desde"
+          className="h-8 rounded-md border-border/70 px-2 text-xs tabular-nums"
+        />
+        <span aria-hidden className="text-[10px] text-muted-foreground/60">
+          —
+        </span>
+        <Input
+          value={borrador.hasta}
+          onChange={(event) => setBorrador((actual) => ({ ...actual, hasta: event.target.value }))}
+          type="text"
+          inputMode="numeric"
+          placeholder={String(cotaMaxima)}
+          aria-label="Precio hasta"
+          className="h-8 rounded-md border-border/70 px-2 text-xs tabular-nums"
+        />
+      </div>
+      <p className="text-[11px] leading-snug text-muted-foreground/80">
+        {cotaMinima === cotaMaxima
+          ? `Todo el catálogo está en ${pesosBreves(cotaMinima)}`
+          : `Entre ${pesosBreves(cotaMinima)} y ${pesosBreves(cotaMaxima)}`}
+      </p>
     </div>
   )
 }
@@ -266,44 +365,3 @@ function FilaFiltro({
   )
 }
 
-function FilaAlternador({
-  activo,
-  onToggle,
-  etiqueta,
-  conteo,
-  icono,
-}: {
-  activo: boolean
-  onToggle: () => void
-  etiqueta: string
-  conteo?: number
-  icono?: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={activo}
-      className={cn(
-        "group flex w-full cursor-pointer items-center gap-2 rounded-md py-1.5 pr-1 text-left text-sm",
-        "transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-oro",
-        activo ? "text-oro" : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "flex size-3.5 shrink-0 items-center justify-center rounded-full border transition-colors duration-150",
-          activo ? "border-oro bg-oro" : "border-muted-foreground/40 group-hover:border-foreground/50",
-        )}
-      >
-        {activo && <span className="size-1.5 rounded-full bg-background" />}
-      </span>
-      <span className="min-w-0 flex-1 truncate">{etiqueta}</span>
-      {icono && <span className={cn("shrink-0", activo ? "text-oro" : "text-muted-foreground/50")}>{icono}</span>}
-      {conteo !== undefined && (
-        <span className="shrink-0 font-mono text-[10px] tabular-nums opacity-55">{conteo}</span>
-      )}
-    </button>
-  )
-}

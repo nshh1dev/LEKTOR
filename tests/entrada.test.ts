@@ -61,14 +61,32 @@ test("formatearTelefono agrupa el fijo de Santiago", () => {
 
 test("formatearTelefono no inventa formato a un número extranjero", () => {
   assert.equal(formatearTelefono("14155552671"), "14155552671")
+  assert.equal(formatearTelefono("+14155552671"), "14155552671")
+  assert.equal(formatearTelefono("+442071234567"), "442071234567")
   assert.equal(formatearTelefono(""), "")
 })
 
+test("formatearTelefono no deja crecer un número que no existe", () => {
+  // Un celular chileno son nueve dígitos: con el 56 no pasa de once.
+  assert.equal(formatearTelefono("+569123213123213"), "+56 9 1232 1312")
+  assert.equal(formatearTelefono("9123213123213"), "9 1232 1312")
+  assert.equal(formatearTelefono("22345678999"), "2 234 5678")
+  // E.164 tops at fifteen digits, the sign plus included.
+  assert.equal(formatearTelefono("+1234567890123456789"), "123456789012345")
+})
+
+test("formatearTelefono agrupa también mientras se escribe", () => {
+  assert.equal(formatearTelefono("91234"), "9 1234")
+  assert.equal(formatearTelefono("912345"), "9 1234 5")
+  assert.equal(formatearTelefono("2234"), "2 234")
+  assert.equal(formatearTelefono("56912"), "+56 9 12")
+})
+
 test("formatearTelefono aguanta teclear y borrar", () => {
-  // Mientras no se llega a los nueve dígitos no se agrupa: un prefijo crudo es
-  // preferible a inventarle un formato a un número que aún se está escribiendo.
+  // El ciclo de teclear y backspace es el que rompe los formateadores ingenuos.
   assert.equal(formatearTelefono("5"), "5")
   assert.equal(formatearTelefono("56"), "56")
-  assert.equal(formatearTelefono("91234567"), "91234567")
-  assert.equal(formatearTelefono(formatearTelefono("912345678").slice(0, -1)), "91234567")
+  assert.equal(formatearTelefono("9 123"), "9 123")
+  assert.equal(formatearTelefono(formatearTelefono("912345678").slice(0, -1)), "9 1234 567")
+  assert.equal(formatearTelefono(formatearTelefono("+56912345678").slice(0, -1)), "+56 9 1234 567")
 })

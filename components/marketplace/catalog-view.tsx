@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react"
+import { ChevronLeft, ChevronRight, Heart, Search, SlidersHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ORDENES_CATALOGO, type Categoria, type Condicion, type Facetas, type Paginacion, type PublicacionListItem } from "@/lib/catalog"
-import { ORDEN_LABELS, pluralEjemplares } from "@/components/marketplace/shared"
+import { FilaAlternador, ORDEN_LABELS, pluralEjemplares } from "@/components/marketplace/shared"
 import { type OrdenCatalogo } from "@/components/marketplace/types"
 import { ProductCard } from "@/components/marketplace/product-card"
 import { IndiceFiltros } from "@/components/marketplace/filter-index"
@@ -22,7 +22,8 @@ type Filtros = {
   editorial: string[]
   condicion: Condicion[]
   comuna: string[]
-  disponible: boolean
+  precioMin: number | null
+  precioMax: number | null
 }
 
 type GrupoFiltro = "categoria" | "editorial" | "condicion" | "comuna"
@@ -36,7 +37,7 @@ export function CatalogView({
   setOrden,
   filtros,
   alternarFiltro,
-  setDisponible,
+  setPrecioRango,
   limpiarFiltros,
   filtrosActivos,
   soloFavoritos,
@@ -54,7 +55,7 @@ export function CatalogView({
   setOrden: (value: OrdenCatalogo) => void
   filtros: Filtros
   alternarFiltro: <K extends GrupoFiltro>(grupo: K, valor: string) => void
-  setDisponible: (value: boolean) => void
+  setPrecioRango: (min: number | null, max: number | null) => void
   limpiarFiltros: () => void
   filtrosActivos: number
   soloFavoritos: boolean
@@ -71,12 +72,9 @@ export function CatalogView({
       facetas={facetas}
       filtros={filtros}
       alternarFiltro={alternarFiltro}
-      setDisponible={setDisponible}
+      setPrecioRango={setPrecioRango}
       limpiarFiltros={limpiarFiltros}
       filtrosActivos={filtrosActivos}
-      soloFavoritos={soloFavoritos}
-      setSoloFavoritos={setSoloFavoritos}
-      favoritos={favoritos}
     />
   )
   const resultados = soloFavoritos ? favoritos.length : paginacion.total
@@ -121,7 +119,14 @@ export function CatalogView({
               {resultados === 1 ? "ejemplar" : "ejemplares"}
               {cargando && <span className="text-muted-foreground/70"> · actualizando</span>}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <FilaAlternador
+                activo={soloFavoritos}
+                onToggle={() => setSoloFavoritos(!soloFavoritos)}
+                etiqueta="Mi selección"
+                conteo={favoritos.length}
+                icono={<Heart className="size-3.5" />}
+              />
               <span className="rotulo text-[9px]">Ordenar</span>
               <Select value={orden} onValueChange={(value) => setOrden(value as OrdenCatalogo)}>
                 <SelectTrigger

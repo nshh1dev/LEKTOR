@@ -120,6 +120,15 @@ test("searchQuerySchema aplica valores por defecto y topes", () => {
   assert.equal(searchQuerySchema.parse({ precioMin: "5000", porPagina: "24" }).precioMin, 5000)
 })
 
+test("el rango de precio llega como pesos enteros", () => {
+  const rango = searchQuerySchema.parse({ precioMin: "5000", precioMax: "15000" })
+  assert.equal(rango.precioMin, 5000)
+  assert.equal(rango.precioMax, 15000)
+  assert.equal(searchQuerySchema.parse({}).precioMin, undefined)
+  assert.equal(searchQuerySchema.safeParse({ precioMin: "-1" }).success, false)
+  assert.equal(searchQuerySchema.safeParse({ precioMax: "1.5" }).success, false)
+})
+
 test("parseSearchParams acepta listas separadas por coma y repetidas", () => {
   const query = parseSearchParams(
     new URLSearchParams("q=berserk&categoria=Mangas,Cómics&categoria=Libros&precioMax=9000&pagina=2"),
@@ -257,4 +266,17 @@ test("profileUpdateSchema rechaza URLs y teléfonos inválidos", () => {
   assert.equal(profileUpdateSchema.safeParse({ avatarUrl: "no-es-url" }).success, false)
   assert.equal(profileUpdateSchema.safeParse({ telefono: "llamar" }).success, false)
   assert.equal(profileUpdateSchema.safeParse({ nombre: "A" }).success, false)
+})
+
+test("el teléfono se mide contra el número que existe", () => {
+  // Con el 56 detrás hay un celular de nueve o un fijo de ocho, ni uno más.
+  assert.equal(profileUpdateSchema.safeParse({ telefono: "+56 9 1234 5678" }).success, true)
+  assert.equal(profileUpdateSchema.safeParse({ telefono: "+56 2 234 5678" }).success, true)
+  assert.equal(profileUpdateSchema.safeParse({ telefono: "9 1234 5678" }).success, true)
+  assert.equal(profileUpdateSchema.safeParse({ telefono: "+56 9123213123213" }).success, false)
+  assert.equal(profileUpdateSchema.safeParse({ telefono: "+562 234 5678" }).success, true)
+  assert.equal(profileUpdateSchema.safeParse({ telefono: "+56 2 234 567" }).success, false)
+  assert.equal(profileUpdateSchema.safeParse({ telefono: "+1 415 555 2671" }).success, true)
+  assert.equal(profileUpdateSchema.safeParse({ telefono: "+1 415 555 2671 234 567" }).success, false)
+  assert.equal(profileUpdateSchema.safeParse({ telefono: null }).success, true)
 })

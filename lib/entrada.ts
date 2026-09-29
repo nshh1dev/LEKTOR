@@ -9,7 +9,13 @@
 
 /** El peso chileno no usa decimales, así que el precio es un entero de miles. */
 const MAX_DIGITOS_PRECIO = 9
-const MAX_DIGITOS_TELEFONO = 15
+/** El celular chileno tiene nueve dígitos y el fijo de Santiago ocho. */
+const MAX_DIGITOS_MOVIL = 9
+const MAX_DIGITOS_FIJO = 8
+/** E.164 admite quince dígitos como máximo, que es el tope de un teléfono. */
+const MAX_DIGITOS_E164 = 15
+/** Prefijo de Chile: con él el número es 56 más ocho o nueve dígitos. */
+const CODIGO_CHILE = "56"
 
 /** "15000", "$15.000" y "15.000" son el mismo precio; "1.5" o "12.34" no lo son. */
 const PRECIO_PLAINO = /^-?\d+$/
@@ -41,28 +47,42 @@ export function precioANumero(valor: unknown): unknown {
   return Number(plano.replace(/\./g, ""))
 }
 
-/** Agrupa los dígitos de un celular o fijo chileno, con o sin código de país. */
+/** Agrupa los dígitos de un celular o fijo chileno a medida que se escriben. */
 function formatearNacional(digitos: string): string {
-  if (digitos.length === 9 && digitos.startsWith("9")) {
-    return `${digitos.slice(0, 1)} ${digitos.slice(1, 5)} ${digitos.slice(5)}`
+  const inicial = digitos.slice(0, 1)
+  const resto = digitos.slice(1)
+  if (digitos.startsWith("9")) {
+    if (resto.length > 4) return `${inicial} ${resto.slice(0, 4)} ${resto.slice(4)}`
+    return resto.length > 0 ? `${inicial} ${resto}` : digitos
   }
-  if (digitos.length === 8 && digitos.startsWith("2")) {
-    return `${digitos.slice(0, 1)} ${digitos.slice(1, 4)} ${digitos.slice(4)}`
+  if (digitos.startsWith("2")) {
+    if (resto.length > 3) return `${inicial} ${resto.slice(0, 3)} ${resto.slice(3)}`
+    return resto.length > 0 ? `${inicial} ${resto}` : digitos
   }
   return digitos
 }
 
 /**
- * 912345678 → 9 1234 5678 y 56912345678 → +56 9 1234 5678. Solo agrupa lo que es
- * reconocible como chileno: un número extranjero se deja con sus dígitos intactos
- * en vez de inventarle un formato.
+ * 912345678 → 9 1234 5678 y 56912345678 → +56 9 1234 5678.
+ *
+ * El número no crece más allá de lo que existe: un celular chileno son nueve
+ * dígitos (once con el 56) y un fijo son ocho, así que +56 9123213123213 se
+ * corta en +56 9 1232 1312 en vez de guardar un teléfono que no existe. Solo
+ * se agrupa lo que es reconocible como chileno; un número extranjero se deja
+ * con sus dígitos intactos en vez de inventarle un formato.
  */
 export function formatearTelefono(valor: string): string {
-  const digitos = digitosDe(valor).slice(0, MAX_DIGITOS_TELEFONO)
+  const digitos = digitosDe(valor)
   if (digitos.length === 0) return ""
 
-  if (digitos.startsWith("56") && digitos.length > 9) {
-    return `+56 ${formatearNacional(digitos.slice(2))}`
+  if (digitos.startsWith(CODIGO_CHILE) && digitos.length > CODIGO_CHILE.length) {
+    const nacional = digitos.slice(CODIGO_CHILE.length, CODIGO_CHILE.length + MAX_DIGITOS_MOVIL)
+    return `+${CODIGO_CHILE} ${formatearNacional(nacional)}`
   }
-  return formatearNacional(digitos)
+
+  // El signo más declara que el número es extranjero: se respeta tal cual.
+  if (valor.trim().startsWith("+")) return digitos.slice(0, MAX_DIGITOS_E164)
+  if (digitos.startsWith("9")) return formatearNacional(digitos.slice(0, MAX_DIGITOS_MOVIL))
+  if (digitos.startsWith("2")) return formatearNacional(digitos.slice(0, MAX_DIGITOS_FIJO))
+  return digitos.slice(0, MAX_DIGITOS_E164)
 }

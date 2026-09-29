@@ -47,8 +47,9 @@ export function LektorMarketplace({
     editorial: string[]
     condicion: Condicion[]
     comuna: string[]
-    disponible: boolean
-  }>({ categoria: [], editorial: [], condicion: [], comuna: [], disponible: false })
+    precioMin: number | null
+    precioMax: number | null
+  }>({ categoria: [], editorial: [], condicion: [], comuna: [], precioMin: null, precioMax: null })
   const [orden, setOrden] = useState<OrdenCatalogo>("recientes")
   const [pagina, setPagina] = useState(1)
   const [soloFavoritos, setSoloFavoritos] = useState(false)
@@ -69,7 +70,8 @@ export function LektorMarketplace({
       if (filtros.editorial.length) params.set("editorial", filtros.editorial.join(","))
       if (filtros.condicion.length) params.set("condicion", filtros.condicion.join(","))
       if (filtros.comuna.length) params.set("comuna", filtros.comuna.join(","))
-      if (filtros.disponible) params.set("disponible", "true")
+      if (filtros.precioMin !== null) params.set("precioMin", String(filtros.precioMin))
+      if (filtros.precioMax !== null) params.set("precioMax", String(filtros.precioMax))
       params.set("orden", orden)
       params.set("pagina", String(paginaActual))
       params.set("porPagina", String(initialPaginacion.porPagina))
@@ -229,7 +231,7 @@ export function LektorMarketplace({
     filtros.editorial.length +
     filtros.condicion.length +
     filtros.comuna.length +
-    (filtros.disponible ? 1 : 0)
+    (filtros.precioMin !== null || filtros.precioMax !== null ? 1 : 0)
 
   const alternarFiltro = <K extends "categoria" | "editorial" | "condicion" | "comuna">(
     grupo: K,
@@ -340,12 +342,19 @@ export function LektorMarketplace({
             }}
             filtros={filtros}
             alternarFiltro={alternarFiltro}
-            setDisponible={(value) => {
-              setFiltros((current) => ({ ...current, disponible: value }))
+            setPrecioRango={(min, max) => {
+              setFiltros((current) => ({ ...current, precioMin: min, precioMax: max }))
               setPagina(1)
             }}
             limpiarFiltros={() => {
-              setFiltros({ categoria: [], editorial: [], condicion: [], comuna: [], disponible: false })
+              setFiltros({
+                categoria: [],
+                editorial: [],
+                condicion: [],
+                comuna: [],
+                precioMin: null,
+                precioMax: null,
+              })
               setPagina(1)
             }}
             filtrosActivos={filtrosActivos}
