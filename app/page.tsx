@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic"
 const POR_PAGINA = 12
 
 export default async function HomePage() {
-  const [filas, [facetasPrecios], [activos], categorias, condiciones, editoriales, comunas] =
+  const [filas, [facetasPrecios], [activos], categorias, condiciones, comunas] =
     await Promise.all([
       db
         .select({
@@ -57,13 +57,6 @@ export default async function HomePage() {
         .groupBy(publications.condicion)
         .orderBy(desc(count())),
       db
-        .select({ value: publications.editorial, total: count() })
-        .from(publications)
-        .where(eq(publications.estado, "activa"))
-        .groupBy(publications.editorial)
-        .orderBy(desc(count()), publications.editorial)
-        .limit(24),
-      db
         .select({ value: users.comuna, total: count() })
         .from(publications)
         .innerJoin(users, eq(publications.vendedorId, users.id))
@@ -86,7 +79,6 @@ export default async function HomePage() {
     estado: fila.estado as PublicacionListItem["estado"],
     fotos: Array.isArray(fila.fotos) ? (fila.fotos as unknown[]).map(String) : [],
     fechaPublicacion: new Date(fila.fechaPublicacion).toISOString(),
-    esFavorito: false,
   }))
 
   const facetas: Facetas = {
@@ -95,7 +87,6 @@ export default async function HomePage() {
     totalActivos: activos.total,
     categorias: categorias as Facetas["categorias"],
     condiciones: condiciones as Facetas["condiciones"],
-    editoriales,
     comunas: comunas as Facetas["comunas"],
   }
 

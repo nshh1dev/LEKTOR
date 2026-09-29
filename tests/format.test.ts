@@ -47,8 +47,12 @@ test("tiempoRestante formatea minutos, horas y días", (t) => {
   assert.equal(tiempoRestante(desdeAhora(50 * 3_600_000)), "2 días")
 })
 
-test("ordenCode deriva un código legible del identificador", () => {
-  assert.equal(ordenCode("590a83f0-a633-438f-922e-f621a8bec093"), "LK-590A83")
+test("ordenCode compone el número con el día de Chile y el identificador", () => {
+  const id = "590a83f0-a633-438f-922e-f621a8bec093"
+  assert.equal(ordenCode(id, "2026-06-15T12:00:00.000Z"), "LK-20260615-590A83")
+  // 03:30 UTC ya es la tarde anterior en Santiago: el número lleva el día local.
+  assert.equal(ordenCode(id, "2026-06-15T03:30:00.000Z"), "LK-20260614-590A83")
+  assert.equal(ordenCode(id, new Date("2026-01-15T02:00:00.000Z")), "LK-20260114-590A83")
 })
 
 test("claveDiaSantiago usa el día local de Chile, no el de UTC", () => {

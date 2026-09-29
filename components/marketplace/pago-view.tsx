@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { CreditCard, LoaderCircle, Lock } from "lucide-react"
@@ -75,16 +75,15 @@ export function PagoView({
   const numero = useWatch({ control, name: "numeroTarjeta" })
   const marca = detectarMarca(numero)
 
-  const faltan = useMemo(
-    () =>
-      resumenFaltantes(errors, ETIQUETAS_TARJETA, {
-        numeroTarjeta: "numeroTarjeta",
-        nombreTitular: "nombreTitular",
-        vencimiento: "vencimiento",
-        codigoSeguridad: "codigoSeguridad",
-      }),
-    [errors],
-  )
+  // Sin `useMemo` a propósito: ver la nota en `checkout-view.tsx`. Memoizar
+  // sobre el Proxy de `errors` dejaba la tarjeta marcada como faltante después
+  // de corregirla.
+  const faltan = resumenFaltantes(errors, ETIQUETAS_TARJETA, {
+    numeroTarjeta: "numeroTarjeta",
+    nombreTitular: "nombreTitular",
+    vencimiento: "vencimiento",
+    codigoSeguridad: "codigoSeguridad",
+  })
 
   useEffect(() => {
     if (!abierto) {
@@ -102,13 +101,10 @@ export function PagoView({
     } catch (error) {
       const sinStock = (error as { reason?: unknown } | null)?.reason === "stock-insuficiente"
       setFallo({
-        titulo: mensajeDeFallo(
-          error,
-          "El pago no se pudo completar. No se cobró nada.",
-        ),
+        titulo: mensajeDeFallo(error, "El pago no se pudo completar."),
         ayuda: sinStock
           ? "Otro lector se llevó el último ejemplar. Vuelve al detalle para ver alternativas."
-          : "Revisa los datos de la tarjeta o prueba con otra tarjeta. No se cobró nada.",
+          : "Revisa los datos de la tarjeta o prueba con otra tarjeta.",
       })
       setProcesando(false)
     }
@@ -242,10 +238,9 @@ export function PagoView({
 
           {faltan.length > 0 && !fallo ? (
             <FaltanDatos
-              titulo="Faltan datos de la tarjeta"
-              datos={faltan}
-              nota="Comprobamos el número y la vigencia en el navegador: no se envía a LEKTOR."
-            />
+                titulo="Faltan datos de la tarjeta"
+                datos={faltan}
+              />
           ) : null}
 
           <Separator />

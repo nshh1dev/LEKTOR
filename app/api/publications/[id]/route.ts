@@ -48,9 +48,6 @@ export async function GET(_request: Request, { params }: Params) {
           avatarUrl: users.avatarUrl,
           fechaCreacion: users.fechaCreacion,
         },
-        esFavorito: session
-          ? sql<boolean>`exists (select 1 from favorites f where f.user_id = ${session.id} and f.publication_id = ${publications.id})`
-          : sql<boolean>`false`,
       })
       .from(publications)
       .innerJoin(users, eq(publications.vendedorId, users.id))

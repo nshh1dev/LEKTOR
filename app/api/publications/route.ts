@@ -22,14 +22,6 @@ const facetsQuery = db
   .from(publications)
   .where(estadoActivo)
 
-const editorialesQuery = db
-  .select({ value: publications.editorial, total: count() })
-  .from(publications)
-  .where(estadoActivo)
-  .groupBy(publications.editorial)
-  .orderBy(desc(count()), asc(publications.editorial))
-  .limit(24)
-
 const categoriasQuery = db
   .select({ value: publications.categoria, total: count() })
   .from(publications)
@@ -78,7 +70,6 @@ function buildFilters(query: SearchQuery, sessionUserId?: string) {
   }
 
   if (query.categoria?.length) filters.push(inArray(publications.categoria, query.categoria))
-  if (query.editorial?.length) filters.push(inArray(publications.editorial, query.editorial))
   if (query.condicion?.length) filters.push(inArray(publications.condicion, query.condicion))
   if (query.comuna?.length) filters.push(inArray(users.comuna, query.comuna))
   if (query.autor) filters.push(ilike(publications.autor, `%${query.autor}%`))
@@ -103,7 +94,7 @@ export async function GET(request: NextRequest) {
     const query = parseSearchParams(request.nextUrl.searchParams)
     const filters = buildFilters(query, session?.id)
 
-    const [rows, [conteo], [facetas], editoriales, categorias, condiciones, comunas, [activos]] =
+    const [rows, [conteo], [facetas], categorias, condiciones, comunas, [activos]] =
       await Promise.all([
       db
         .select({
@@ -124,7 +115,6 @@ export async function GET(request: NextRequest) {
           vendedorNombre: users.nombre,
           vendedorComuna: users.comuna,
           fechaPublicacion: publications.fechaPublicacion,
-          esFavorito: session ? sql<boolean>`exists (select 1 from favorites f where f.user_id = ${session.id} and f.publication_id = ${publications.id})` : sql<boolean>`false`,
         })
         .from(publications)
         .innerJoin(users, eq(publications.vendedorId, users.id))
@@ -138,7 +128,6 @@ export async function GET(request: NextRequest) {
         .innerJoin(users, eq(publications.vendedorId, users.id))
         .where(and(...filters)),
       facetsQuery,
-      editorialesQuery,
       categoriasQuery,
       condicionesQuery,
       comunasQuery,
@@ -152,7 +141,6 @@ export async function GET(request: NextRequest) {
         precioMax: facetas.precioMax,
         totalActivos: activos.total,
         categorias,
-        editoriales,
         condiciones,
         comunas,
       },

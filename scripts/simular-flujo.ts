@@ -13,7 +13,7 @@
  * escribirse acá: una copia se desincroniza sin avisar.
  */
 
-import { COSTO_ENVIO_DOMICILIO, PAGE_SIZE_MAX } from "../lib/catalog"
+import { COMISION_PLATAFORMA, COSTO_ENVIO_DOMICILIO, PAGE_SIZE_MAX, RANGOS_PRECISO, comisionPlataforma } from "../lib/catalog"
 
 const BASE = process.env.SIMULAR_BASE_URL ?? "http://localhost:3000"
 const CLAVE = "simulacion123"
@@ -306,9 +306,9 @@ etapa("F3 · el vendedor publica tres ejemplares", async () => {
   return { ok: fallos === 0, detalle: `${publicaciones.length} publicaciones` }
 })
 
-// --------------------------------------------------------- F4 buscar/favoritos
+// ------------------------------------------------------------- F4 buscar
 
-etapa("F4 · el catálogo muestra las tres y un favorito entra y sale", async () => {
+etapa("F4 · el catálogo muestra las tres y filtra por precio", async () => {
   const r = await pedir(`/api/publications?q=Sim%20&porPagina=${PAGE_SIZE_MAX}`)
   igual(r.status, 200, "búsqueda del catálogo")
   const encontradas = lista<Publicacion>(r.datos, "publications")
@@ -318,36 +318,28 @@ etapa("F4 · el catálogo muestra las tres y un favorito entra y sale", async ()
   const faltantes = publicaciones.filter((p) => !ids.has(p.id))
   igual(faltantes.length, 0, `el catálogo no muestra: ${faltantes.map((p) => p.titulo).join(", ")}`)
 
-  const objetivo = publicaciones[0]
-  const alta = await pedir("/api/publications/favorites", {
-    method: "POST",
-    cookie: actor.comprador1.cookie,
-    body: { publicationId: objetivo.id },
-  })
-  check(alta.status === 200 || alta.status === 201, `alta de favorito devolvió ${alta.status}`)
+  // El filtro de precio son tramos cerrados, sin campo de texto: se toma el
+  // precio de una publicación y se consulta el tramo exacto que la contiene.
+  const precio = publicaciones[0].precio
+  const tramo = RANGOS_PRECISO.find((rango) => rango.min !== null && rango.max !== null && precio >= rango.min && precio <= rango.max)
+  check(tramo !== undefined, `ningún tramo de RANGOS_PRECISO contiene el precio ${precio}`)
 
-  const esMio = (ids: string[]) => ids.includes(objetivo.id)
+  if (tramo) {
+    const params = new URLSearchParams({ porPagina: String(PAGE_SIZE_MAX) })
+    if (tramo.min !== null) params.set("precioMin", String(tramo.min))
+    if (tramo.max !== null) params.set("precioMax", String(tramo.max))
+    const filtrado = await pedir(`/api/publications?${params.toString()}`)
+    igual(filtrado.status, 200, "catálogo filtrado por precio")
+    const enTramo = lista<Publicacion>(filtrado.datos, "publications")
+    const fuera = enTramo.filter((p) => p.precio < tramo.min! || p.precio > tramo.max!)
+    igual(fuera.length, 0, `el tramo ${tramo.id} devolvió precios fuera de rango`)
+    check(
+      enTramo.some((p) => p.id === publicaciones[0].id),
+      "el tramo no incluye la publicación que lo originó",
+    )
+  }
 
-  const despuesDeAlta = await pedir("/api/publications/favorites", {
-    cookie: actor.comprador1.cookie,
-  })
-  check(
-    esMio(lista<string>(despuesDeAlta.datos, "favoriteIds")),
-    "el favorito no aparece en el listado",
-  )
-
-  const baja = await pedir(`/api/publications/favorites?publicationId=${objetivo.id}`, {
-    method: "DELETE",
-    cookie: actor.comprador1.cookie,
-  })
-  check(baja.status === 200 || baja.status === 204, `baja de favorito devolvió ${baja.status}`)
-
-  const tras = await pedir("/api/publications/favorites", { cookie: actor.comprador1.cookie })
-  check(
-    !esMio(lista<string>(tras.datos, "favoriteIds")),
-    "el favorito sigue presente tras la baja",
-  )
-  return { ok: fallos === 0, detalle: "catálogo y favoritos OK" }
+  return { ok: fallos === 0, detalle: "catálogo y filtro de precio OK" }
 })
 
 // ------------------------------------------------------------ F5 pagar
@@ -585,6 +577,71 @@ etapa("F8b · el chat de la orden es privado entre comprador y vendedor", async 
 
   return { ok: fallos === 0, detalle: "2 mensajes, cerrado a terceros" }
 })
+
+etapa(
+  "F8c · el comprobante arma la orden y libera el contacto a las dos partes",
+  async () => {
+    const orden = ordenes[0]
+    const detalle = `/api/orders/${orden.id}`
+    let montos = { subtotal: 0, envio: 0, total: 0 }
+
+    // El comprobante se arma con el mismo detalle que ve la tarjeta de la orden:
+    // número, montos y el contacto liberado de comprador y vendedor.
+    for (const [etiqueta, quien, contraparte] of [
+      ["comprador", actor.comprador1, "vendedor"],
+      ["vendedor", actor.vendedor, "comprador"],
+    ] as const) {
+      const r = await pedir(detalle, { cookie: quien.cookie })
+      igual(r.status, 200, `el ${etiqueta} lee el detalle de su orden`)
+
+      const order = (r.datos.order ?? {}) as Record<string, unknown>
+      check(Boolean(order.id), `el detalle leído por el ${etiqueta} no trae id`)
+      igual(order.metodoPago, "simulado", `método de pago en el detalle del ${etiqueta}`)
+
+      // El documento cuadra: el total es el subtotal más el envío.
+      const { subtotal = 0, envio = 0, total = 0 } = order as {
+        subtotal?: number
+        envio?: number
+        total?: number
+      }
+      igual(total, subtotal + envio, `total del comprobante leído por el ${etiqueta}`)
+
+      // El comprobante dibuja el ejemplar y el despacho: si el endpoint deja de
+      // devolver cualquiera de los dos, el documento sale con huecos.
+      const publicacion = (order.publicacion ?? {}) as Record<string, unknown>
+      check(Boolean(publicacion.titulo), `el comprobante no trae la publicación de la orden`)
+      check(Boolean(publicacion.condicion), `el comprobante no trae la condición del ejemplar`)
+
+      const despacho = (order.datosDespacho ?? {}) as Record<string, unknown>
+      check(Boolean(despacho.nombreRecibe), `el comprobante no trae a quién recibe`)
+      check(Boolean(despacho.telefono), `el comprobante no trae el teléfono de despacho`)
+      check(Boolean(despacho.metodoEntrega), `el comprobante no trae el método de entrega`)
+      check(Boolean(despacho.comuna), `el comprobante no trae la comuna de despacho`)
+
+      // El contacto liberado es el corazón del comprobante: sin correo de la
+      // contraparte no hay acuerdo P2P posible.
+      const parte = (order[contraparte] ?? {}) as { email?: string; nombre?: string }
+      check(Boolean(parte.email), `el ${etiqueta} no ve el correo del ${contraparte}`)
+      check(Boolean(parte.nombre), `el ${etiqueta} no ve el nombre del ${contraparte}`)
+
+      if (etiqueta === "comprador") montos = { subtotal, envio, total }
+    }
+
+    // La comisión de plataforma se retiene del subtotal: nunca lo supera, se
+    // queda en pesos enteros y el vendedor recibe exactamente la diferencia.
+    const comision = comisionPlataforma(montos.subtotal)
+    check(Number.isInteger(comision), `la comisión ${comision} no es un peso entero`)
+    check(comision < montos.subtotal, `la comisión ${comision} iguala o supera el subtotal`)
+    igual(comision, Math.round(montos.subtotal * COMISION_PLATAFORMA), "comisión de plataforma")
+    igual(montos.subtotal - comision, Math.round(montos.subtotal * (1 - COMISION_PLATAFORMA)), "parte del vendedor")
+
+    // El contacto liberado no sale de la orden: un tercero queda fuera.
+    const tercero = await pedir(detalle, { cookie: actor.comprador2.cookie })
+    igual(tercero.status, 403, "otro comprador no puede leer el comprobante")
+
+    return { ok: fallos === 0, detalle: "contacto liberado a las dos partes" }
+  },
+)
 
 etapa("F9 · el comprador la recibe y recibe notificación", async () => {
   const orden = ordenes[0]

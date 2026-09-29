@@ -1,7 +1,7 @@
 import "dotenv/config"
 
 import bcrypt from "bcryptjs"
-import { eq, inArray, isNotNull, sql } from "drizzle-orm"
+import { eq, isNotNull, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
 import { Pool } from "pg"
 import * as schema from "../db/schema"
@@ -698,29 +698,6 @@ async function main() {
           datos: { publicacionId: publication.id, vendedorId: publication.vendedorId },
         })
       }
-    }
-  }
-
-  const [favoriteCount] = await db
-    .select({ total: sql<number>`count(*)::int` })
-    .from(schema.favorites)
-
-  if (!favoriteCount || favoriteCount.total === 0) {
-    const lector = byEmail["otaku@lektor.cl"]
-    const paraFavoritos = lector
-      ? await db
-          .select({ id: schema.publications.id })
-          .from(schema.publications)
-          .where(
-            inArray(schema.publications.titulo, ["Naruto Vol. 1", "Jujutsu Kaisen Vol. 1"]),
-          )
-      : []
-
-    if (lector && paraFavoritos.length > 0) {
-      await db
-        .insert(schema.favorites)
-        .values(paraFavoritos.map((p) => ({ userId: lector.id, publicationId: p.id })))
-        .onConflictDoNothing()
     }
   }
 

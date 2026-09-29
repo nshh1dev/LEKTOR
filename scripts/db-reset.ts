@@ -12,7 +12,6 @@ import { Pool } from "pg"
 
 const TABLAS = [
   "notifications",
-  "favorites",
   "stock_movements",
   "book_metadata",
   "chat_messages",

@@ -145,20 +145,19 @@ export function PublicarView({
     [getValues, setValue],
   )
 
-  const faltan = useMemo(
-    () =>
-      resumenFaltantes(errors, ETIQUETAS_CAMPO, {
-        titulo: "titulo",
-        autor: "autor",
-        editorial: "editorial",
-        volumen: "volumen",
-        precio: "precio",
-        stock: "stock",
-        isbn: "isbn",
-        fotos: "fotos",
-      }),
-    [errors],
-  )
+  // Sin `useMemo` a propósito: ver la nota en `checkout-view.tsx`. Memoizar
+  // sobre el Proxy de `errors` dejaba la publicación marcada como incompleta
+  // después de corregir el campo.
+  const faltan = resumenFaltantes(errors, ETIQUETAS_CAMPO, {
+    titulo: "titulo",
+    autor: "autor",
+    editorial: "editorial",
+    volumen: "volumen",
+    precio: "precio",
+    stock: "stock",
+    isbn: "isbn",
+    fotos: "fotos",
+  })
 
   const consultarIsbn = useCallback(
     async (valor: string) => {
@@ -469,7 +468,6 @@ export function PublicarView({
               <FaltanDatos
                 titulo="La ficha todavía no está lista"
                 datos={faltan}
-                nota="Publicar sin estos datos mostraría un ejemplar incompleto en el catálogo."
               />
             ) : null}
             <div className="flex justify-end gap-2">

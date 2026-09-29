@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
 import { LayoutDashboard, LogIn, Moon, Search, Sun, Tag, UserCircle } from "lucide-react"
@@ -44,16 +44,13 @@ export function LektorMarketplace({
   const [busqueda, setBusqueda] = useState("")
   const [filtros, setFiltros] = useState<{
     categoria: Categoria[]
-    editorial: string[]
     condicion: Condicion[]
     comuna: string[]
     precioMin: number | null
     precioMax: number | null
-  }>({ categoria: [], editorial: [], condicion: [], comuna: [], precioMin: null, precioMax: null })
+  }>({ categoria: [], condicion: [], comuna: [], precioMin: null, precioMax: null })
   const [orden, setOrden] = useState<OrdenCatalogo>("recientes")
   const [pagina, setPagina] = useState(1)
-  const [soloFavoritos, setSoloFavoritos] = useState(false)
-  const [favoritos, setFavoritos] = useState<string[]>([])
 
   const [detalle, setDetalle] = useState<PublicacionListItem | null>(null)
   const [ordenCreada, setOrdenCreada] = useState<OrdenUI | null>(null)
@@ -67,7 +64,6 @@ export function LektorMarketplace({
       const params = new URLSearchParams()
       if (termino) params.set("q", termino)
       if (filtros.categoria.length) params.set("categoria", filtros.categoria.join(","))
-      if (filtros.editorial.length) params.set("editorial", filtros.editorial.join(","))
       if (filtros.condicion.length) params.set("condicion", filtros.condicion.join(","))
       if (filtros.comuna.length) params.set("comuna", filtros.comuna.join(","))
       if (filtros.precioMin !== null) params.set("precioMin", String(filtros.precioMin))
@@ -140,51 +136,7 @@ export function LektorMarketplace({
     api<{ user: SesionUsuario }>("/api/auth/me")
       .then((data) => setUsuario(data.user))
       .catch(() => setUsuario(null))
-    api<{ favoriteIds: string[] }>("/api/publications/favorites").catch(() => undefined)
   }, [])
-
-  useEffect(() => {
-    if (!usuario) {
-      setFavoritos([])
-      return
-    }
-    api<{ favoriteIds: string[] }>("/api/publications/favorites")
-      .then((data) => setFavoritos(data.favoriteIds.map(String)))
-      .catch(() => undefined)
-  }, [usuario])
-
-  const alternarFavorito = async (id: string) => {
-    if (!usuario) {
-      setAuthPrompt("buy")
-      return
-    }
-    const eraFavorito = favoritos.includes(id)
-    setFavoritos((current) =>
-      eraFavorito ? current.filter((item) => item !== id) : [...current, id],
-    )
-    setPublicaciones((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, esFavorito: !eraFavorito } : item,
-      ),
-    )
-    try {
-      await api(`/api/publications/favorites?publicationId=${id}`, {
-        method: eraFavorito ? "DELETE" : "POST",
-        body: eraFavorito ? undefined : JSON.stringify({ publicationId: id }),
-      })
-    } catch (error) {
-      setFavoritos((current) =>
-        eraFavorito ? [...current, id] : current.filter((item) => item !== id),
-      )
-      setPublicaciones((current) =>
-        current.map((item) => (item.id === id ? { ...item, esFavorito: eraFavorito } : item)),
-      )
-      avisar.falla({
-        titulo: eraFavorito ? "El ejemplar sigue en tu estantería" : "No se pudo guardar en favoritos",
-        descripcion: mensajeDeFallo(error, "Lo dejamos como estaba."),
-      })
-    }
-  }
 
   const abrirDetalle = async (id: string) => {
     setVista("detail")
@@ -197,7 +149,6 @@ export function LektorMarketplace({
       const publication = normalizarFila(data.publication as unknown as Record<string, unknown>)
       setDetalle({
         ...publication,
-        esFavorito: favoritos.includes(id),
         vendedorNombre: data.vendedor?.nombre ?? "Vendedor",
         vendedorComuna: data.vendedor?.comuna ?? null,
       })
@@ -217,23 +168,17 @@ export function LektorMarketplace({
     setVista("catalog")
     avisar.ok({
       titulo: "Sesión cerrada",
-      descripcion: "Tu estantería de favoritos sigue guardada en este dispositivo.",
+      descripcion: "Vuelve cuando quieras.",
     })
   }
 
-  const visibles = useMemo(
-    () => (soloFavoritos ? publicaciones.filter((item) => favoritos.includes(item.id)) : publicaciones),
-    [publicaciones, soloFavoritos, favoritos],
-  )
-
   const filtrosActivos =
     filtros.categoria.length +
-    filtros.editorial.length +
     filtros.condicion.length +
     filtros.comuna.length +
     (filtros.precioMin !== null || filtros.precioMax !== null ? 1 : 0)
 
-  const alternarFiltro = <K extends "categoria" | "editorial" | "condicion" | "comuna">(
+  const alternarFiltro = <K extends "categoria" | "condicion" | "comuna">(
     grupo: K,
     valor: string,
   ) => {
@@ -331,7 +276,7 @@ export function LektorMarketplace({
       <main id="catalogo" tabIndex={-1} className="mx-auto max-w-[92rem] px-4 py-10 md:px-8 md:py-14">
         {vista === "catalog" && (
           <CatalogView
-            publicaciones={visibles}
+            publicaciones={publicaciones}
             facetas={facetas}
             paginacion={paginacion}
             cargando={cargandoCatalogo}
@@ -349,7 +294,6 @@ export function LektorMarketplace({
             limpiarFiltros={() => {
               setFiltros({
                 categoria: [],
-                editorial: [],
                 condicion: [],
                 comuna: [],
                 precioMin: null,
@@ -358,10 +302,6 @@ export function LektorMarketplace({
               setPagina(1)
             }}
             filtrosActivos={filtrosActivos}
-            soloFavoritos={soloFavoritos}
-            setSoloFavoritos={setSoloFavoritos}
-            favoritos={favoritos}
-            onFavorito={alternarFavorito}
             onDetalle={abrirDetalle}
             onPagina={(value) => {
               setPagina(value)
@@ -374,8 +314,6 @@ export function LektorMarketplace({
         {vista === "detail" && (
           <DetalleView
             publicacion={detalle}
-            esFavorito={detalle ? favoritos.includes(detalle.id) : false}
-            onFavorito={alternarFavorito}
             onVolver={() => setVista("catalog")}
             onComprar={() => {
               if (!usuario) {

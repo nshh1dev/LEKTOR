@@ -34,6 +34,29 @@ export const ESTADOS_ORDEN = [
 export const METODOS_ENTREGA = ["envio_domicilio", "retiro_punto", "coordinar"] as const
 export const ORDENES_CATALOGO = ["recientes", "precio_asc", "precio_desc", "titulo"] as const
 
+/**
+ * El filtro de precio no se escribe: se elige entre tramos. `min` y `max` van en
+ * pesos enteros y se mandan tal cual a `/api/publications`. Los extremos abiertos
+ * usan `null`, que el API interpreta como "sin límite" de ese lado.
+ */
+export const RANGOS_PRECISO = [
+  { id: "todos", etiqueta: "Cualquier precio", min: null, max: null },
+  { id: "hasta-5000", etiqueta: "Hasta $5.000", min: null, max: 5000 },
+  { id: "5000-10000", etiqueta: "$5.000 a $10.000", min: 5001, max: 10000 },
+  { id: "10000-15000", etiqueta: "$10.000 a $15.000", min: 10001, max: 15000 },
+  { id: "15000-20000", etiqueta: "$15.000 a $20.000", min: 15001, max: 20000 },
+  { id: "20000-30000", etiqueta: "$20.000 a $30.000", min: 20001, max: 30000 },
+  { id: "mas-30000", etiqueta: "Más de $30.000", min: 30001, max: null },
+] as const
+
+export type RangoPrecio = (typeof RANGOS_PRECISO)[number]
+
+/** El tramo que corresponde a un rango dado, para recuperar la selección al pintar. */
+export function rangoPrecioDesde(min: number | null, max: number | null): string {
+  const encontrado = RANGOS_PRECISO.find((rango) => rango.min === min && rango.max === max)
+  return encontrado?.id ?? "todos"
+}
+
 export const REGIONES = [
   "Región de Arica y Parinacota",
   "Región de Tarapacá",
@@ -148,7 +171,6 @@ export const publicationUpdateSchema = publicationInputSchema
 export const searchQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   categoria: z.array(z.enum(CATEGORIAS)).max(3).optional(),
-  editorial: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
   autor: z.string().trim().max(200).optional(),
   condicion: z.array(z.enum(CONDICIONES)).max(6).optional(),
   comuna: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
@@ -172,7 +194,6 @@ export function parseSearchParams(params: URLSearchParams): SearchQuery {
   return searchQuerySchema.parse({
     q: params.get("q") ?? undefined,
     categoria: repeated("categoria"),
-    editorial: repeated("editorial"),
     autor: params.get("autor") ?? undefined,
     condicion: repeated("condicion"),
     comuna: repeated("comuna"),
@@ -469,6 +490,18 @@ export function envioSegunMetodo(metodo: MetodoEntrega): number {
   return metodo === "envio_domicilio" ? COSTO_ENVIO_DOMICILIO : 0
 }
 
+/**
+ * Take-rate de la plataforma: LEKTOR retiene este porcentaje del subtotal de cada
+ * venta y el vendedor recibe la diferencia. En el comprobante aparece como un
+ * reparto del total ya pagado, no como un recargo para el comprador.
+ */
+export const COMISION_PLATAFORMA = 0.1
+
+/** El CLP no usa decimales, así que la comisión se redondea al peso entero. */
+export function comisionPlataforma(subtotal: number): number {
+  return Math.round(subtotal * COMISION_PLATAFORMA)
+}
+
 function esUrlValida(valor: string): boolean {
   if (valor.startsWith("/")) return true
   try {
@@ -595,7 +628,6 @@ export type PublicacionListItem = {
   vendedorNombre: string
   vendedorComuna?: string | null
   fechaPublicacion: string
-  esFavorito?: boolean
 }
 
 export type Facetas = {
@@ -603,7 +635,6 @@ export type Facetas = {
   precioMax: number
   totalActivos: number
   categorias: { value: Categoria; total: number }[]
-  editoriales: { value: string; total: number }[]
   condiciones: { value: Condicion; total: number }[]
   comunas: { value: string; total: number }[]
 }
@@ -642,6 +673,46 @@ export type OrdenUI = {
   comprador: { id: string; nombre: string; telefono: string | null; comuna: string | null }
   vendedor: { id: string; nombre: string; telefono: string | null; comuna: string | null }
   contraparte: { id: string; nombre: string; telefono: string | null; comuna: string | null }
+}
+
+/**
+ * Detalle de una orden tal como lo devuelve `GET /api/orders/[id]`. A diferencia
+ * de la lista del perfil, acá sí vienen el correo y la región de las dos partes,
+ * que es lo que el comprobante necesita para liberar el contacto.
+ */
+export type OrdenDetalleUI = Omit<OrdenUI, "comprador" | "vendedor" | "contraparte"> & {
+  compradorId: string
+  vendedorId: string
+  comprador: ParteOrdenUI
+  vendedor: ParteOrdenUI
+  contraparte: ParteOrdenUI
+  publicacion: PublicacionOrdenUI | null
+}
+
+export type ParteOrdenUI = {
+  id: string
+  nombre: string
+  email: string
+  telefono: string | null
+  comuna: string | null
+  region: string | null
+}
+
+/**
+ * El endpoint devuelve la fila de la publicación tal cual. Acá van solo los
+ * campos que el comprobante dibuja, para no prometer un listado que no trae.
+ */
+export type PublicacionOrdenUI = {
+  id: string
+  titulo: string
+  autor: string
+  editorial: string
+  volumen: number | null
+  categoria: Categoria
+  condicion: Condicion
+  precio: number
+  isbn: string | null
+  fotos: string[]
 }
 
 export type NotificacionUI = {

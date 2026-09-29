@@ -1,7 +1,6 @@
 import {
   pgTable,
   index,
-  primaryKey,
   uuid,
   varchar,
   text,
@@ -197,24 +196,6 @@ export const sessions = pgTable(
   (table) => [index("sessions_user_idx").on(table.userId)],
 )
 
-export const favorites = pgTable(
-  "favorites",
-  {
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    publicationId: uuid("publication_id")
-      .notNull()
-      .references(() => publications.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.userId, table.publicationId] }),
-    index("favorites_user_idx").on(table.userId),
-    index("favorites_publication_idx").on(table.publicationId),
-  ],
-)
-
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Publication = typeof publications.$inferSelect
@@ -227,6 +208,5 @@ export type StockMovement = typeof stockMovements.$inferSelect
 export type NewStockMovement = typeof stockMovements.$inferInsert
 export type BookMetadata = typeof bookMetadata.$inferSelect
 export type Session = typeof sessions.$inferSelect
-export type Favorite = typeof favorites.$inferSelect
 export type ChatMessage = typeof chatMessages.$inferSelect
 export type NewChatMessage = typeof chatMessages.$inferInsert

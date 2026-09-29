@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowLeft, CreditCard, LoaderCircle, Lock, MapPin, PackageCheck, Truck } from "lucide-react"
@@ -16,9 +16,10 @@ import { Sello } from "@/components/notificacion/sello"
 import { resumenFaltantes } from "@/lib/avisos"
 import { COSTO_ENVIO_DOMICILIO, REGIONES, RESERVA_HORAS, checkoutFormSchema, type CheckoutFormValues, type OrdenUI, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
-import { METODO_ENTREGA_LABEL, formatCLP, ordenCode, tiempoRestante } from "@/lib/format"
+import { METODO_ENTREGA_LABEL, formatCLP, ordenCode } from "@/lib/format"
 import { MensajeError } from "@/components/marketplace/shared"
 import { PagoView } from "@/components/marketplace/pago-view"
+import { ComprobanteCarga } from "@/components/marketplace/comprobante"
 import { api } from "@/components/marketplace/api"
 import { Portada } from "@/components/marketplace/hero"
 
@@ -73,22 +74,22 @@ export function CheckoutView({
   const [datosDespacho, setDatosDespacho] = useState<CheckoutFormValues | null>(null)
   const [pagando, setPagando] = useState(false)
 
-  const faltan = useMemo(
-    () =>
-      resumenFaltantes(errors, ETIQUETAS_ENTREGA, {
-        nombreRecibe: "nombreRecibe",
-        telefono: "telefono",
-        direccion: "direccion",
-        comuna: "comuna",
-        region: "region",
-        puntoRetiro: "puntoRetiro",
-      }),
-    [errors],
-  )
+  // Sin `useMemo` a propósito: `errors` de react-hook-form es un Proxy que la
+  // librería puede reutilizar cuando un campo deja de tener error, y memoizar
+  // sobre él dejaba en `FaltanDatos` los datos que la persona ya había
+  // completado. `resumenFaltantes` recorre unos pocos campos, no compensa memoizar.
+  const faltan = resumenFaltantes(errors, ETIQUETAS_ENTREGA, {
+    nombreRecibe: "nombreRecibe",
+    telefono: "telefono",
+    direccion: "direccion",
+    comuna: "comuna",
+    region: "region",
+    puntoRetiro: "puntoRetiro",
+  })
 
   if (ordenConfirmada && ordenConfirmada.publicacionId === publicacion.id) {
     return (
-      <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center gap-6 py-8 text-center">
+      <div className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center gap-6 py-8 text-center">
         <Sello tono="ok" tamano="lg" className="animate-sello" />
         <div className="flex flex-col gap-2">
           <p className="rotulo text-aviso-ok">Reserva confirmada</p>
@@ -100,32 +101,7 @@ export function CheckoutView({
           </p>
         </div>
 
-        <dl className="papel w-full rounded-2xl border border-border/70 bg-card p-5 text-left text-sm sombra-tomo">
-          <div className="flex items-baseline justify-between gap-4 border-b border-dashed border-border/70 pb-3">
-            <dt className="rotulo text-muted-foreground">Código de orden</dt>
-            <dd className="font-mono text-sm font-semibold tracking-tight text-oro">
-              {ordenCode(ordenConfirmada.id)}
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4 py-2.5">
-            <dt className="text-muted-foreground">Reserva expira en</dt>
-            <dd className="text-right font-semibold">
-              {tiempoRestante(ordenConfirmada.reservaExpiraEn)}
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4 border-t border-dashed border-border/70 py-2.5">
-            <dt className="text-muted-foreground">Vendedor</dt>
-            <dd className="text-right font-semibold">
-              {ordenConfirmada.vendedor?.nombre ?? "el vendedor"}
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4 border-t border-dashed border-border/70 py-2.5">
-            <dt className="text-muted-foreground">Total pagado</dt>
-            <dd className="text-right font-serif text-lg font-semibold">
-              {formatCLP(ordenConfirmada.total)}
-            </dd>
-          </div>
-        </dl>
+        <ComprobanteCarga ordenId={ordenConfirmada.id} />
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
@@ -168,7 +144,7 @@ export function CheckoutView({
       avisar.ok({
         titulo: "Pago aprobado",
         descripcion: "El ejemplar quedó reservado a tu nombre.",
-        referencia: ordenCode(data.order.id),
+        referencia: ordenCode(data.order.id, data.order.fechaCreacion),
         duracion: 6000,
       })
       setDatosDespacho(null)
@@ -347,11 +323,7 @@ export function CheckoutView({
                   <span className="text-primary">{formatCLP(total)}</span>
                 </div>
               </div>
-              <FaltanDatos
-                titulo="No podemos enviarte el ejemplar sin esto"
-                datos={faltan}
-                nota="Lo usa el vendedor para coordinar la entrega, no para nada más."
-              />
+              <FaltanDatos titulo="No podemos enviarte el ejemplar sin esto" datos={faltan} />
               <Button
                 type="submit"
                 size="lg"

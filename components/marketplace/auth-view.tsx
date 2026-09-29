@@ -292,7 +292,6 @@ export function AuthView({
                 titulo="Para seguirte faltan"
                 datos={faltan}
                 vivo={false}
-                nota="Los datos solo se usan para coordinar la compra y el envío."
               />
             ) : null}
             {rechazo ? (

@@ -90,6 +90,10 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - Si cambian el esquema o el seed: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`.
 - Las fotos del aviso salen de `POST /api/uploads`, que valida la firma de los bytes y escribe en
   `public/uploads/`. Esa carpeta está en `.gitignore`: las imágenes del entorno local no se versionan.
+- Nada se escribe fuera de la carpeta del proyecto. El almacén de paquetes de pnpm está fijado con
+  `storeDir: .pnpm-store` en `pnpm-workspace.yaml` (en pnpm 12 los ajustes de pnpm ya no se leen del
+  `.npmrc`); sin eso pnpm crea `D:\.pnpm-store` en la raíz de la unidad. `.pnpm-store/` está en
+  `.gitignore`.
 - Las entradas del usuario se formatean mientras se escriben con los helpers puros de `lib/entrada.ts`
   (`formatearPrecio`, `formatearTelefono`) y de `lib/isbn.ts` (`formatIsbn`), no con lógica suelta en
   cada vista. El esquema Zod acepta lo ya formateado y devuelve el valor canónico: `precioANumero`

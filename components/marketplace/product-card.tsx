@@ -1,20 +1,15 @@
 "use client"
 
-import { Heart, MapPin, Star } from "lucide-react"
+import { MapPin, Star } from "lucide-react"
 import { type PublicacionListItem } from "@/lib/catalog"
 import { formatCLP } from "@/lib/format"
 import { Portada } from "@/components/marketplace/hero"
-import { cn } from "@/lib/utils"
 
 export function ProductCard({
   publicacion,
-  favorito,
-  onFavorito,
   onDetalle,
 }: {
   publicacion: PublicacionListItem
-  favorito: boolean
-  onFavorito: () => void
   onDetalle: () => void
 }) {
   const sinStock = publicacion.stock <= 0
@@ -37,21 +32,6 @@ export function ProductCard({
           )}
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={onFavorito}
-        className={cn(
-          "absolute right-3 top-3 z-20 flex size-9 cursor-pointer items-center justify-center rounded-full",
-          "bg-neutral-950/70 text-white/70 ring-1 ring-white/15 backdrop-blur-md transition-all",
-          "hover:scale-110 hover:bg-neutral-950 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-oro",
-          favorito && "text-oro",
-        )}
-        aria-pressed={favorito}
-        aria-label={favorito ? `Quitar ${publicacion.titulo} de favoritos` : `Guardar ${publicacion.titulo} en favoritos`}
-      >
-        <Heart className={cn("size-4", favorito && "fill-current")} />
-      </button>
 
       <button
         type="button"

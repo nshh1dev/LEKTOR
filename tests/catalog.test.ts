@@ -2,9 +2,12 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 
 import {
+  COMISION_PLATAFORMA,
   COSTO_ENVIO_DOMICILIO,
+  RANGOS_PRECISO,
   RESERVA_HORAS,
   chatMessageSchema,
+  comisionPlataforma,
   datosDespachoSchema,
   listaFotosAUrls,
   panelMovimientoSchema,
@@ -13,12 +16,58 @@ import {
   passwordChangeSchema,
   profileUpdateSchema,
   publicationInputSchema,
+  rangoPrecioDesde,
   searchQuerySchema,
   envioSegunMetodo,
   estadoSegunStock,
   registroSchema,
   transicionValida,
 } from "@/lib/catalog"
+
+test("los tramos de precio cubren el catálogo sin huecos ni traslapes", () => {
+  const tramos = RANGOS_PRECISO.filter((rango) => rango.id !== "todos")
+  const cabeza = tramos[0]
+  const cola = tramos[tramos.length - 1]
+
+  for (const tramo of tramos) {
+    if (tramo.min !== null && tramo.max !== null) {
+      assert.ok(tramo.min < tramo.max, `el tramo ${tramo.id} está al revés`)
+    }
+    assert.ok(
+      tramo.etiqueta.length > 0 && tramo.etiqueta.includes("$"),
+      `el tramo ${tramo.id} no se anuncia con pesos`,
+    )
+  }
+
+  // El primero se abre hacia abajo y el último hacia arriba, así que entre los
+  // dos todo precio entero cae en exactamente un tramo.
+  assert.equal(cabeza.id, "hasta-5000")
+  assert.equal(cabeza.min, null, "el primer tramo debe cubrir desde $0")
+  assert.equal(cola.max, null, "el último tramo debe quedar abierto hacia arriba")
+
+  for (let i = 1; i < tramos.length; i += 1) {
+    const anterior = tramos[i - 1]
+    const actual = tramos[i]
+    if (anterior.max === null || actual.min === null) continue
+    assert.equal(
+      actual.min,
+      anterior.max + 1,
+      `entre ${anterior.id} y ${actual.id} queda un peso sin cubrir`,
+    )
+  }
+
+  assert.equal(RANGOS_PRECISO[0].id, "todos")
+  assert.equal(RANGOS_PRECISO[0].min, null)
+  assert.equal(RANGOS_PRECISO[0].max, null)
+})
+
+test("rangoPrecioDesde recupera la selección y cae en 'todos' si no existe", () => {
+  assert.equal(rangoPrecioDesde(null, null), "todos")
+  assert.equal(rangoPrecioDesde(null, 5000), "hasta-5000")
+  assert.equal(rangoPrecioDesde(10001, 15000), "10000-15000")
+  assert.equal(rangoPrecioDesde(30001, null), "mas-30000")
+  assert.equal(rangoPrecioDesde(1, 2), "todos", "un rango escrito a mano no debe invocar un tramo")
+})
 
 test("la máquina de estados respeta las transiciones del dominio", () => {
   assert.equal(transicionValida("reservada", "en_preparacion"), true)
@@ -38,6 +87,29 @@ test("el costo de envío depende del método de entrega", () => {
   assert.equal(envioSegunMetodo("retiro_punto"), 0)
   assert.equal(envioSegunMetodo("coordinar"), 0)
   assert.equal(RESERVA_HORAS, 48)
+})
+
+test("la comisión de plataforma es un diez por ciento redondeado al peso", () => {
+  assert.equal(COMISION_PLATAFORMA, 0.1)
+  assert.equal(comisionPlataforma(0), 0)
+  assert.equal(comisionPlataforma(8_000), 800)
+  assert.equal(comisionPlataforma(12_500), 1_250)
+  // El CLP no tiene decimales: 9.990 * 0,1 son 999 pesos exactos y 1.005 son
+  // 100,5, que tienen que quedar en 101 para que el número sea un entero.
+  assert.equal(comisionPlataforma(9_990), 999)
+  assert.equal(comisionPlataforma(1_005), 101)
+  assert.equal(comisionPlataforma(1_004), 100)
+})
+
+test("la comisión nunca deja al vendedor sin parte", () => {
+  // Lo que el comprobante llama "parte del vendedor" sale de restar la comisión
+  // al subtotal: tiene que ser positiva y sumar de vuelta el subtotal entero.
+  for (const subtotal of [1, 999, 1_000, 8_000, 15_000, 999_999]) {
+    const comision = comisionPlataforma(subtotal)
+    assert.ok(comision >= 0, `comisión negativa en ${subtotal}`)
+    assert.ok(comision < subtotal, `la comisión iguala o supera el subtotal ${subtotal}`)
+    assert.equal(subtotal - comision + comision, subtotal, `el reparto no cuadra en ${subtotal}`)
+  }
 })
 
 test("listaFotosAUrls limpia y limita a seis fotos", () => {

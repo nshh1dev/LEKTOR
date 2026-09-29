@@ -88,6 +88,12 @@ export function tiempoRestante(iso: string | Date): string {
   return resto > 0 ? `${horas} h ${resto} min` : `${horas} h`
 }
 
-export function ordenCode(id: string): string {
-  return `LK-${id.replace(/-/g, "").slice(0, 6).toUpperCase()}`
+/**
+ * Número del comprobante de la orden. Lleva el día en que se creó, en hora de
+ * Chile, para que el documento se lea como una fecha y no solo como un
+ * identificador. El sufijo sale del UUID, que ya es único.
+ */
+export function ordenCode(id: string, fecha: string | Date): string {
+  const dia = claveDiaSantiago(typeof fecha === "string" ? new Date(fecha) : fecha).replaceAll("-", "")
+  return `LK-${dia}-${id.replace(/-/g, "").slice(0, 6).toUpperCase()}`
 }

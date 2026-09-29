@@ -1,10 +1,12 @@
 "use client"
 
-import { Clock3, PackageCheck } from "lucide-react"
+import { useState } from "react"
+import { Clock3, FileText, PackageCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChatOrden } from "@/components/marketplace/chat-orden"
+import { DialogoComprobante } from "@/components/marketplace/comprobante"
 import { type EstadoOrden, type OrdenUI } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
 import { ESTADO_ORDEN_BADGE, ESTADO_ORDEN_LABEL, ESTADO_ORDEN_PASOS, METODO_ENTREGA_LABEL, formatCLP, formatDateTime, ordenCode, tiempoRestante } from "@/lib/format"
@@ -40,6 +42,7 @@ export function TarjetaOrden({
   alCambiarEstado: (ordenId: string, estado: EstadoOrden) => void
 }) {
   const contraparte = rol === "comprador" ? orden.vendedor : orden.comprador
+  const [comprobanteAbierto, setComprobanteAbierto] = useState(false)
   // El vendedor recorre los cuatro pasos: prepara, despacha y el comprador confirma.
   const siguiente: EstadoOrden | null =
     orden.estado === "reservada"
@@ -68,7 +71,7 @@ export function TarjetaOrden({
           <Badge className={ESTADO_ORDEN_BADGE[orden.estado]}>{ESTADO_ORDEN_LABEL[orden.estado]}</Badge>
         </div>
         <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="font-mono">{ordenCode(orden.id)}</span>
+          <span className="font-mono">{ordenCode(orden.id, orden.fechaCreacion)}</span>
           <span>{formatDateTime(orden.fechaCreacion)}</span>
           <span>
             {rol === "comprador" ? "Vende" : "Compra"}: {contraparte.nombre}
@@ -99,6 +102,14 @@ export function TarjetaOrden({
           </p>
         )}
         <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-lg"
+            onClick={() => setComprobanteAbierto(true)}
+          >
+            <FileText data-icon="inline-start" /> Ver comprobante
+          </Button>
           {puedeAvanzar && siguiente && (
             <Button
               size="sm"
@@ -127,6 +138,11 @@ export function TarjetaOrden({
           />
         </div>
       </CardContent>
+
+      <DialogoComprobante
+        ordenId={comprobanteAbierto ? orden.id : null}
+        alCerrar={() => setComprobanteAbierto(false)}
+      />
     </Card>
   )
 }

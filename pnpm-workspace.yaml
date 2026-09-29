@@ -2,3 +2,7 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+
+# El almacén de paquetes vive dentro del proyecto para no escribir nada fuera
+# de él (por defecto pnpm lo crea en la raíz de la unidad del repo).
+storeDir: .pnpm-store

@@ -57,14 +57,11 @@ export function Aviso({
 export function FaltanDatos({
   titulo,
   datos,
-  nota,
   vivo = true,
   className,
 }: {
   titulo: string
   datos: Faltante[]
-  /** Por qué se pide cada dato: evita que se lea como un formulario rehacido. */
-  nota?: string
   /** En un formulario que se valida en vivo, el bloque no debe anunciarse solo. */
   vivo?: boolean
   className?: string
@@ -118,9 +115,6 @@ export function FaltanDatos({
           </li>
         ))}
       </ul>
-      {nota ? (
-        <p className="text-xs leading-relaxed text-muted-foreground">{nota}</p>
-      ) : null}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowLeft, Heart, LoaderCircle, ShieldCheck } from "lucide-react"
+import { ArrowLeft, LoaderCircle, ShieldCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,14 +13,10 @@ import { Portada } from "@/components/marketplace/hero"
 
 export function DetalleView({
   publicacion,
-  esFavorito,
-  onFavorito,
   onVolver,
   onComprar,
 }: {
   publicacion: PublicacionListItem | null
-  esFavorito: boolean
-  onFavorito: (id: string) => void
   onVolver: () => void
   onComprar: () => void
 }) {
@@ -74,18 +70,7 @@ export function DetalleView({
 
         <div className="flex flex-col gap-6 pt-2">
           <div>
-            <div className="flex items-start justify-between gap-3">
-              <Badge className="mb-4 rounded-full">{publicacion.categoria}</Badge>
-              <Button
-                variant="outline"
-                size="icon"
-                aria-pressed={esFavorito}
-                onClick={() => onFavorito(publicacion.id)}
-                aria-label={esFavorito ? "Quitar de favoritos" : "Guardar en favoritos"}
-              >
-                <Heart className={esFavorito ? "fill-current text-primary" : ""} />
-              </Button>
-            </div>
+            <Badge className="mb-4 rounded-full">{publicacion.categoria}</Badge>
             <h1 className="text-balance text-4xl font-bold tracking-tight md:text-5xl">{publicacion.titulo}</h1>
             <p className="mt-3 text-lg text-muted-foreground">
                 {publicacion.autor} · {publicacion.editorial}

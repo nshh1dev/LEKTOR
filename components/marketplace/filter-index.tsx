@@ -1,19 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { RotateCcw } from "lucide-react"
-import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import {
-  type Categoria,
-  type Condicion,
-  type Facetas,
-} from "@/lib/catalog"
-import { pluralEjemplares } from "@/components/marketplace/shared"
+import { RANGOS_PRECISO, rangoPrecioDesde, type Categoria, type Condicion, type Facetas } from "@/lib/catalog"
 
 type Filtros = {
   categoria: Categoria[]
-  editorial: string[]
   condicion: Condicion[]
   comuna: string[]
   precioMin: number | null
@@ -22,13 +15,7 @@ type Filtros = {
 
 type FacetasIndice = Pick<
   Facetas,
-  | "totalActivos"
-  | "categorias"
-  | "condiciones"
-  | "editoriales"
-  | "comunas"
-  | "precioMin"
-  | "precioMax"
+  "totalActivos" | "categorias" | "condiciones" | "comunas" | "precioMin" | "precioMax"
 >
 
 export function IndiceFiltros({
@@ -42,10 +29,7 @@ export function IndiceFiltros({
 }: {
   facetas: FacetasIndice
   filtros: Filtros
-  alternarFiltro: <K extends "categoria" | "editorial" | "condicion" | "comuna">(
-    grupo: K,
-    valor: string,
-  ) => void
+  alternarFiltro: <K extends "categoria" | "condicion" | "comuna">(grupo: K, valor: string) => void
   setPrecioRango: (min: number | null, max: number | null) => void
   limpiarFiltros: () => void
   filtrosActivos: number
@@ -55,11 +39,9 @@ export function IndiceFiltros({
     <div className="flex flex-col gap-6">
       <div>
         <p className="rotulo">Catálogo</p>
-        <p className="mt-2.5 font-serif text-2xl leading-tight">
-          {pluralEjemplares(facetas.totalActivos)}
-        </p>
+        <p className="mt-2.5 font-serif text-2xl leading-tight">Afina tu búsqueda</p>
         <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-          disponibles para explorar, de lectores que ya cuidaron su estantería.
+          Acota por tipo, estado, precio o comuna para llegar antes al que buscas.
         </p>
         {filtrosActivos > 0 && (
           <button
@@ -98,19 +80,10 @@ export function IndiceFiltros({
 
       <Bloque idRaiz={idRaiz} titulo="Precio">
         <FiltroPrecio
-          minimo={filtros.precioMin}
-          maximo={filtros.precioMax}
+          rangoActivo={rangoPrecioDesde(filtros.precioMin, filtros.precioMax)}
           cotaMinima={facetas.precioMin}
           cotaMaxima={facetas.precioMax}
           onAplicar={setPrecioRango}
-        />
-      </Bloque>
-
-      <Bloque idRaiz={idRaiz} titulo="Editoriales">
-        <ListaFiltros
-          items={facetas.editoriales}
-          activo={(value) => filtros.editorial.includes(value)}
-          onAlternar={(value) => alternarFiltro("editorial", value)}
         />
       </Bloque>
 
@@ -131,100 +104,57 @@ export function IndiceFiltros({
   )
 }
 
-const PRECIO_TOPE = 99999999
-
-/** El rango se escribe en pesos enteros, sin separador, para no pelear con el cursor. */
-function aPrecio(valor: string): number | null {
-  const digitos = valor.replace(/[^0-9]/g, "")
-  if (!digitos) return null
-  return Math.min(Number.parseInt(digitos, 10), PRECIO_TOPE)
-}
-
 function pesosBreves(valor: number): string {
   return `$${valor.toLocaleString("es-CL")}`
 }
 
 /**
- * El rango se aplica al soltar el campo o al dar Enter, no en cada tecla: elegir
- * un precio no puede disparar una consulta por carácter. Si el lector invierte
- * los extremos se corrigen solos, porque un rango al revés no tiene resultados.
+ * El precio no se escribe a mano: se elige un tramo de `RANGOS_PRECISO`. Evita
+ * rangos invertidos, decimales y consultas por cada tecla. El texto de abajo
+ * sigue diciendo dónde está el catálogo hoy, que es el dato que el tramo no
+ * muestra.
  */
 function FiltroPrecio({
-  minimo,
-  maximo,
+  rangoActivo,
   cotaMinima,
   cotaMaxima,
   onAplicar,
 }: {
-  minimo: number | null
-  maximo: number | null
+  rangoActivo: string
   cotaMinima: number
   cotaMaxima: number
   onAplicar: (min: number | null, max: number | null) => void
 }) {
-  const [borrador, setBorrador] = useState({
-    desde: minimo === null ? "" : String(minimo),
-    hasta: maximo === null ? "" : String(maximo),
-  })
-
-  useEffect(() => {
-    setBorrador({
-      desde: minimo === null ? "" : String(minimo),
-      hasta: maximo === null ? "" : String(maximo),
-    })
-  }, [minimo, maximo])
-
-  const aplicar = () => {
-    const desde = aPrecio(borrador.desde)
-    const hasta = aPrecio(borrador.hasta)
-    const corregido =
-      desde !== null && hasta !== null && desde > hasta
-        ? { desde: hasta, hasta: desde }
-        : { desde, hasta }
-    if (corregido.desde === minimo && corregido.hasta === maximo) return
-    onAplicar(corregido.desde, corregido.hasta)
-  }
-
   return (
-    <div
-      className="flex flex-col gap-1.5"
-      onBlur={(event) => {
-        if (event.currentTarget.contains(event.relatedTarget)) return
-        aplicar()
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter") return
-        event.preventDefault()
-        aplicar()
-      }}
-    >
-      <div className="flex items-center gap-1.5">
-        <Input
-          value={borrador.desde}
-          onChange={(event) => setBorrador((actual) => ({ ...actual, desde: event.target.value }))}
-          type="text"
-          inputMode="numeric"
-          placeholder={String(cotaMinima)}
-          aria-label="Precio desde"
-          className="h-8 rounded-md border-border/70 px-2 text-xs tabular-nums"
-        />
-        <span aria-hidden className="text-[10px] text-muted-foreground/60">
-          —
-        </span>
-        <Input
-          value={borrador.hasta}
-          onChange={(event) => setBorrador((actual) => ({ ...actual, hasta: event.target.value }))}
-          type="text"
-          inputMode="numeric"
-          placeholder={String(cotaMaxima)}
-          aria-label="Precio hasta"
-          className="h-8 rounded-md border-border/70 px-2 text-xs tabular-nums"
-        />
-      </div>
-      <p className="text-[11px] leading-snug text-muted-foreground/80">
+    <div className="flex flex-col">
+      {RANGOS_PRECISO.map((rango) => (
+        <button
+          key={rango.id}
+          type="button"
+          aria-pressed={rangoActivo === rango.id}
+          onClick={() => onAplicar(rango.min, rango.max)}
+          className={cn(
+            "group flex w-full cursor-pointer items-baseline gap-2 rounded-md py-1.5 pr-1 text-left text-sm",
+            "transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-oro",
+            rangoActivo === rango.id ? "text-oro" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <span
+            aria-hidden
+            className={cn(
+              "w-3 shrink-0 translate-y-[-1px] text-[0.7rem] transition-opacity duration-150",
+              rangoActivo === rango.id ? "opacity-100" : "opacity-0 group-hover:opacity-40",
+            )}
+          >
+            —
+          </span>
+          <span className="min-w-0 flex-1">{rango.etiqueta}</span>
+        </button>
+      ))}
+      <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/80">
         {cotaMinima === cotaMaxima
           ? `Todo el catálogo está en ${pesosBreves(cotaMinima)}`
-          : `Entre ${pesosBreves(cotaMinima)} y ${pesosBreves(cotaMaxima)}`}
+          : `El catálogo va entre ${pesosBreves(cotaMinima)} y ${pesosBreves(cotaMaxima)}`}
       </p>
     </div>
   )

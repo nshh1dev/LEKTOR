@@ -336,3 +336,49 @@
     0 16px 26px -18px oklch(0 0 0 / 0.55),
     0 3px 8px -4px oklch(0 0 0 / 0.3);
 }
+
+/* Impresión del comprobante. Sale a la impresora únicamente el documento, esté
+   donde esté: en la página de confirmación o dentro del diálogo del perfil. Se
+   apaga todo el resto con `visibility` y el comprobante se ancla al origen de la
+   página, para que los bloques invisibles que lo rodean no dejen hojas en
+   blanco por delante. */
+@media print {
+  body {
+    background: #fff;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .comprobante-documento,
+  .comprobante-documento * {
+    visibility: visible !important;
+  }
+
+  .comprobante-documento {
+    position: absolute !important;
+    inset: 0 auto auto 0;
+    width: 100%;
+    margin: 0;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  /* El diálogo centra su contenido con fixed y translate: hay que quitarlo para
+     que el comprobante pueda anclarse al origen de la página. */
+  .comprobante-hoja {
+    position: static !important;
+    inset: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    translate: none !important;
+    transform: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+}

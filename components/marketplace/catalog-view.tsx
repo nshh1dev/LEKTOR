@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronLeft, ChevronRight, Heart, Search, SlidersHorizontal } from "lucide-react"
+import { useEffect, useState } from "react"
+import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, Search, SlidersHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -12,21 +12,24 @@ import {
 } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ORDENES_CATALOGO, type Categoria, type Condicion, type Facetas, type Paginacion, type PublicacionListItem } from "@/lib/catalog"
-import { FilaAlternador, ORDEN_LABELS, pluralEjemplares } from "@/components/marketplace/shared"
+import { ORDEN_LABELS, pluralEjemplares } from "@/components/marketplace/shared"
+import { cn } from "@/lib/utils"
 import { type OrdenCatalogo } from "@/components/marketplace/types"
 import { ProductCard } from "@/components/marketplace/product-card"
 import { IndiceFiltros } from "@/components/marketplace/filter-index"
 
+/** Recuerda si la columna de filtros quedó plegada, como la preferencia de tema. */
+const CLAVE_FILTROS = "lektor:filtros"
+
 type Filtros = {
   categoria: Categoria[]
-  editorial: string[]
   condicion: Condicion[]
   comuna: string[]
   precioMin: number | null
   precioMax: number | null
 }
 
-type GrupoFiltro = "categoria" | "editorial" | "condicion" | "comuna"
+type GrupoFiltro = "categoria" | "condicion" | "comuna"
 
 export function CatalogView({
   publicaciones,
@@ -40,10 +43,6 @@ export function CatalogView({
   setPrecioRango,
   limpiarFiltros,
   filtrosActivos,
-  soloFavoritos,
-  setSoloFavoritos,
-  favoritos,
-  onFavorito,
   onDetalle,
   onPagina,
 }: {
@@ -58,14 +57,32 @@ export function CatalogView({
   setPrecioRango: (min: number | null, max: number | null) => void
   limpiarFiltros: () => void
   filtrosActivos: number
-  soloFavoritos: boolean
-  setSoloFavoritos: (value: boolean) => void
-  favoritos: string[]
-  onFavorito: (id: string) => void
   onDetalle: (id: string) => void
   onPagina: (pagina: number) => void
 }) {
   const [cajonAbierto, setCajonAbierto] = useState(false)
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(true)
+
+  useEffect(() => {
+    try {
+      setFiltrosAbiertos(window.localStorage.getItem(CLAVE_FILTROS) !== "ocultos")
+    } catch {
+      setFiltrosAbiertos(true)
+    }
+  }, [])
+
+  const alternarFiltros = () => {
+    setFiltrosAbiertos((abierto) => {
+      const siguiente = !abierto
+      try {
+        window.localStorage.setItem(CLAVE_FILTROS, siguiente ? "abiertos" : "ocultos")
+      } catch {
+        // Si el navegador bloquea el almacenamiento, el pliegue igual dura la sesión.
+      }
+      return siguiente
+    })
+  }
+
   const indice = (idRaiz: string) => (
     <IndiceFiltros
       idRaiz={idRaiz}
@@ -77,7 +94,7 @@ export function CatalogView({
       filtrosActivos={filtrosActivos}
     />
   )
-  const resultados = soloFavoritos ? favoritos.length : paginacion.total
+  const resultados = paginacion.total
 
   return (
     <div className="flex flex-col gap-10">
@@ -88,7 +105,8 @@ export function CatalogView({
             Encuentra tu próxima historia.
           </h1>
           <p className="mt-3 max-w-lg text-pretty text-sm leading-relaxed text-muted-foreground">
-            {pluralEjemplares(facetas.totalActivos)} de segunda mano, vendidos por quienes ya los leyeron.
+            Cada ejemplar viene con un lector antes que tú. Este es el lugar para encontrar el
+            siguiente.
           </p>
         </div>
         <Button
@@ -103,30 +121,47 @@ export function CatalogView({
         </Button>
       </header>
 
-      <div className="grid gap-x-12 gap-y-8 lg:grid-cols-[15rem_1fr]">
-        <aside className="hidden lg:block">
-          <div className="scrollbar-fina sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pe-3 pb-8">
-            {indice("indice")}
-          </div>
-        </aside>
+      <div
+        className={cn(
+          "grid gap-x-12 gap-y-8",
+          filtrosAbiertos ? "lg:grid-cols-[15rem_1fr]" : "lg:grid-cols-1",
+        )}
+      >
+        {filtrosAbiertos && (
+          <aside id="indice-filtros" className="hidden lg:block">
+            <div className="scrollbar-fina sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pe-3 pb-8">
+              {indice("indice")}
+            </div>
+          </aside>
+        )}
 
         <section className="flex flex-col gap-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground" aria-live="polite">
-              <span className="font-mono text-xs uppercase tracking-[0.16em] text-foreground">
-                {resultados}
-              </span>{" "}
-              {resultados === 1 ? "ejemplar" : "ejemplares"}
+              <span className="sr-only">{pluralEjemplares(resultados)}</span>
+              <span aria-hidden className="text-pretty">
+                {filtrosActivos > 0
+                  ? "Filtrando el índice"
+                  : "Todo el índice, a la espera de que elijas"}
+              </span>
               {cargando && <span className="text-muted-foreground/70"> · actualizando</span>}
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <FilaAlternador
-                activo={soloFavoritos}
-                onToggle={() => setSoloFavoritos(!soloFavoritos)}
-                etiqueta="Mi selección"
-                conteo={favoritos.length}
-                icono={<Heart className="size-3.5" />}
-              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden h-9 rounded-full border-border/70 text-xs lg:inline-flex"
+                aria-expanded={filtrosAbiertos}
+                aria-controls="indice-filtros"
+                onClick={alternarFiltros}
+              >
+                {filtrosAbiertos ? (
+                  <PanelLeftClose data-icon="inline-start" />
+                ) : (
+                  <PanelLeftOpen data-icon="inline-start" />
+                )}
+                {filtrosAbiertos ? "Ocultar filtros" : "Mostrar filtros"}
+              </Button>
               <span className="rotulo text-[9px]">Ordenar</span>
               <Select value={orden} onValueChange={(value) => setOrden(value as OrdenCatalogo)}>
                 <SelectTrigger
@@ -154,8 +189,6 @@ export function CatalogView({
                 <ProductCard
                   key={publicacion.id}
                   publicacion={publicacion}
-                  favorito={favoritos.includes(publicacion.id)}
-                  onFavorito={() => onFavorito(publicacion.id)}
                   onDetalle={() => onDetalle(publicacion.id)}
                 />
               ))}
@@ -217,7 +250,7 @@ export function CatalogView({
             className="mt-8 w-full rounded-full"
             onClick={() => setCajonAbierto(false)}
           >
-            Ver {resultados} {resultados === 1 ? "ejemplar" : "ejemplares"}
+            Ver resultados
           </Button>
         </SheetContent>
       </Sheet>
