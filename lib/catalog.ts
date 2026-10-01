@@ -317,6 +317,61 @@ export const chatMessageSchema = z.object({
     .max(1000, "El mensaje es demasiado largo"),
 })
 
+/** Abrir una conversación de contacto previo sobre una publicación. */
+export const abrirConversacionSchema = chatMessageSchema.extend({
+  publicacionId: z.string().uuid("Publicación inválida"),
+})
+
+/**
+ * Valoraciones. El formulario valida solo el puntaje, pero la condición de
+ * que hubo una compra recibida la verifica el servidor: es la única garantía de
+ * que la nota venga de alguien que recibió el ejemplar y no de un adversario.
+ */
+export const PUNTAJE_MAXIMO = 5
+
+export const reviewSchema = z.object({
+  puntaje: z
+    .number({ invalid_type_error: "Elige cuántas estrellas le das" })
+    .int("Las estrellas van de 1 a 5")
+    .min(1, "Con una estrella ya cuentas lo que pasó")
+    .max(PUNTAJE_MAXIMO, "Las estrellas van de 1 a 5"),
+  /** Orden recibida que se está valorando. Si no viene, el servidor resuelve
+   *  sobre la compra recibida más reciente de esa publicación, como antes. */
+  orderId: z.string().uuid("Orden inválida").optional(),
+})
+
+export type ReviewFormValues = z.infer<typeof reviewSchema>
+
+export const reviewUpdateSchema = z.object({
+  puntaje: z
+    .number({ invalid_type_error: "Elige cuántas estrellas le das" })
+    .int("Las estrellas van de 1 a 5")
+    .min(1, "Con una estrella ya cuentas lo que pasó")
+    .max(PUNTAJE_MAXIMO, "Las estrellas van de 1 a 5"),
+})
+
+export type FilaEstrella = { puntaje: number; cantidad: number; porcentaje: number }
+
+/**
+ * Convierte el conteo por puntaje en las cinco filas de la barra de estrellas,
+ * de cinco a una, que es como se lee un resumen de reputación. El porcentaje
+ * sale contra el total de reseñas para que cada fila se pueda pintar sola.
+ *
+ * El arreglo entra indexado por `puntaje - 1`: el cero son las de una estrella.
+ * Sale ordenado al revés porque así lo pintan las barras.
+ */
+export function distribucionDesde(conteos: number[]): FilaEstrella[] {
+  const total = conteos.reduce((suma, cantidad) => suma + Math.max(0, cantidad), 0)
+  return [5, 4, 3, 2, 1].map((puntaje) => {
+    const cantidad = Math.max(0, conteos[puntaje - 1] ?? 0)
+    return {
+      puntaje,
+      cantidad,
+      porcentaje: total === 0 ? 0 : Math.round((cantidad / total) * 100),
+    }
+  })
+}
+
 const telefonoObligatorio = telefonoSchema
 
 export const registroSchema = z
@@ -446,6 +501,18 @@ export const panelReportesQuerySchema = z.object({
       message: "El período no está disponible",
     })
     .default(30),
+})
+
+/** Moderación de valoraciones. Ocultar recalcula el promedio de la publicación. */
+export const moderarReviewSchema = z.object({
+  visible: z.boolean({ message: "Indica si la valoración queda visible" }),
+})
+
+export const panelValoracionesQuerySchema = z.object({
+  soloOcultas: z
+    .enum(["true", "false"])
+    .transform((valor) => valor === "true")
+    .default("false"),
 })
 
 export const panelMovimientoSchema = z
@@ -624,10 +691,89 @@ export type PublicacionListItem = {
   fotos: string[]
   estado: EstadoPublicacion
   rating: string | null
+  ratingCount: number
   vendedorId: string
   vendedorNombre: string
   vendedorComuna?: string | null
   fechaPublicacion: string
+}
+
+/** Una valoración tal como la devuelve la API, con su autor ya resuelto. */
+export type ReviewUI = {
+  id: string
+  publicacionId: string
+  publicacionTitulo: string
+  puntaje: number
+  visible: boolean
+  fechaCreacion: string
+  editadoEn: string | null
+  autor: { id: string; nombre: string; avatarUrl: string | null }
+}
+
+/** Resumen de la reputación de una publicación o de un vendedor. */
+export type ReputacionUI = {
+  promedio: number | null
+  total: number
+  distribucion: FilaEstrella[]
+}
+
+/** Nivel de coleccionista según cuántos ejemplares activos tiene publicados. */
+export function nivelDePublicaciones(total: number): string {
+  if (total <= 0) return "Nuevo en LEKTOR"
+  if (total < 4) return "Coleccionista"
+  if (total < 10) return "Biblioteca en casa"
+  return "Referencia local"
+}
+
+/**
+ * Página pública de un vendedor: su ficha, la reputación sobre todas sus
+ * reseñas y sus ejemplares activos.
+ */
+export type PerfilVendedorUI = {
+  vendedor: {
+    id: string
+    nombre: string
+    avatarUrl: string | null
+    bio: string | null
+    comuna: string | null
+    region: string | null
+    fechaCreacion: string
+    nivel: string
+  }
+  reputacion: ReputacionUI
+  publicaciones: PublicacionListItem[]
+}
+
+/** Un mensaje del contacto previo, tal como lo devuelve la API. */
+export type MensajeConversacionUI = {
+  id: string
+  mensaje: string
+  fechaCreacion: string
+  emisor: { id: string; nombre: string }
+}
+
+/**
+ * Hilo del contacto previo: la conversación de un lector con el vendedor de
+ * una publicación antes de comprarla. Solo la ven sus dos participantes.
+ */
+export type ConversacionDetalleUI = {
+  id: string
+  publicacionId: string
+  publicacionTitulo: string
+  contraparte: { id: string; nombre: string }
+  rol: "comprador" | "vendedor"
+  mensajes: MensajeConversacionUI[]
+}
+
+/** Una conversación en la lista del perfil, con su última noticia. */
+export type ConversacionUI = {
+  id: string
+  publicacionId: string
+  publicacionTitulo: string
+  contraparte: { id: string; nombre: string }
+  rol: "comprador" | "vendedor"
+  ultimoMensaje: string | null
+  actualizadoEn: string
 }
 
 export type Facetas = {
@@ -669,6 +815,8 @@ export type OrdenUI = {
   estado: EstadoOrden
   reservaExpiraEn: string
   fechaCreacion: string
+  /** Si el comprador ya valoró esta orden (una reseña por orden recibida). */
+  valorada: boolean
   datosDespacho: DatosDespachoUI
   comprador: { id: string; nombre: string; telefono: string | null; comuna: string | null }
   vendedor: { id: string; nombre: string; telefono: string | null; comuna: string | null }

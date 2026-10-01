@@ -10,6 +10,7 @@ import {
   comisionPlataforma,
   datosDespachoSchema,
   listaFotosAUrls,
+  nivelDePublicaciones,
   panelMovimientoSchema,
   panelUsuarioUpdateSchema,
   parseSearchParams,
@@ -351,4 +352,14 @@ test("el teléfono se mide contra el número que existe", () => {
   assert.equal(profileUpdateSchema.safeParse({ telefono: "+1 415 555 2671" }).success, true)
   assert.equal(profileUpdateSchema.safeParse({ telefono: "+1 415 555 2671 234 567" }).success, false)
   assert.equal(profileUpdateSchema.safeParse({ telefono: null }).success, true)
+})
+
+test("el nivel de coleccionista sube con las publicaciones activas", () => {
+  assert.equal(nivelDePublicaciones(0), "Nuevo en LEKTOR")
+  assert.equal(nivelDePublicaciones(1), "Coleccionista")
+  assert.equal(nivelDePublicaciones(3), "Coleccionista")
+  assert.equal(nivelDePublicaciones(4), "Biblioteca en casa")
+  assert.equal(nivelDePublicaciones(9), "Biblioteca en casa")
+  assert.equal(nivelDePublicaciones(10), "Referencia local")
+  assert.equal(nivelDePublicaciones(50), "Referencia local")
 })

@@ -83,12 +83,16 @@ export const MOTIVO_FALLO: Record<string, string> = {
   "ultimo-admin": "Debe quedar al menos una administración activa",
   "mismo-usuario": "No puedes modificar tu propia cuenta",
   "orden-activa": "No se puede eliminar con reservas activas",
-  "sin-sesion": "Tu sesión venció. Vuelve a entrar para continuar",
-  "sin-permiso": "Tu cuenta no tiene permiso para esta acción",
+  "no-session": "Tu sesión venció. Vuelve a entrar para continuar",
+  forbidden: "Tu cuenta no tiene permiso para esta acción",
   "not-found": "Ese recurso ya no existe",
   "rate-limit": "Demasiados intentos. Espera un momento e inténtalo de nuevo",
   "email-duplicado": "Ya existe una cuenta con ese correo",
   "cuenta-inactiva": "Esta cuenta está desactivada. Habla con el equipo de LEKTOR",
+  "sin-compra-verificada": "Solo puedes valorar un ejemplar que hayas recibido",
+  "own-publication": "No puedes valorar tu propia publicación",
+  "auto-contacto": "No puedes escribirte a ti mismo por esta publicación",
+  "publicacion-inactiva": "Este ejemplar no está a la venta ahora mismo",
 }
 
 export function mensajeDeFallo(fallo: unknown, respaldo: string): string {
