@@ -1,6 +1,8 @@
 import {
   pgTable,
   index,
+  uniqueIndex,
+  check,
   uuid,
   varchar,
   text,
@@ -49,6 +51,7 @@ export const publications = pgTable(
     fotos: jsonb("fotos").$type<string[]>().notNull().default([]),
     estado: varchar("estado", { length: 20 }).notNull().default("activa"),
     rating: numeric("rating", { precision: 2, scale: 1 }),
+    ratingCount: integer("rating_count").notNull().default(0),
     vendedorId: uuid("vendedor_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -106,6 +109,43 @@ export const orders = pgTable(
     index("orders_vendedor_idx").on(table.vendedorId),
     index("orders_estado_idx").on(table.estado),
     index("orders_reserva_idx").on(table.estado, table.reservaExpiraEn),
+  ],
+)
+
+/**
+ * Una valoración por compra. La `order_id` es única y la orden tiene que estar
+ * en `recibida`, así que no se puede repetir el ciclo de compra para fabricar
+ * estrellas: solo cuenta lo que alguien recibió de verdad. `vendedor_id` queda
+ * desnormalizado porque una publicación no cambia de dueño, y así la
+ * reputación de un vendedor es un filtro indexado en vez de un join.
+ */
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    autorId: uuid("autor_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    publicacionId: uuid("publicacion_id")
+      .notNull()
+      .references(() => publications.id, { onDelete: "cascade" }),
+    vendedorId: uuid("vendedor_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    puntaje: integer("puntaje").notNull(),
+    visible: boolean("visible").notNull().default(true),
+    fechaCreacion: timestamp("fecha_creacion", { withTimezone: true }).notNull().defaultNow(),
+    editadoEn: timestamp("editado_en", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("reviews_orden_unique").on(table.orderId),
+    index("reviews_publicacion_idx").on(table.publicacionId),
+    index("reviews_vendedor_idx").on(table.vendedorId),
+    index("reviews_autor_idx").on(table.autorId),
+    check("reviews_puntaje_rango", sql`${table.puntaje} between 1 and 5`),
   ],
 )
 
@@ -172,6 +212,48 @@ export const chatMessages = pgTable(
   ],
 )
 
+export const conversaciones = pgTable(
+  "conversaciones",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    publicacionId: uuid("publicacion_id")
+      .notNull()
+      .references(() => publications.id, { onDelete: "cascade" }),
+    compradorId: uuid("comprador_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    vendedorId: uuid("vendedor_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    actualizadoEn: timestamp("actualizado_en", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("conversaciones_publicacion_comprador_idx").on(table.publicacionId, table.compradorId),
+    index("conversaciones_comprador_idx").on(table.compradorId),
+    index("conversaciones_vendedor_idx").on(table.vendedorId),
+    index("conversaciones_actualizado_idx").on(table.actualizadoEn),
+  ],
+)
+
+export const conversacionMensajes = pgTable(
+  "conversacion_mensajes",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    conversacionId: uuid("conversacion_id")
+      .notNull()
+      .references(() => conversaciones.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    mensaje: text("mensaje").notNull(),
+    fechaCreacion: timestamp("fecha_creacion", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("conversacion_mensajes_hilo_idx").on(table.conversacionId, table.fechaCreacion),
+    index("conversacion_mensajes_usuario_idx").on(table.userId),
+  ],
+)
+
 export const bookMetadata = pgTable("book_metadata", {
   isbn: varchar("isbn", { length: 20 }).primaryKey(),
   titulo: varchar("titulo", { length: 255 }),
@@ -202,6 +284,8 @@ export type Publication = typeof publications.$inferSelect
 export type NewPublication = typeof publications.$inferInsert
 export type Order = typeof orders.$inferSelect
 export type NewOrder = typeof orders.$inferInsert
+export type Review = typeof reviews.$inferSelect
+export type NewReview = typeof reviews.$inferInsert
 export type Notification = typeof notifications.$inferSelect
 export type NewNotification = typeof notifications.$inferInsert
 export type StockMovement = typeof stockMovements.$inferSelect
@@ -210,3 +294,7 @@ export type BookMetadata = typeof bookMetadata.$inferSelect
 export type Session = typeof sessions.$inferSelect
 export type ChatMessage = typeof chatMessages.$inferSelect
 export type NewChatMessage = typeof chatMessages.$inferInsert
+export type Conversacion = typeof conversaciones.$inferSelect
+export type NewConversacion = typeof conversaciones.$inferInsert
+export type ConversacionMensaje = typeof conversacionMensajes.$inferSelect
+export type NewConversacionMensaje = typeof conversacionMensajes.$inferInsert

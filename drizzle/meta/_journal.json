@@ -43,6 +43,27 @@
       "when": 1790659479501,
       "tag": "0005_rainy_toad",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790726734123,
+      "tag": "0006_elite_killmonger",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790730435132,
+      "tag": "0007_magenta_human_torch",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790731577082,
+      "tag": "0008_loose_beyonder",
+      "breakpoints": true
     }
   ]
 }
