@@ -1,12 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Clock3, FileText, PackageCheck } from "lucide-react"
+import { Clock3, FileText, PackageCheck, Star } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChatOrden } from "@/components/marketplace/chat-orden"
 import { DialogoComprobante } from "@/components/marketplace/comprobante"
+import { DialogoValoracion } from "@/components/marketplace/dialogo-valoracion"
 import { type EstadoOrden, type OrdenUI } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
 import { ESTADO_ORDEN_BADGE, ESTADO_ORDEN_LABEL, ESTADO_ORDEN_PASOS, METODO_ENTREGA_LABEL, formatCLP, formatDateTime, ordenCode, tiempoRestante } from "@/lib/format"
@@ -43,6 +44,9 @@ export function TarjetaOrden({
 }) {
   const contraparte = rol === "comprador" ? orden.vendedor : orden.comprador
   const [comprobanteAbierto, setComprobanteAbierto] = useState(false)
+  const [valorando, setValorando] = useState(false)
+  const [valoradoLocal, setValoradoLocal] = useState(false)
+  const yaValorada = orden.valorada || valoradoLocal
   // El vendedor recorre los cuatro pasos: prepara, despacha y el comprador confirma.
   const siguiente: EstadoOrden | null =
     orden.estado === "reservada"
@@ -136,12 +140,36 @@ export function TarjetaOrden({
             contraparte={contraparte.nombre}
             titulo={orden.tituloSnapshot}
           />
+          {rol === "comprador" && orden.estado === "recibida" && orden.publicacionId && !yaValorada && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-lg"
+              onClick={() => setValorando(true)}
+            >
+              <Star data-icon="inline-start" /> Valorar compra
+            </Button>
+          )}
+          {rol === "comprador" && orden.estado === "recibida" && yaValorada && (
+            <span className="flex items-center gap-1.5 self-center text-xs font-medium text-muted-foreground">
+              <Star className="size-3.5 fill-oro text-oro" /> Valoración hecha
+            </span>
+          )}
         </div>
       </CardContent>
 
       <DialogoComprobante
         ordenId={comprobanteAbierto ? orden.id : null}
         alCerrar={() => setComprobanteAbierto(false)}
+      />
+      <DialogoValoracion
+        orden={valorando ? orden : null}
+        abierto={valorando}
+        onOpenChange={(abierto) => !abierto && setValorando(false)}
+        onValorada={(ordenId) => {
+          if (orden.id === ordenId) setValoradoLocal(true)
+          setValorando(false)
+        }}
       />
     </Card>
   )

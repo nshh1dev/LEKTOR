@@ -45,6 +45,10 @@ const orderColumns = {
   fechaCreacion: orders.fechaCreacion,
   compradorId: orders.compradorId,
   vendedorId: orders.vendedorId,
+  /** El comprador ya valoró esta orden: por eso cada compra recibida se puede
+   *  marcar como valorada o no desde la propia tarjeta. La subconsulta está
+   *  calificada y no multiplica agregados porque el enlace es 1:1 por orden. */
+  valorada: sql<boolean>`exists(select 1 from reviews where reviews.order_id = ${orders.id})`,
 }
 
 export async function createOrder(
@@ -69,7 +73,7 @@ export async function createOrder(
       throw new ApiError(409, "pausada", "El vendedor pausó esta publicación")
     }
     if (publication.stock <= 0 || publication.estado === "agotada") {
-      throw new ApiError(409, "sin-stock", "No quedan ejemplares disponibles")
+      throw new ApiError(409, "stock-insuficiente", "No quedan ejemplares disponibles")
     }
 
     const stockRestante = publication.stock - 1
