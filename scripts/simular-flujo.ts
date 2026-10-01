@@ -29,6 +29,8 @@ type Publicacion = {
   precio: number
   stock: number
   estado?: string
+  rating?: string | null
+  ratingCount?: number
 }
 type Orden = {
   id: string
@@ -45,6 +47,16 @@ type Movimiento = {
   stockResultante: number
   publicacion?: { id: string; titulo: string }
   publicacionId?: string
+}
+type MensajeConversacion = { id: string; mensaje: string; fechaCreacion: string }
+type Conversacion = {
+  id: string
+  publicacionId?: string
+  publicacionTitulo?: string
+  rol?: string
+  contraparte?: { id: string; nombre: string }
+  mensajes?: MensajeConversacion[]
+  ultimoMensaje?: string | null
 }
 
 const etapas: { nombre: string; necesitaActores: boolean; fn: () => Promise<Resultado> }[] = []
@@ -658,6 +670,391 @@ etapa("F9 · el comprador la recibe y recibe notificación", async () => {
   const hayAviso = lista<{ id: string }>(notificaciones.datos, "notifications").length > 0
   check(hayAviso, "no hay notificaciones para el comprador")
   return { ok: fallos === 0, detalle: "orden recibida" }
+})
+
+// ------------------------------------------- F9c valoraciones verificadas
+
+type Valoracion = {
+  id: string
+  puntaje: number
+  visible: boolean
+  editadoEn?: string | null
+  autor: { id: string; nombre: string }
+}
+
+etapa("F9c · solo quien recibió el ejemplar puede valorarlo", async () => {
+  const orden = ordenes[0]
+  const publicacionId = orden.publicacionId
+  const ruta = `/api/publications/${publicacionId}/reviews`
+
+  // Un lector que no compró ese ejemplar no puede opinar sobre él.
+  const intruso = await pedir(ruta, {
+    method: "POST",
+    cookie: actor.comprador2.cookie,
+    body: { puntaje: 1 },
+  })
+  igual(intruso.status, 403, "un lector sin compra no puede valorar")
+  igual(intruso.datos.reason, "sin-compra-verificada", "motivo del rechazo")
+
+  // El vendedor tampoco: no se valora a uno mismo.
+  const propio = await pedir(ruta, {
+    method: "POST",
+    cookie: actor.vendedor.cookie,
+    body: { puntaje: 5 },
+  })
+  igual(propio.status, 400, "el vendedor no puede valorar su publicación")
+  igual(propio.datos.reason, "own-publication", "motivo del rechazo al vendedor")
+
+  // Sin sesión tampoco.
+  const anonimo = await pedir(ruta, { method: "POST", body: { puntaje: 5 } })
+  igual(anonimo.status, 401, "sin sesión no se puede valorar")
+
+  // El orderId de una compra ajena no sirve para valorar la propia.
+  const ajena = await pedir(ruta, {
+    method: "POST",
+    cookie: actor.comprador1.cookie,
+    body: { puntaje: 4, orderId: ordenes[1].id },
+  })
+  igual(ajena.status, 403, "el orderId de una compra ajena no permite valorar")
+  igual(ajena.datos.reason, "sin-compra-verificada", "motivo del rechazo por orden ajena")
+
+  // Ahora sí, el comprador que recibió el ejemplar, anclando la reseña a esa orden.
+  const creada = await pedir(ruta, {
+    method: "POST",
+    cookie: actor.comprador1.cookie,
+    body: { puntaje: 4, orderId: orden.id },
+  })
+  igual(creada.status, 201, "valoración publicada")
+  const review = creada.datos.review as Valoracion | undefined
+  check(Boolean(review), "la respuesta no trae la valoración creada")
+  igual(review?.puntaje, 4, "puntaje guardado")
+
+  // La orden recibida queda marcada como valorada en el perfil del comprador.
+  const compras = (await pedir("/api/orders?rol=comprador", {
+    cookie: actor.comprador1.cookie,
+  })).datos.orders as { id: string; valorada: boolean }[]
+  check(
+    compras.some((orden) => orden.id === ordenes[0].id && orden.valorada === true),
+    "la orden recibida no queda marcada como valorada",
+  )
+
+  // El promedio sale recalculado y la publicación lo refleja.
+  const reputacion = creada.datos.reputacion as { promedio: number; total: number } | undefined
+  igual(reputacion?.promedio, 4, "promedio tras la primera valoración")
+  igual(reputacion?.total, 1, "total de valoraciones")
+
+  const detalle = await pedir(`/api/publications/${publicacionId}`)
+  igual(detalle.status, 200, "lectura pública de la publicación")
+  const publication = detalle.datos.publication as Publicacion
+  igual(publication.rating, "4.0", "nota en la publicación")
+  igual(publication.ratingCount, 1, "contador en la publicación")
+
+  // La lista es pública y no necesita sesión.
+  const publica = await pedir(ruta)
+  igual(publica.status, 200, "lectura anónima de las valoraciones")
+  const reviews = lista<Valoracion>(publica.datos, "reviews")
+  igual(reviews.length, 1, "valoraciones visibles")
+  igual(publica.datos.puedeValorar, null, "sin sesión no se anuncia si se puede valorar")
+
+  // Repetir la valoración sobre la misma orden no vale: la orden ya está usada.
+  const repetida = await pedir(ruta, {
+    method: "POST",
+    cookie: actor.comprador1.cookie,
+    body: { puntaje: 5, orderId: orden.id },
+  })
+  igual(repetida.status, 403, "no se puede valorar dos veces la misma orden")
+
+  return { ok: fallos === 0, detalle: "valoración verificada publicada" }
+})
+
+etapa("F9d · el autor edita la nota y el promedio se mueve al instante", async () => {
+  const orden = ordenes[0]
+  const ruta = `/api/publications/${orden.publicacionId}/reviews`
+  const reviews = lista<Valoracion>((await pedir(ruta)).datos, "reviews")
+  const review = reviews[0]
+  check(Boolean(review), "no hay valoración sobre la que trabajar")
+
+  // El autor guarda su cambio y el promedio se mueve.
+  const editada = await pedir(`/api/reviews/${review.id}`, {
+    method: "PATCH",
+    cookie: actor.comprador1.cookie,
+    body: { puntaje: 5 },
+  })
+  igual(editada.status, 200, "edición de la valoración por su autor")
+  igual(
+    (editada.datos.reputacion as { promedio: number }).promedio,
+    5,
+    "promedio tras editar",
+  )
+  check(
+    Boolean((editada.datos.review as Valoracion).editadoEn),
+    "la edición no marca editadoEn",
+  )
+
+  // Otro lector no edita lo ajeno.
+  const ajena = await pedir(`/api/reviews/${review.id}`, {
+    method: "PATCH",
+    cookie: actor.comprador2.cookie,
+    body: { puntaje: 1 },
+  })
+  igual(ajena.status, 403, "un tercero no edita la valoración de otro")
+  igual(ajena.datos.reason, "forbidden", "motivo del rechazo al editor ajeno")
+
+  return { ok: fallos === 0, detalle: "edición de la nota" }
+})
+
+etapa("F9e · moderar oculta la valoración y recalcula el promedio", async () => {
+  const orden = ordenes[0]
+  const ruta = `/api/publications/${orden.publicacionId}/reviews`
+  const review = lista<Valoracion>((await pedir(ruta)).datos, "reviews")[0]
+  check(Boolean(review), "no hay valoración que moderar")
+
+  const cola = await pedir("/api/panel/valoraciones", { cookie: actor.admin.cookie })
+  igual(cola.status, 200, "la administración abre la cola de valoraciones")
+  check(
+    lista<Valoracion>(cola.datos, "reviews").length > 0,
+    "la cola de valoraciones viene vacía",
+  )
+
+  // Un lector no moderra.
+  const intrusa = await pedir(`/api/panel/valoraciones/${review.id}`, {
+    method: "PATCH",
+    cookie: actor.comprador1.cookie,
+    body: { visible: false },
+  })
+  igual(intrusa.status, 403, "un lector no puede moderar")
+
+  const oculta = await pedir(`/api/panel/valoraciones/${review.id}`, {
+    method: "PATCH",
+    cookie: actor.admin.cookie,
+    body: { visible: false },
+  })
+  igual(oculta.status, 200, "la administración oculta la valoración")
+  igual(
+    (oculta.datos.reputacion as { promedio: number | null }).promedio,
+    null,
+    "sin valoraciones visibles no hay promedio",
+  )
+
+  // Oculta no es borrada: sigue en la cola de moderación.
+  const ocultas = await pedir("/api/panel/valoraciones?soloOcultas=true", {
+    cookie: actor.admin.cookie,
+  })
+  check(
+    lista<Valoracion>(ocultas.datos, "reviews").some((r) => r.id === review.id),
+    "la valoración oculta no aparece en la cola de ocultas",
+  )
+  igual(
+    lista<Valoracion>((await pedir(ruta)).datos, "reviews").length,
+    0,
+    "una valoración oculta no se muestra en la publicación",
+  )
+
+  // Se restituye para no dejar el seed descuadrado.
+  const visible = await pedir(`/api/panel/valoraciones/${review.id}`, {
+    method: "PATCH",
+    cookie: actor.admin.cookie,
+    body: { visible: true },
+  })
+  igual(visible.status, 200, "la administración restituye la valoración")
+  igual(
+    (visible.datos.reputacion as { promedio: number }).promedio,
+    5,
+    "el promedio vuelve tras restituir",
+  )
+
+  return { ok: fallos === 0, detalle: "moderación y recálculo" }
+})
+
+etapa("F9f · el autor borra su valoración y el promedio se rehace", async () => {
+  const orden = ordenes[0]
+  const ruta = `/api/publications/${orden.publicacionId}/reviews`
+  const review = lista<Valoracion>((await pedir(ruta)).datos, "reviews")[0]
+  check(Boolean(review), "no hay valoración que borrar")
+
+  const ajena = await pedir(`/api/reviews/${review.id}`, {
+    method: "DELETE",
+    cookie: actor.comprador2.cookie,
+  })
+  igual(ajena.status, 403, "un tercero no borra la valoración de otro")
+
+  const borrada = await pedir(`/api/reviews/${review.id}`, {
+    method: "DELETE",
+    cookie: actor.comprador1.cookie,
+  })
+  igual(borrada.status, 200, "el autor borra su valoración")
+  igual(
+    (borrada.datos.reputacion as { total: number }).total,
+    0,
+    "el total de valoraciones queda en cero",
+  )
+  igual(lista<Valoracion>((await pedir(ruta)).datos, "reviews").length, 0, "la lista queda vacía")
+
+  // Borrada la nota, la orden sigue recibida y ya se puede volver a valorar.
+  const repetible = await pedir(ruta, {
+    method: "POST",
+    cookie: actor.comprador1.cookie,
+    body: { puntaje: 4 },
+  })
+  igual(repetible.status, 201, "se puede volver a valorar tras borrar")
+  igual(
+    (repetible.datos.reputacion as { promedio: number }).promedio,
+    4,
+    "el promedio sale de la nueva valoración",
+  )
+
+  return { ok: fallos === 0, detalle: "borrado y nueva valoración" }
+})
+
+etapa("F9g · la página pública del vendedor junta ficha y reputación", async () => {
+  const detalle = await pedir(`/api/publications/${ordenes[0].publicacionId}`)
+  igual(detalle.status, 200, "lectura pública de la publicación")
+  const vendedorId = (detalle.datos.vendedor as { id: string }).id
+  check(Boolean(vendedorId), "la publicación no trae a su vendedor")
+
+  const sinSesion = await pedir(`/api/sellers/${vendedorId}`)
+  igual(sinSesion.status, 200, "la página del vendedor es pública, sin sesión")
+  igual(
+    (sinSesion.datos.vendedor as { nombre: string }).nombre,
+    actor.vendedor.nombre,
+    "el perfil corresponde al vendedor del flujo",
+  )
+  check(
+    typeof (sinSesion.datos.vendedor as { nivel: string }).nivel === "string",
+    "el perfil no trae el nivel de coleccionista",
+  )
+  check(
+    lista<Publicacion>(sinSesion.datos, "publicaciones").length > 0,
+    "la página no trae sus ejemplares en venta",
+  )
+  igual(typeof sinSesion.datos.reputacion, "object", "la reputación viene en el perfil")
+
+  const conSesion = await pedir(`/api/sellers/${vendedorId}`, {
+    cookie: actor.comprador1.cookie,
+  })
+  igual(conSesion.status, 200, "un lector con sesión también puede mirar al vendedor")
+
+  const inexistente = await pedir("/api/sellers/no-es-un-uuid")
+  igual(inexistente.status, 404, "un vendedor inexistente da 404")
+
+  return { ok: fallos === 0, detalle: "página pública del vendedor" }
+})
+
+etapa("F9h · cada persona ve sus reseñas en el perfil", async () => {
+  const publicas = lista<Valoracion>(
+    (await pedir(`/api/publications/${ordenes[0].publicacionId}/reviews`)).datos,
+    "reviews",
+  )
+  const reseña = publicas[publicas.length - 1]
+  check(Boolean(reseña), "no hay reseña que ver en el perfil")
+
+  const sinSesion = await pedir("/api/profile/reviews")
+  igual(sinSesion.status, 401, "sin sesión no se ven reseñas del perfil")
+
+  const delAutor = await pedir("/api/profile/reviews", { cookie: actor.comprador1.cookie })
+  igual(delAutor.status, 200, "el autor lee su perfil de reseñas")
+  check(
+    lista<Valoracion>(delAutor.datos, "escritas").some((unaReseña) => unaReseña.id === reseña?.id),
+    "la reseña que el comprador escribió no aparece en sus reseñas",
+  )
+
+  const delVendedor = await pedir("/api/profile/reviews", { cookie: actor.vendedor.cookie })
+  igual(delVendedor.status, 200, "el vendedor lee su perfil de reseñas")
+  check(
+    lista<Valoracion>(delVendedor.datos, "recibidas").some(
+      (unaReseña) => unaReseña.id === reseña?.id,
+    ),
+    "la reseña recibida no aparece para el vendedor",
+  )
+
+  return { ok: fallos === 0, detalle: "reseñas escritas y recibidas por perfil" }
+})
+
+// ---------------------------------------------- F9i contacto previo (precompra)
+
+etapa("F9i · el contacto previo permite preguntar antes de comprar", async () => {
+  const publicacionId = ordenes[0].publicacionId
+
+  const sinSesion = await pedir("/api/conversaciones")
+  igual(sinSesion.status, 401, "sin sesión no se listan conversaciones")
+
+  const empieza = await pedir("/api/conversaciones", {
+    method: "POST",
+    cookie: actor.comprador1.cookie,
+    body: { publicacionId, mensaje: "¿Me confirmas el estado de las hojas?" },
+  })
+  igual(empieza.status, 201, "el comprador abre el contacto previo")
+  const hilo = (empieza.datos.conversacion ?? {}) as Conversacion
+  check(Boolean(hilo.id), "la conversación no devuelve su id")
+  igual(hilo.rol, "comprador", "el rol del que abre es comprador")
+  igual(hilo.contraparte?.nombre, actor.vendedor.nombre, "la contraparte es el vendedor")
+  igual(hilo.mensajes?.length, 1, "la primera pregunta queda guardada")
+
+  const listaVendedor = await pedir("/api/conversaciones", { cookie: actor.vendedor.cookie })
+  igual(listaVendedor.status, 200, "el vendedor lista sus conversaciones")
+  check(
+    lista<Conversacion>(listaVendedor.datos, "conversaciones").some((c) => c.id === hilo.id),
+    "la pregunta del comprador no aparece para el vendedor",
+  )
+
+  const lecturaVendedor = await pedir(`/api/conversaciones/${hilo.id}`, {
+    cookie: actor.vendedor.cookie,
+  })
+  igual(lecturaVendedor.status, 200, "el vendedor abre el hilo")
+  igual(
+    (lecturaVendedor.datos.conversacion as Conversacion).mensajes?.length,
+    1,
+    "el vendedor ve una pregunta",
+  )
+
+  const responde = await pedir(`/api/conversaciones/${hilo.id}`, {
+    method: "POST",
+    cookie: actor.vendedor.cookie,
+    body: { mensaje: "Está impecable, forrado y sin subrayados." },
+  })
+  igual(responde.status, 201, "el vendedor responde en el hilo")
+
+  const compradorVe = await pedir(`/api/conversaciones/${hilo.id}`, {
+    cookie: actor.comprador1.cookie,
+  })
+  igual(compradorVe.status, 200, "el comprador reabre el hilo")
+  igual(
+    (compradorVe.datos.conversacion as Conversacion).mensajes?.length,
+    2,
+    "el comprador ve pregunta y respuesta",
+  )
+
+  const tercero = await pedir(`/api/conversaciones/${hilo.id}`, {
+    cookie: actor.comprador2.cookie,
+  })
+  igual(tercero.status, 403, "un tercero no entra al hilo")
+
+  const auto = await pedir("/api/conversaciones", {
+    method: "POST",
+    cookie: actor.vendedor.cookie,
+    body: { publicacionId, mensaje: "¿Prueba sobre un ejemplar propio?" },
+  })
+  igual(auto.status, 400, "el vendedor no se escribe a sí mismo")
+  igual(
+    (auto.datos as { reason?: string }).reason,
+    "auto-contacto",
+    "motivo de auto contacto",
+  )
+
+  const invalido = await pedir("/api/conversaciones/no-es-un-uuid", {
+    cookie: actor.comprador1.cookie,
+  })
+  igual(invalido.status, 404, "un id inválido de conversación da 404")
+
+  const avisos = await pedir("/api/notifications", { cookie: actor.vendedor.cookie })
+  check(
+    lista<{ tipo: string; titulo: string }>(avisos.datos, "notifications").some(
+      (n) => n.tipo === "contacto" && (n.titulo ?? "").includes(publicaciones[0].titulo),
+    ),
+    `el vendedor no fue notificado del contacto por ${publicaciones[0].titulo}`,
+  )
+
+  return { ok: fallos === 0, detalle: "pregunta, respuesta y privacidad del contacto previo" }
 })
 
 // ------------------------------------------- F9b cancelación y devolución
