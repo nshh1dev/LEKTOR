@@ -18,7 +18,7 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 ## Estructura de datos
 
 - `db/schema.ts` es la única fuente de verdad del esquema. Tras cambiarlo se ejecuta `pnpm db:generate` y se revisa la migración en `drizzle/`.
-- `lib/` concentra el dominio: `auth.ts` (sesiones y roles), `catalog.ts` (constantes, esquemas Zod y `TRANSICIONES_ORDEN`), `orders.ts` (operaciones de orden sobre la base), `panel.ts` (consultas del panel), `avisos.ts` (vocabulario de avisos), `isbn.ts`, `entrada.ts` (máscaras de precio y teléfono), `format.ts`, `pago.ts` (formato, Luhn y vigencia de tarjeta), `api.ts` (respuestas y errores HTTP), `rate-limit.ts` (límite de intentos por IP).
+- `lib/` concentra el dominio: `auth.ts` (sesiones y roles), `catalog.ts` (constantes, esquemas Zod y `TRANSICIONES_ORDEN`), `orders.ts` (operaciones de orden sobre la base), `panel.ts` (consultas del panel), `avisos.ts` (vocabulario de avisos), `reviews.ts` (valoraciones verificadas de solo estrellas: crear, editar, moderar y recalcular promedios, con el `orderId` opcional para anclar la reseña a la compra recibida), `sellers.ts` (perfil público del vendedor), `conversaciones.ts` (contacto previo antes de la compra: abrir, responder, listar y leer hilos), `isbn.ts`, `entrada.ts` (máscaras de precio y teléfono), `format.ts`, `pago.ts` (formato, Luhn y vigencia de tarjeta), `api.ts` (respuestas y errores HTTP), `rate-limit.ts` (límite de intentos por IP).
 - `scripts/seed.ts` es idempotente: debe poder ejecutarse varias veces sin duplicar datos.
 - Conexión por `DATABASE_URL` (ver `.env.example`).
 
@@ -28,6 +28,7 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - Las páginas del panel se protegen en el servidor con `panelPageUser()` de `lib/panel.ts`; las APIs usan `requirePanelUser()` o `requireAdminUser()`.
 - El recorrido de la orden es del vendedor, que prepara y despacha; el comprador confirma la recepción y ambos pueden cancelar mientras esté reservada o en preparación.
 - El chat de la orden (`components/marketplace/chat-orden.tsx` sobre `app/api/orders/[id]/chat`) es privado: solo lo ven el comprador y el vendedor de esa orden, ni siquiera la administración.
+- El contacto previo (`lib/conversaciones.ts`, `app/api/conversaciones`) comparte esa regla: un lector puede escribirle al vendedor de una publicación antes de comprar, y el hilo solo lo ven esas dos personas, ni siquiera la administración. Sus avisos usan el tipo `contacto` (uno por publicación y comprador).
 - No confiar solo en la UI para ocultar acciones: la validación va en el servidor.
 - La pasarela de pago (`components/marketplace/pago-view.tsx`) es el límite del dominio: la tarjeta se
   valida en el navegador con `pagoFormSchema` y **nunca** se envía a la API ni se guarda. `POST
@@ -39,7 +40,7 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - TypeScript estricto y tipado explícito donde aporte claridad.
 - Usar los componentes base de `components/ui` (shadcn/ui) y no reimplementarlos.
 - Colocar componentes por área:
-  - `components/marketplace/` — vistas del marketplace público (`catalog-view`, `detail-view`, `sell-view`, `checkout-view`, `pago-view`, `profile-view`, `auth-view`, `order-card`, `product-card`, `filter-index`, `hero`) más `types.ts`, `api.ts` y `shared.tsx`. El shell que las coordina sigue en `components/lektor-marketplace.tsx`.
+  - `components/marketplace/` — vistas del marketplace público (`catalog-view`, `detail-view`, `sell-view`, `checkout-view`, `pago-view`, `profile-view`, `seller-view`, `auth-view`, `order-card`, `product-card`, `dialogo-contacto`, `filter-index`, `hero`) más `types.ts`, `api.ts` y `shared.tsx`. El shell que las coordina sigue en `components/lektor-marketplace.tsx`.
   - `components/notificacion/` — sistema único de avisos: `avisar.tsx` (toasts), `avisos.tsx` (bloques en línea y lista de datos faltantes), `sello.tsx` (sello estampado), `toaster.tsx` y `confirmar-accion.tsx`.
   - `components/escaner-isbn.tsx` — lector de ISBN por cámara, compartido por `sell-view` y el escáner del panel.
   - `components/admin/` — shell del panel.
@@ -107,6 +108,13 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - `scripts/simular-flujo.ts` (`pnpm simular`) es la puerta de calidad de los flujos: necesita
   `pnpm dev` en marcha, crea sus propios datos y sale con `1` si algo no cuadra. Antes de repetirla
   desde cero: `pnpm db:reset` (`scripts/db-reset.ts`, destructivo y restringido a URLs locales).
+- **Prohibido levantar el dev server (`pnpm dev` o `next dev`) para correr `pnpm simular`.** El
+  servidor lo levanta la persona a mano en su terminal; un asistente no debe arrancar procesos de
+  Next ni dejar ninguno escuchando en el puerto 3000. Si `pnpm simular` no puede correr porque no
+  hay servidor, se dice y se sigue con el resto de las puertas (`pnpm typecheck`, `pnpm lint`,
+  `pnpm test`, `pnpm build`), que no necesitan ninguno de los dos. Las etapas de simulación que
+  tocan base de datos se pueden auditar de forma alternativa con `pnpm db:seed` y consultas
+  directas de solo lectura, siempre que no se invente un servidor.
 - El rate limit de registro es de 5 intentos por hora y por IP, y el contador vive en la memoria del
   proceso: al ampliar la simulación, reutilizar cuentas del seed en vez de registrar más actores.
 - Todo cambio de stock debe dejar movimiento en `stock_movements` (venta, ajuste y devolución por
