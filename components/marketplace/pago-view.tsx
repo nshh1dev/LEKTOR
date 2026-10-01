@@ -20,6 +20,7 @@ import { Aviso, FaltanDatos } from "@/components/notificacion/avisos"
 import { Sello } from "@/components/notificacion/sello"
 import { mensajeDeFallo, resumenFaltantes } from "@/lib/avisos"
 import { MensajeError } from "@/components/marketplace/shared"
+import { ApiFailure } from "@/components/marketplace/api"
 import { pagoFormSchema, type PagoFormValues } from "@/lib/catalog"
 import { formatCLP } from "@/lib/format"
 import {
@@ -99,7 +100,7 @@ export function PagoView({
     try {
       await alConfirmar(datos)
     } catch (error) {
-      const sinStock = (error as { reason?: unknown } | null)?.reason === "stock-insuficiente"
+      const sinStock = error instanceof ApiFailure && error.reason === "stock-insuficiente"
       setFallo({
         titulo: mensajeDeFallo(error, "El pago no se pudo completar."),
         ayuda: sinStock
@@ -146,7 +147,7 @@ export function PagoView({
                 <Input
                   id="numeroTarjeta"
                   inputMode="numeric"
-                  autoComplete="cc-number"
+                  autoComplete="off"
                   placeholder="0000 0000 0000 0000"
                   className="pr-28 font-mono tracking-wider"
                   aria-invalid={errors.numeroTarjeta ? true : undefined}
@@ -171,7 +172,6 @@ export function PagoView({
               <Label htmlFor="nombreTitular">Nombre del titular</Label>
               <Input
                 id="nombreTitular"
-                autoComplete="cc-name"
                 placeholder="Como aparece en la tarjeta"
                 aria-invalid={errors.nombreTitular ? true : undefined}
                 aria-describedby={errors.nombreTitular ? "nombreTitular-error" : undefined}
@@ -186,7 +186,7 @@ export function PagoView({
                 <Input
                   id="vencimiento"
                   inputMode="numeric"
-                  autoComplete="cc-exp"
+                  autoComplete="off"
                   placeholder="MM/AA"
                   className="font-mono"
                   aria-invalid={errors.vencimiento ? true : undefined}
@@ -206,7 +206,7 @@ export function PagoView({
                 <Input
                   id="codigoSeguridad"
                   inputMode="numeric"
-                  autoComplete="cc-csc"
+                  autoComplete="off"
                   placeholder="123"
                   className="font-mono"
                   aria-invalid={errors.codigoSeguridad ? true : undefined}
