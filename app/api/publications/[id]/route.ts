@@ -24,6 +24,7 @@ const detalleSelect = {
   fotos: publications.fotos,
   estado: publications.estado,
   rating: publications.rating,
+  ratingCount: publications.ratingCount,
   vendedorId: publications.vendedorId,
   fechaPublicacion: publications.fechaPublicacion,
 }

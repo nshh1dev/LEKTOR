@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { avisar } from "@/components/notificacion/avisar"
 import { Sello } from "@/components/notificacion/sello"
 import { mensajeDeFallo } from "@/lib/avisos"
-import { esStaff, type Categoria, type Condicion, type Facetas, type OrdenUI, type Paginacion, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
+import { esStaff, type Categoria, type Condicion, type Facetas, type OrdenUI, type Paginacion, type PerfilVendedorUI, type PublicacionListItem, type ReputacionUI, type ReviewUI, type SesionUsuario } from "@/lib/catalog"
 import { normalizarFila } from "@/components/marketplace/shared"
 import { api } from "@/components/marketplace/api"
 import { type Vista, type OrdenCatalogo } from "@/components/marketplace/types"
@@ -20,6 +20,20 @@ import { PublicarView } from "@/components/marketplace/sell-view"
 import { CheckoutView } from "@/components/marketplace/checkout-view"
 import { PerfilView } from "@/components/marketplace/profile-view"
 import { AuthView } from "@/components/marketplace/auth-view"
+import { SellerView } from "@/components/marketplace/seller-view"
+
+/** Lo que el detalle necesita saber de las valoraciones, en una sola cosa. */
+type DatosValoraciones = {
+  reviews: ReviewUI[]
+  reputacion: ReputacionUI
+  puedeValorar: boolean
+}
+
+const REPUTACION_VACIA: ReputacionUI = {
+  promedio: null,
+  total: 0,
+  distribucion: [5, 4, 3, 2, 1].map((puntaje) => ({ puntaje, cantidad: 0, porcentaje: 0 })),
+}
 
 export function LektorMarketplace({
   initialPublications,
@@ -35,7 +49,7 @@ export function LektorMarketplace({
   const [intentoCatalogo, setIntentoCatalogo] = useState(0)
   const [vista, setVista] = useState<Vista>("catalog")
   const [usuario, setUsuario] = useState<SesionUsuario | null>(null)
-  const [authPrompt, setAuthPrompt] = useState<"sell" | "buy" | null>(null)
+  const [authPrompt, setAuthPrompt] = useState<"sell" | "buy" | "contact" | null>(null)
 
   const [publicaciones, setPublicaciones] = useState(initialPublications)
   const [facetas, setFacetas] = useState(initialFacetas)
@@ -54,6 +68,12 @@ export function LektorMarketplace({
 
   const [detalle, setDetalle] = useState<PublicacionListItem | null>(null)
   const [ordenCreada, setOrdenCreada] = useState<OrdenUI | null>(null)
+  const [vendedorPerfil, setVendedorPerfil] = useState<PerfilVendedorUI | null>(null)
+  const [valoraciones, setValoraciones] = useState<DatosValoraciones>({
+    reviews: [],
+    reputacion: REPUTACION_VACIA,
+    puedeValorar: false,
+  })
 
   useEffect(() => setMounted(true), [])
 
@@ -141,17 +161,22 @@ export function LektorMarketplace({
   const abrirDetalle = async (id: string) => {
     setVista("detail")
     setDetalle(null)
+    setValoraciones({ reviews: [], reputacion: REPUTACION_VACIA, puedeValorar: false })
     try {
-      const data = await api<{
-        publication: PublicacionListItem
-        vendedor: { nombre: string; comuna?: string | null } | null
-      }>(`/api/publications/${id}`)
+      const [data, datosReviews] = await Promise.all([
+        api<{
+          publication: PublicacionListItem
+          vendedor: { nombre: string; comuna?: string | null } | null
+        }>(`/api/publications/${id}`),
+        api<DatosValoraciones>(`/api/publications/${id}/reviews`),
+      ])
       const publication = normalizarFila(data.publication as unknown as Record<string, unknown>)
       setDetalle({
         ...publication,
         vendedorNombre: data.vendedor?.nombre ?? "Vendedor",
         vendedorComuna: data.vendedor?.comuna ?? null,
       })
+      setValoraciones({ ...datosReviews, puedeValorar: datosReviews.puedeValorar === true })
     } catch (error) {
       setVista("catalog")
       avisar.falla({
@@ -161,6 +186,43 @@ export function LektorMarketplace({
       })
     }
   }
+
+  const abrirVendedor = async (vendedorId: string) => {
+    setVista("seller")
+    setVendedorPerfil(null)
+    try {
+      const perfil = await api<PerfilVendedorUI>(`/api/sellers/${vendedorId}`)
+      setVendedorPerfil(perfil)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    } catch (error) {
+      setVista("catalog")
+      avisar.falla({
+        titulo: "Este vendedor no está disponible",
+        descripcion: mensajeDeFallo(error, "Puede que haya cerrado su cuenta."),
+      })
+    }
+  }
+
+  /**
+   * Tras valorar o responder llegan la lista y el promedio ya recalculados. Se
+   * refletan también en la publicación en memoria para que la tarjeta del
+   * catálogo no salga con la nota anterior cuando se vuelve atrás.
+   */
+  const actualizarValoraciones = useCallback(
+    (datos: { reviews: ReviewUI[]; reputacion: ReputacionUI }) => {
+      setValoraciones((previas) => ({ ...previas, ...datos, puedeValorar: false }))
+      const { promedio, total } = datos.reputacion
+      const id = detalle?.id
+      if (!id) return
+      const tocar = (publicacion: PublicacionListItem) =>
+        publicacion.id === id
+          ? { ...publicacion, rating: promedio === null ? null : promedio.toFixed(1), ratingCount: total }
+          : publicacion
+      setDetalle((previo) => (previo ? tocar(previo) : previo))
+      setPublicaciones((previas) => previas.map(tocar))
+    },
+    [detalle?.id],
+  )
 
   const cerrarSesion = async () => {
     await api("/api/auth/logout", { method: "POST" }).catch(() => undefined)
@@ -303,6 +365,7 @@ export function LektorMarketplace({
             }}
             filtrosActivos={filtrosActivos}
             onDetalle={abrirDetalle}
+            onVendedor={abrirVendedor}
             onPagina={(value) => {
               setPagina(value)
               void cargarCatalogo({ pagina: value })
@@ -314,14 +377,30 @@ export function LektorMarketplace({
         {vista === "detail" && (
           <DetalleView
             publicacion={detalle}
+            reviews={valoraciones.reviews}
+            reputacion={valoraciones.reputacion}
+            puedeValorar={valoraciones.puedeValorar}
+            yoId={usuario?.id ?? null}
             onVolver={() => setVista("catalog")}
             onComprar={() => {
               if (!usuario) {
                 setAuthPrompt("buy")
                 return
               }
+              setOrdenCreada(null)
               setVista("checkout")
             }}
+            onValoraciones={actualizarValoraciones}
+            onVendedor={abrirVendedor}
+            onNecesitaSesion={() => setAuthPrompt("contact")}
+          />
+        )}
+
+        {vista === "seller" && vendedorPerfil && (
+          <SellerView
+            perfil={vendedorPerfil}
+            onVolver={() => setVista("catalog")}
+            onAbrirPublicacion={abrirDetalle}
           />
         )}
 
@@ -378,12 +457,18 @@ export function LektorMarketplace({
             <Sello tono="revisar" tamano="md" className="mb-3" />
             <p className="rotulo text-aviso-revisar">Falta una cuenta</p>
             <DialogTitle className="mt-1.5 font-serif text-2xl tracking-tight">
-              {authPrompt === "sell" ? "Publica tu primer tomo" : "Entra para reservar"}
+              {authPrompt === "sell"
+                ? "Publica tu primer tomo"
+                : authPrompt === "buy"
+                  ? "Entra para reservar"
+                  : "Entra para preguntar al vendedor"}
             </DialogTitle>
             <DialogDescription className="text-[0.9375rem] leading-relaxed">
               {authPrompt === "sell"
                 ? "Crea tu cuenta de lector para publicar tus tomos y encontrarles estantería."
-                : "Necesitas una cuenta para comprar de forma segura y seguir tus compras."}
+                : authPrompt === "buy"
+                  ? "Necesitas una cuenta para comprar de forma segura y seguir tus compras."
+                  : "Necesitas una cuenta para escribirle al vendedor antes de reservar."}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">

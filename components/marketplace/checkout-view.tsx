@@ -69,6 +69,7 @@ export function CheckoutView({
 
   const metodoEntrega = useWatch({ control, name: "metodoEntrega" })
   const telefonoActual = useWatch({ control, name: "telefono" })
+  const regionActual = useWatch({ control, name: "region" })
   const envio = metodoEntrega === "envio_domicilio" ? COSTO_ENVIO_DOMICILIO : 0
   const total = publicacion.precio + envio
   const [datosDespacho, setDatosDespacho] = useState<CheckoutFormValues | null>(null)
@@ -247,8 +248,8 @@ export function CheckoutView({
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="region">Region</Label>
                   <Select
+                    value={regionActual || undefined}
                     onValueChange={(value) => setValue("region", value, { shouldValidate: true })}
-                    defaultValue={undefined}
                   >
                     <SelectTrigger
                       id="region"

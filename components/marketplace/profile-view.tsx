@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowLeft, KeyRound, LayoutDashboard, LoaderCircle, Tag, Trash2, UserPen } from "lucide-react"
+import { ArrowLeft, KeyRound, LayoutDashboard, LoaderCircle, MessageCircle, Tag, Trash2, UserPen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
@@ -17,13 +17,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { avisar } from "@/components/notificacion/avisar"
 import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
 import { mensajeDeFallo } from "@/lib/avisos"
-import { REGIONES, esStaff, perfilFormSchema, type EstadoOrden, type NotificacionUI, type OrdenUI, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
+import { REGIONES, esStaff, perfilFormSchema, type ConversacionUI, type EstadoOrden, type NotificacionUI, type OrdenUI, type PublicacionListItem, type ReviewUI, type SesionUsuario } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
 import { ESTADO_ORDEN_LABEL, ESTADO_PUBLICACION_LABEL, formatCLP, formatDate, formatDateTime } from "@/lib/format"
 import { normalizarFila, MensajeError } from "@/components/marketplace/shared"
 import { api } from "@/components/marketplace/api"
 import { Portada } from "@/components/marketplace/hero"
 import { TarjetaOrden } from "@/components/marketplace/order-card"
+import { Estrellas } from "@/components/marketplace/valoraciones"
+import { DialogoContacto } from "@/components/marketplace/dialogo-contacto"
 
 export function PerfilView({
   usuario,
@@ -40,9 +42,9 @@ export function PerfilView({
   onNuevaPublicacion: () => void
   onAbrirPublicacion: (id: string) => void
 }) {
-  const [pestana, setPestana] = useState<"publicaciones" | "ventas" | "compras" | "notificaciones">(
-    "publicaciones",
-  )
+  const [pestana, setPestana] = useState<
+    "publicaciones" | "ventas" | "compras" | "notificaciones" | "resenas" | "mensajes"
+  >("publicaciones")
   const [perfil, setPerfil] = useState<{
     nombre: string
     bio: string | null
@@ -56,6 +58,12 @@ export function PerfilView({
   const [ventas, setVentas] = useState<OrdenUI[]>([])
   const [compras, setCompras] = useState<OrdenUI[]>([])
   const [notificaciones, setNotificaciones] = useState<NotificacionUI[]>([])
+  const [reseñas, setReseñas] = useState<{ escritas: ReviewUI[]; recibidas: ReviewUI[] }>({
+    escritas: [],
+    recibidas: [],
+  })
+  const [conversaciones, setConversaciones] = useState<ConversacionUI[]>([])
+  const [conversacionAbierta, setConversacionAbierta] = useState<ConversacionUI | null>(null)
   const [editando, setEditando] = useState<PublicacionListItem | null>(null)
   const [stockEdicion, setStockEdicion] = useState("0")
   const [eliminando, setEliminando] = useState<PublicacionListItem | null>(null)
@@ -78,12 +86,14 @@ export function PerfilView({
 
   const cargarTodo = useCallback(async () => {
     try {
-      const [datos, propias, ordenesVendedor, ordenesComprador, avisos] = await Promise.all([
+      const [datos, propias, ordenesVendedor, ordenesComprador, avisos, misReseñas, hilos] = await Promise.all([
         api<{ perfil: typeof perfil; esVendedor: boolean; publicaciones: number }>("/api/profile"),
         api<{ publications: Record<string, unknown>[] }>(`/api/publications?vendedor=${usuario.id}&porPagina=48`),
         api<{ orders: OrdenUI[] }>("/api/orders?rol=vendedor"),
         api<{ orders: OrdenUI[] }>("/api/orders?rol=comprador"),
         api<{ notifications: NotificacionUI[] }>("/api/notifications"),
+        api<{ escritas: ReviewUI[]; recibidas: ReviewUI[] }>("/api/profile/reviews"),
+        api<{ conversaciones: ConversacionUI[] }>("/api/conversaciones"),
       ])
       const ficha = datos.perfil
       setPerfil(ficha)
@@ -100,6 +110,8 @@ export function PerfilView({
       setVentas(ordenesVendedor.orders)
       setCompras(ordenesComprador.orders)
       setNotificaciones(avisos.notifications)
+      setReseñas(misReseñas)
+      setConversaciones(hilos.conversaciones)
     } catch (error) {
       avisar.falla({
         titulo: "No se pudo cargar tu perfil",
@@ -455,6 +467,8 @@ export function PerfilView({
             ["publicaciones", "Mis publicaciones", misPublicaciones.length],
             ["ventas", "Ventas", ventas.length],
             ["compras", "Compras", compras.length],
+            ["resenas", "Reseñas", reseñas.escritas.length + reseñas.recibidas.length],
+            ["mensajes", "Mensajes", conversaciones.length],
             ["notificaciones", "Notificaciones", notificaciones.length],
           ] as const
         ).map(([clave, etiqueta, total]) => (
@@ -577,6 +591,136 @@ export function PerfilView({
         </div>
       )}
 
+      {pestana === "resenas" && (
+        <div className="flex flex-col gap-8">
+          {reseñas.escritas.length === 0 && reseñas.recibidas.length === 0 ? (
+            <Card className="py-12 text-center">
+              <CardTitle>Todavía sin reseñas</CardTitle>
+              <CardDescription>
+                Cuando recibas un ejemplar y lo valores, tu reseña quedará guardada acá.
+              </CardDescription>
+            </Card>
+          ) : (
+            <>
+              <section className="flex flex-col gap-3">
+                <h2 className="text-lg font-semibold">Las que escribí</h2>
+                {reseñas.escritas.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Aún no publicas una opinión sobre algún ejemplar recibido.
+                  </p>
+                ) : (
+                  reseñas.escritas.map((reseña) => (
+                    <Card key={reseña.id} className="rounded-xl">
+                      <CardContent className="flex flex-col gap-2 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold">{reseña.publicacionTitulo}</p>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDateTime(reseña.fechaCreacion)}
+                          </span>
+                        </div>
+                        <Estrellas nota={reseña.puntaje} />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-fit rounded-lg"
+                          onClick={() => onAbrirPublicacion(reseña.publicacionId)}
+                        >
+                          Ver publicación
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </section>
+
+              <section className="flex flex-col gap-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h2 className="text-lg font-semibold">Las que recibí</h2>
+                  <span className="text-xs text-muted-foreground">
+                    {reseñas.recibidas.length}{" "}
+                    {reseñas.recibidas.length === 1 ? "reseña" : "reseñas"}
+                  </span>
+                </div>
+                {reseñas.recibidas.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Cuando alguien reciba un ejemplar tuyo, su valoración aparecerá acá.
+                  </p>
+                ) : (
+                  reseñas.recibidas.map((reseña) => (
+                    <Card key={reseña.id} className="rounded-xl">
+                      <CardContent className="flex flex-col gap-2 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold">{reseña.autor.nombre}</p>
+                          <div className="flex items-center gap-2">
+                            {!reseña.visible && (
+                              <Badge variant="secondary">Oculta por moderación</Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {formatDateTime(reseña.fechaCreacion)}
+                            </span>
+                          </div>
+                        </div>
+                        <Estrellas nota={reseña.puntaje} />
+                        <p className="text-xs text-muted-foreground">
+                          Sobre <span className="font-medium text-foreground">{reseña.publicacionTitulo}</span>
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </section>
+            </>
+          )}
+        </div>
+      )}
+
+      {pestana === "mensajes" && (
+        <div className="flex flex-col gap-4">
+          {conversaciones.length === 0 ? (
+            <Card className="py-12 text-center">
+              <CardTitle>Sin mensajes por ahora</CardTitle>
+              <CardDescription>
+                Cuando preguntes por un ejemplar o te pregunten por uno tuyo, el hilo aparecerá
+                acá antes de cualquier compra.
+              </CardDescription>
+            </Card>
+          ) : (
+            conversaciones.map((conversacion) => (
+              <Card key={conversacion.id} className="rounded-xl">
+                <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{conversacion.publicacionTitulo}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {conversacion.rol === "vendedor"
+                        ? `Pregunta de ${conversacion.contraparte.nombre}`
+                        : `Conversación con ${conversacion.contraparte.nombre}`}
+                    </p>
+                    {conversacion.ultimoMensaje && (
+                      <p className="mt-1 truncate text-sm text-muted-foreground/90">
+                        {conversacion.ultimoMensaje}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {formatDateTime(conversacion.actualizadoEn)}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg"
+                      onClick={() => setConversacionAbierta(conversacion)}
+                    >
+                      <MessageCircle data-icon="inline-start" /> Abrir
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+
       {pestana === "notificaciones" && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -617,6 +761,19 @@ export function PerfilView({
         confirmTexto="Eliminar"
         onConfirmar={() => void confirmarEliminacion()}
         onCerrar={() => setEliminando(null)}
+      />
+
+      <DialogoContacto
+        abierto={conversacionAbierta !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) {
+            setConversacionAbierta(null)
+            void cargarTodo()
+          }
+        }}
+        yoId={usuario.id}
+        conversacionId={conversacionAbierta?.id ?? null}
+        nueva={null}
       />
 
       <Dialog

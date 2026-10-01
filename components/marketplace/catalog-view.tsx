@@ -44,6 +44,7 @@ export function CatalogView({
   limpiarFiltros,
   filtrosActivos,
   onDetalle,
+  onVendedor,
   onPagina,
 }: {
   publicaciones: PublicacionListItem[]
@@ -58,6 +59,7 @@ export function CatalogView({
   limpiarFiltros: () => void
   filtrosActivos: number
   onDetalle: (id: string) => void
+  onVendedor: (vendedorId: string) => void
   onPagina: (pagina: number) => void
 }) {
   const [cajonAbierto, setCajonAbierto] = useState(false)
@@ -190,6 +192,7 @@ export function CatalogView({
                   key={publicacion.id}
                   publicacion={publicacion}
                   onDetalle={() => onDetalle(publicacion.id)}
+                  onVendedor={onVendedor}
                 />
               ))}
             </div>

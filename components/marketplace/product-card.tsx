@@ -1,20 +1,23 @@
 "use client"
 
-import { MapPin, Star } from "lucide-react"
+import { MapPin } from "lucide-react"
 import { type PublicacionListItem } from "@/lib/catalog"
 import { formatCLP } from "@/lib/format"
 import { Portada } from "@/components/marketplace/hero"
+import { Estrellas } from "@/components/marketplace/valoraciones"
 
 export function ProductCard({
   publicacion,
   onDetalle,
+  onVendedor,
 }: {
   publicacion: PublicacionListItem
   onDetalle: () => void
+  onVendedor?: (vendedorId: string) => void
 }) {
   const sinStock = publicacion.stock <= 0
   const nota = Number.parseFloat(publicacion.rating ?? "")
-  const hayNota = Number.isFinite(nota)
+  const hayNota = Number.isFinite(nota) && publicacion.ratingCount > 0
 
   return (
     <article className="group relative flex h-full flex-col">
@@ -56,27 +59,37 @@ export function ProductCard({
             {formatCLP(publicacion.precio)}
           </p>
           {hayNota && (
-            <span className="flex shrink-0 items-center gap-1" title={`${nota} de 5`}>
-              <span className="flex" aria-hidden>
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <span key={i} className="relative flex size-3">
-                    <Star className="absolute inset-0 size-3 text-oro/25" />
-                    <span
-                      className="absolute inset-0 overflow-hidden"
-                      style={{ width: `${Math.max(0, Math.min(1, nota - i)) * 100}%` }}
-                    >
-                      <Star className="size-3 fill-oro text-oro" />
-                    </span>
-                  </span>
-                ))}
+            <span
+              className="flex shrink-0 items-center gap-1"
+              title={`${nota.toFixed(1)} de 5 en ${publicacion.ratingCount} ${
+                publicacion.ratingCount === 1 ? "valoración" : "valoraciones"
+              }`}
+            >
+              <Estrellas nota={nota} />
+              <span className="text-[11px] tabular-nums text-muted-foreground">
+                {nota.toFixed(1)}
+                <span className="text-muted-foreground/60"> ({publicacion.ratingCount})</span>
               </span>
-              <span className="text-[11px] tabular-nums text-muted-foreground">{nota.toFixed(1)}</span>
             </span>
           )}
         </div>
 
         <div className="mt-3 flex items-center gap-1.5 border-t border-border/50 pt-3 text-[11px] text-muted-foreground">
-          <span className="truncate font-medium text-foreground/80">{publicacion.vendedorNombre}</span>
+          {onVendedor ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                onVendedor(publicacion.vendedorId)
+              }}
+              className="pointer-events-auto relative z-20 truncate rounded-full font-medium text-foreground/80 transition-colors hover:text-oro focus-visible:outline-none"
+              aria-label={`Ver el perfil de ${publicacion.vendedorNombre}`}
+            >
+              {publicacion.vendedorNombre}
+            </button>
+          ) : (
+            <span className="truncate font-medium text-foreground/80">{publicacion.vendedorNombre}</span>
+          )}
           {publicacion.vendedorComuna && (
             <>
               <span className="text-border">·</span>

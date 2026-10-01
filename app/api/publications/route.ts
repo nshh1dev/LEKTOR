@@ -111,6 +111,7 @@ export async function GET(request: NextRequest) {
           fotos: publications.fotos,
           estado: publications.estado,
           rating: publications.rating,
+          ratingCount: publications.ratingCount,
           vendedorId: publications.vendedorId,
           vendedorNombre: users.nombre,
           vendedorComuna: users.comuna,
