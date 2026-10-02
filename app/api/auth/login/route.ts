@@ -5,6 +5,7 @@ import { db } from "@/db"
 import { users } from "@/db/schema"
 import { createSessionToken, setSessionCookie, toSafeUser } from "@/lib/auth"
 import { fail, jsonError, ok } from "@/lib/api"
+import { loginFormSchema } from "@/lib/catalog"
 import { clientIp, limiteExcedido, olvidar, rateLimit } from "@/lib/rate-limit"
 
 const bodySchema = loginFormSchema
