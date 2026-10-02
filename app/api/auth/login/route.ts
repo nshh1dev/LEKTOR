@@ -7,10 +7,7 @@ import { createSessionToken, setSessionCookie, toSafeUser } from "@/lib/auth"
 import { fail, jsonError, ok } from "@/lib/api"
 import { clientIp, limiteExcedido, olvidar, rateLimit } from "@/lib/rate-limit"
 
-const bodySchema = z.object({
-  email: z.string().trim().toLowerCase().email("Email no válido"),
-  password: z.string().min(1, "Ingresa tu contraseña"),
-})
+const bodySchema = loginFormSchema
 
 /**
  * Dos topes, porque cubren ataques distintos:
