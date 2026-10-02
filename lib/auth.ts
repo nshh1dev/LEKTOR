@@ -36,14 +36,15 @@ export async function createSessionToken(userId: string): Promise<string> {
   return token
 }
 
-export async function setSessionCookie(token: string): Promise<void> {
+export async function setSessionCookie(token: string, expires?: Date): Promise<void> {
   const store = await cookies()
+  const fecha = expires ?? new Date(Date.now() + SESSION_DURATION_MS)
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    expires: new Date(Date.now() + SESSION_DURATION_MS),
+    expires: fecha,
   })
 }
 
@@ -68,10 +69,12 @@ export async function getSession(): Promise<SafeUser | null> {
   if (!user || !user.activo) return null
 
   if (session.expiresAt.getTime() - Date.now() < SESSION_DURATION_MS / 2) {
+    const nuevo = new Date(Date.now() + SESSION_DURATION_MS)
     await db
       .update(sessions)
-      .set({ expiresAt: new Date(Date.now() + SESSION_DURATION_MS) })
+      .set({ expiresAt: nuevo })
       .where(eq(sessions.token, token))
+    await setSessionCookie(token, nuevo)
   }
 
   return toSafeUser(user)
