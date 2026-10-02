@@ -4,7 +4,7 @@ Guía de convenciones para asistentes de IA que trabajen en este repositorio.
 
 ## Proyecto
 
-LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y libros físicos de segunda mano. Es un proyecto de título de desarrollo individual.
+LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y libros físicos de segunda mano. Es un proyecto académico grupal.
 
 ## Stack
 
@@ -53,6 +53,12 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   `resumenFaltantes`. Un error de negocio se explica con `mensajeDeFallo(fallo, respaldo)`, que
   traduce el `reason` del servidor; los pendientes de un formulario salen de `resumenFaltantes` para
   que se listen en `FaltanDatos` en vez de dejar el botón muerto.
+- **Cuerpo de las peticiones**: cuando un componente manda datos a una API, el objeto del cuerpo se arma
+  con una función pura de `lib/` y su tipo de retorno es `z.infer<typeof <esquema>>`, no un objeto literal
+  escrito en el `.tsx`. Así el compilador falla si a la API le falta un campo que el esquema exige, y una
+  prueba la pasa por `safeParse` para fijar el contrato. Un ejemplo: `cuerpoDeRegistro` de `lib/catalog.ts`
+  alimenta a `registroSchema`. Ninguna puerta cubre esto por sí sola —`pnpm simular` pega contra la API
+  con su propio payload y no pasa por el componente—: es el eslabón que hay que cerrar a mano.
 - Los avisos se construyen con `toast.custom` porque sonner renderiza `title` crudo; el `Toaster` va
   con `unstyled` y el color del botón de cerrar seCorrige con `--normal-bg`/`--normal-border`.
 - El sello (`animate-sello`) y la ficha usan tokens propios: `--aviso-ok`, `--aviso-falla`,
@@ -81,8 +87,8 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   - `pnpm test`
   - `pnpm build`
 - Esos mismos comandos corren en `.github/workflows/ci.yml` en cada `push` a `main` y en cada
-  PR: si la CI falla, el cambio no entra. La CI no necesita PostgreSQL porque las pruebas del
-  dominio son puras.
+  PR. La CI **avisa, no bloquea**: avisa si algo falla, pero el cambio ya está en `main` o en el
+  PR. La CI no necesita PostgreSQL porque las pruebas del dominio son puras.
 - Todo cambio bueno y verificado se sube a GitHub en cuanto `pnpm typecheck`, `pnpm lint`,
   `pnpm test` y `pnpm build` pasen: commit descriptivo en español y `push` a `main`. No esperar
   a que lo pidan cuando el cambio ya está probado.
@@ -150,11 +156,19 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   atrasada) → commits frecuentes → PR a `main`. `main` nunca se rebasea ni se reescribe.
 - **Trabajo en equipo**: el proyecto se armó commiteando directo en `main`, así que sigue habiendo
   gente que pushea ahí. Eso deja las ramas `feature/*` atrás sin avisar, y el síntoma típico es que
-  el PR seAncient marque conflicto o que `pnpm build` falle por archivos que no tocaste. Antes de
+  el PR se marque en conflicto o que `pnpm build` falle por archivos que no tocaste. Antes de
   seguir trabajando y antes de abrir el PR, pon la rama al día:
   `git switch feature/<módulo>` → `git fetch origin` → `git merge origin/main` → resolver los
   conflictos **en la rama** → volver a correr `pnpm typecheck`, `pnpm lint`, `pnpm test` y
   `pnpm build`. Nunca al revés: no se reescribe `main` ni se fuerza un push.
+- `main` está **protegido en GitHub** desde el 2026-10-02: no se admiten force pushes, no se puede borrar
+  la rama, y la regla también aplica a los administradores. Eso es todo lo que frena GitHub: **no** se pide
+  pull request y **no** se exigen checks para pushear, así que se sigue commiteando directo a `main`, que es
+  como trabaja el equipo. La CI sigue corriendo en cada push y avisa si algo falla, pero un commit roto
+  llega igual a `main` y queda en rojo: la garantía es que la historia no se puede reescribir ni borrar.
+  Si algún día se quiere bloquear el merge sin CI, se activa "Require status checks to pass" en los ajustes
+  de la rama, pero ojo: eso **también rechaza los `push` directos** cuya CI no esté en verde, así que obliga
+  a que todo el equipo trabaje con ramas y PR.
 - `.gitattributes` fija LF en todo el repositorio y Git normaliza al commitear: da igual si el editor
   guarda en CRLF, no hay que convertir archivos a mano.
 
