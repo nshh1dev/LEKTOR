@@ -36,15 +36,22 @@ export async function createSessionToken(userId: string): Promise<string> {
   return token
 }
 
-export async function setSessionCookie(token: string, expires?: Date): Promise<void> {
+/**
+ * La cookie no lleva `expires` a propósito: es cookie de sesión y la termina el
+ * navegador al cerrarse. La vigencia la decide la fila de `sessions`, que es lo
+ * único que se puede renovar en cualquier contexto. Al revés —ponerle fecha y
+ * depender de que el navegador la respete— obliga a reescribir la cookie cada
+ * vez que la sesión se alarga, y esa escritura solo se puede hacer desde un Route
+ * Handler o una Server Action, no desde `getSession()`, que también la llaman las
+ * páginas del panel.
+ */
+export async function setSessionCookie(token: string): Promise<void> {
   const store = await cookies()
-  const fecha = expires ?? new Date(Date.now() + SESSION_DURATION_MS)
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    expires: fecha,
   })
 }
 
@@ -69,12 +76,14 @@ export async function getSession(): Promise<SafeUser | null> {
   if (!user || !user.activo) return null
 
   if (session.expiresAt.getTime() - Date.now() < SESSION_DURATION_MS / 2) {
+    // Se alarga solo en la base. La cookie no lleva fecha, así que no hay nada
+    // que reescribir en el navegador: ponerla acá tiraría un error en cada
+    // página del panel, porque las cookies solo se tocan desde un Route Handler.
     const nuevo = new Date(Date.now() + SESSION_DURATION_MS)
     await db
       .update(sessions)
       .set({ expiresAt: nuevo })
       .where(eq(sessions.token, token))
-    await setSessionCookie(token, nuevo)
   }
 
   return toSafeUser(user)

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Simulación end-to-end del marketplace contra el dev server.
  *
  *   pnpm db:reset     # deja la base limpia y sembrada
@@ -489,6 +489,90 @@ etapa(
     }
   },
   { necesitaActores: false },
+)
+
+// ---------------------------------------------- F2d cuenta desactivada
+
+/**
+ * Una cuenta desactivada no entra y pierde todas sus sesiones. Se apaga por el
+ * panel, que es la vía real: `PATCH /api/panel/usuarios` borra las sesiones del
+ * usuario, así que después hay que reabrir la del vendedor que usan las etapas que
+ * siguen. Si el registro degradó al seed la etapa se salta, porque las cuentas del
+ * seed las necesitan intactas. La cuenta se reactiva siempre, en el `finally`.
+ */
+async function alternarActivo(id: string, activo: boolean) {
+  return pedir("/api/panel/usuarios", {
+    method: "PATCH",
+    cookie: actor.admin.cookie,
+    body: { id, activo },
+  })
+}
+
+etapa(
+  "F2d · una cuenta desactivada no puede iniciar sesión y pierde sus sesiones",
+  async () => {
+    if (origenVendedor === "seed") {
+      return { ok: true, detalle: "la cuenta reservada no existe: el registro degradó al seed" }
+    }
+
+    const correo = VENDEDOR_NUEVO.email
+    const buscados = await pedir(`/api/panel/usuarios?q=${encodeURIComponent(correo)}`, {
+      cookie: actor.admin.cookie,
+    })
+    const [objetivo] = lista<{ id: string; email: string }>(buscados.datos, "usuarios")
+    if (!objetivo) return { ok: false, detalle: `el panel no encontró a ${correo}` }
+
+    // Sesión emitida mientras la cuenta está activa: tiene que dejar de servir.
+    const previa = await entrar(correo, CLAVE)
+    if (!previa) return { ok: false, detalle: `no se pudo abrir sesión de ${correo}` }
+
+    let reactivada = false
+    try {
+      igual((await alternarActivo(objetivo.id, false)).status, 200, "desactivar la cuenta")
+
+      const conClave = await pedir("/api/auth/login", {
+        method: "POST",
+        body: { email: correo, password: CLAVE },
+      })
+      igual(conClave.status, 403, "login con la clave correcta en una cuenta desactivada")
+      igual(conClave.datos.reason, "inactive", "motivo de la cuenta desactivada")
+      check(!conClave.headers.get("set-cookie"), "no se entrega cookie a una cuenta desactivada")
+
+      // La clave se verifica antes que el estado: una cuenta desactivada responde
+      // igual que una inexistente, así que no confirma que el correo exista.
+      const malaClave = await pedir("/api/auth/login", {
+        method: "POST",
+        body: { email: correo, password: "clave-incorrecta" },
+      })
+      igual(malaClave.status, 401, "login con la clave incorrecta en una cuenta desactivada")
+      igual(malaClave.datos.reason, "bad-credentials", "no se filtra que la cuenta existe")
+
+      const conSesionVieja = await pedir("/api/auth/me", { cookie: previa.cookie })
+      igual(conSesionVieja.status, 401, "la sesión emitida antes de desactivar")
+
+      await alternarActivo(objetivo.id, true)
+      reactivada = true
+
+      // Desactivar borró todas las sesiones del usuario, incluida la del vendedor
+      // que usan las etapas siguientes: se entra de nuevo y se guarda en su actor.
+      const deVuelta = await entrar(correo, CLAVE)
+      if (!deVuelta) return { ok: false, detalle: "no se pudo volver a entrar tras reactivar" }
+      actor.vendedor = deVuelta
+      const meDelVendedor = await pedir("/api/auth/me", { cookie: actor.vendedor.cookie })
+      igual(meDelVendedor.status, 200, "sesión del vendedor restablecida para las etapas siguientes")
+
+      return {
+        ok: fallos === 0,
+        detalle: "desactivada rechaza el login, pierde las sesiones y vuelve a entrar",
+      }
+    } finally {
+      if (!reactivada) {
+        await alternarActivo(objetivo.id, true)
+        const deVuelta = await entrar(correo, CLAVE)
+        if (deVuelta) actor.vendedor = deVuelta
+      }
+    }
+  },
 )
 
 // ------------------------------------------------------------- F3 publicar
@@ -1468,3 +1552,4 @@ main().catch((error) => {
   console.error(error)
   process.exit(1)
 })
+
