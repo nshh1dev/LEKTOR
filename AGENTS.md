@@ -147,8 +147,14 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - Las ocho `feature/*` del repositorio son marcadores de módulo: apuntan a la base de `main` y no
   tienen commits propios. Sirven para el trabajo que venga, no como destino del pasado.
 - Trabajo nuevo: `git switch feature/<módulo>` → `git merge main` (fast-forward si la rama solo va
-  atrasada) → commits frecuentes → PR a `main`. Si otra persona commitea en `main` en paralelo, la
-  rama se pone al día con `git merge main`; `main` nunca se rebasea.
+  atrasada) → commits frecuentes → PR a `main`. `main` nunca se rebasea ni se reescribe.
+- **Trabajo en equipo**: el proyecto se armó commiteando directo en `main`, así que sigue habiendo
+  gente que pushea ahí. Eso deja las ramas `feature/*` atrás sin avisar, y el síntoma típico es que
+  el PR seAncient marque conflicto o que `pnpm build` falle por archivos que no tocaste. Antes de
+  seguir trabajando y antes de abrir el PR, pon la rama al día:
+  `git switch feature/<módulo>` → `git fetch origin` → `git merge origin/main` → resolver los
+  conflictos **en la rama** → volver a correr `pnpm typecheck`, `pnpm lint`, `pnpm test` y
+  `pnpm build`. Nunca al revés: no se reescribe `main` ni se fuerza un push.
 - `.gitattributes` fija LF en todo el repositorio y Git normaliza al commitear: da igual si el editor
   guarda en CRLF, no hay que convertir archivos a mano.
 
