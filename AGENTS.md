@@ -131,6 +131,16 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   tiene que seguir apareciendo **contigua en el código**, no partida por un salto de línea de JSX.
 - Seguir el estilo y patrones ya existentes en el proyecto.
 - Los commits deben ser descriptivos y en español.
+- Ramas de Git: usar prefijos por tipo de trabajo. Nomenclatura: <tipo>/<descripcion-kebab-case>.
+  - feature/  -> nuevas funcionalidades (ej.: feature/auth-login-register, feature/favoritos)
+  - fix/      -> correcciones de bugs (ej.: fix/login-rate-limit)
+  - refactor/ -> reorganización sin cambiar comportamiento (ej.: refactor/orders-dominio)
+  - docs/     -> solo documentación (ej.: docs/actualizar-readme)
+  - chore/    -> mantenimiento/config/dependencias (ej.: chore/actualizar-tsx)
+  - test/     -> añadir/corregir tests (ej.: test/reviews-validacion)
+  - perf/     -> mejoras de rendimiento (ej.: perf/catalogo-consultas)
+  - hotfix/   -> arreglos urgentes sobre main (ej.: hotfix/stock-negativo)
+  Base siempre main (último commit). Crear ramas desde main actualizado. Un PR = una única unidad de trabajo, destino main.
 - `.gitattributes` fija LF en todo el repositorio y Git normaliza al commitear: da igual si el editor
   guarda en CRLF, no hay que convertir archivos a mano.
 
