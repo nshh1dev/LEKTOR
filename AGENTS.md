@@ -108,13 +108,17 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - `scripts/simular-flujo.ts` (`pnpm simular`) es la puerta de calidad de los flujos: necesita
   `pnpm dev` en marcha, crea sus propios datos y sale con `1` si algo no cuadra. Antes de repetirla
   desde cero: `pnpm db:reset` (`scripts/db-reset.ts`, destructivo y restringido a URLs locales).
-- **Prohibido levantar el dev server (`pnpm dev` o `next dev`) para correr `pnpm simular`.** El
-  servidor lo levanta la persona a mano en su terminal; un asistente no debe arrancar procesos de
-  Next ni dejar ninguno escuchando en el puerto 3000. Si `pnpm simular` no puede correr porque no
-  hay servidor, se dice y se sigue con el resto de las puertas (`pnpm typecheck`, `pnpm lint`,
-  `pnpm test`, `pnpm build`), que no necesitan ninguno de los dos. Las etapas de simulación que
-  tocan base de datos se pueden auditar de forma alternativa con `pnpm db:seed` y consultas
-  directas de solo lectura, siempre que no se invente un servidor.
+- **El dev server solo se levanta cuando la persona lo pide de forma explícita.** La regla original
+  (prohibir que un asistente arranque Next) se cambió el 2026-10-01 a pedido del equipo, porque
+  obliga a cortar la sesión para ver la aplicación. Desde entonces:
+  - Un asistente **puede** arrancar `pnpm dev` / `next dev` si la persona lo pide, pero **nunca por
+    iniciativa propia** para correr `pnpm simular` u otra puerta: primero se pergunta.
+  - Si lo arranca, avisa en qué puerto quedó y **lo detiene al terminar** la tarea o cuando se lo
+    pidan. No dejar procesos de Next escuchando en el puerto 3000 al cerrar la sesión.
+  - Si `pnpm simular` no puede correr porque no hay servidor, se dice y se sigue con el resto de las
+    puertas (`pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`), que no necesitan ninguno de
+    los dos. Las etapas de simulación que tocan base de datos se pueden auditar de forma alternativa
+    con `pnpm db:seed` y consultas directas de solo lectura.
 - El rate limit de registro es de 5 intentos por hora y por IP, y el contador vive en la memoria del
   proceso: al ampliar la simulación, reutilizar cuentas del seed en vez de registrar más actores.
 - Todo cambio de stock debe dejar movimiento en `stock_movements` (venta, ajuste y devolución por
