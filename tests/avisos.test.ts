@@ -1,5 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
+import { readFileSync, readdirSync } from "node:fs"
+import { join } from "node:path"
 
 import { MOTIVO_FALLO, mensajeDeFallo } from "@/lib/avisos"
 import { ApiFailure, api } from "@/components/marketplace/api"
@@ -37,8 +39,12 @@ test("el vocabulario cubre los motivos que el servidor emite", () => {
     "orden-activa",
     "ultimo-admin",
     "mismo-usuario",
-    "email-duplicado",
-    "cuenta-inactiva",
+    // Los que emiten las rutas de auth: `app/api/auth/{login,register,password}`.
+    "email-exists",
+    "inactive",
+    "bad-credentials",
+    "bad-password",
+    "no-user",
   ]
   for (const motivo of conCopyPropio) {
     assert.ok(motivo in MOTIVO_FALLO, `falta copy propio para "${motivo}"`)
@@ -46,9 +52,45 @@ test("el vocabulario cubre los motivos que el servidor emite", () => {
 })
 
 test("el vocabulario no guarda motivos que el servidor ya no emite", () => {
-  for (const retirado of ["sin-sesion", "sin-permiso", "sin-stock"]) {
+  const retirados = [
+    "sin-sesion",
+    "sin-permiso",
+    "sin-stock",
+    // Se escribieron con otro nombre del que usan las rutas de auth.
+    "email-duplicado",
+    "cuenta-inactiva",
+  ]
+  for (const retirado of retirados) {
     assert.equal(retirado in MOTIVO_FALLO, false, `"${retirado}" quedó sin usar`)
   }
+})
+
+/**
+ * Las rutas de auth escriben sus motivos a mano en `jsonError("motivo", ...)`.
+ * Este guardián las lee del código para que ningún motivo nuevo llegue a la UI
+ * sin copy: el síntoma es un `mensajeDeFallo` que cae al mensaje crudo del
+ * servidor. `invalid` queda fuera a propósito: ahí el mensaje útil es el de Zod.
+ */
+test("ningún motivo que emiten las rutas de auth se queda sin copy", () => {
+  const motivos = new Set<string>()
+  const recorrer = (carpeta: string) => {
+    for (const entrada of readdirSync(carpeta, { withFileTypes: true })) {
+      const ruta = join(carpeta, entrada.name)
+      if (entrada.isDirectory()) recorrer(ruta)
+      else if (entrada.name === "route.ts") {
+        const texto = readFileSync(ruta, "utf8")
+        for (const coincidencia of texto.matchAll(/jsonError\(\s*"([a-z-]+)"/g)) {
+          motivos.add(coincidencia[1])
+        }
+      }
+    }
+  }
+  recorrer(join("app", "api", "auth"))
+
+  // Si el patrón dejara de encontrar motivos, el test pasaría sin comprobar nada.
+  assert.ok(motivos.size >= 6, `solo se leyeron ${motivos.size} motivos de auth: revisa el patrón`)
+  const sinCopy = [...motivos].filter((motivo) => motivo !== "invalid" && !(motivo in MOTIVO_FALLO))
+  assert.deepEqual(sinCopy, [], `motivos de auth sin copy propio: ${sinCopy.join(", ")}`)
 })
 
 test("api propaga el motivo del servidor hasta el aviso", async (t) => {

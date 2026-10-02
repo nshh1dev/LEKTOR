@@ -411,6 +411,44 @@ export const registroSchema = z
     path: ["confirmarPassword"],
   })
 
+/**
+ * Login del formulario. Deliberadamente no pide mínimo 6 caracteres como el
+ * registro: la contraseña la puso el servidor y solo tiene que coincidir con lo
+ * que hay en la base. `min(1)` alcanza para distinguir "vacío" de "mal escrita".
+ */
+export const loginFormSchema = z.object({
+  email: z
+    .string({ required_error: "Escribe tu correo electrónico" })
+    .trim()
+    .toLowerCase()
+    .email("Email no válido"),
+  password: z.string({ required_error: "Ingresa tu contraseña" }).min(1, "Ingresa tu contraseña"),
+})
+
+export type LoginFormValues = z.infer<typeof loginFormSchema>
+
+/** El registro usa el mismo esquema en el navegador y en la API: una sola voz. */
+export type RegistroFormValues = z.infer<typeof registroSchema>
+
+export type CuerpoRegistro = z.infer<typeof registroSchema>
+
+/**
+ * Cuerpo que el formulario de registro manda a `POST /api/auth/register`. El tipo de
+ * retorno es el propio esquema, así que si `registroSchema` exige un campo y esta función
+ * no lo manda, el compilador falla en vez de dejar el registro rebotando en la API.
+ */
+export function cuerpoDeRegistro(values: RegistroFormValues): CuerpoRegistro {
+  return {
+    nombre: values.nombre,
+    email: values.email,
+    password: values.password,
+    confirmarPassword: values.confirmarPassword,
+    telefono: values.telefono,
+    comuna: values.comuna,
+    region: values.region,
+  }
+}
+
 export const profileUpdateSchema = z.object({
   nombre: z.string().trim().min(2, "El nombre es demasiado corto").max(120).optional(),
   bio: z.string().trim().max(300).nullable().optional(),

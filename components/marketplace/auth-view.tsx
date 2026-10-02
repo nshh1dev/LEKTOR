@@ -1,6 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
+import { useForm, useWatch } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { BookOpen, LoaderCircle, LogIn } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,28 +17,45 @@ import {
 } from "@/components/ui/select"
 import { avisar } from "@/components/notificacion/avisar"
 import { Aviso, FaltanDatos } from "@/components/notificacion/avisos"
-import { mensajeDeFallo, type Faltante } from "@/lib/avisos"
-import { REGIONES, type SesionUsuario } from "@/lib/catalog"
+import { mensajeDeFallo, resumenFaltantes } from "@/lib/avisos"
+import {
+  REGIONES,
+  cuerpoDeRegistro,
+  loginFormSchema,
+  registroSchema,
+  type LoginFormValues,
+  type RegistroFormValues,
+  type SesionUsuario,
+} from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
+import { MensajeError } from "@/components/marketplace/shared"
 import { api, ApiFailure } from "@/components/marketplace/api"
 
-const CAMPOS: Record<string, string> = {
+const ETIQUETAS_ACCESO = {
+  email: "Correo electrónico",
+  password: "Contraseña",
+}
+
+const ETIQUETAS_REGISTRO = {
+  ...ETIQUETAS_ACCESO,
   nombre: "Nombre visible",
   telefono: "Teléfono de contacto",
   comuna: "Comuna",
   region: "Región",
-  email: "Correo electrónico",
-  password: "Contraseña",
   confirmarPassword: "Repite la contraseña",
 }
 
-const ANCLAS: Record<string, string> = {
+const ANCLAS_ACCESO = {
+  email: "auth-email",
+  password: "auth-password",
+}
+
+const ANCLAS_REGISTRO = {
+  ...ANCLAS_ACCESO,
   nombre: "auth-name",
   telefono: "auth-telefono",
   comuna: "auth-comuna",
   region: "auth-region",
-  email: "auth-email",
-  password: "auth-password",
   confirmarPassword: "auth-confirmar",
 }
 
@@ -53,6 +72,17 @@ const CUENTAS_DEMO = [
 ]
 const MOSTRAR_DEMO = process.env.NODE_ENV !== "production"
 
+/** El aviso de fallo es el mismo en las dos puertas; solo cambia el título. */
+function avisarFallo(error: unknown, titulo: string) {
+  const campos = error instanceof ApiFailure ? error.campos : undefined
+  avisar.falla({
+    titulo,
+    descripcion: mensajeDeFallo(error, "Revisa los datos e inténtalo otra vez."),
+    referencia: campos ? `${Object.keys(campos).length} campo(s) por corregir` : undefined,
+    duracion: 8000,
+  })
+}
+
 export function AuthView({
   onSuccess,
   onVolver,
@@ -61,104 +91,6 @@ export function AuthView({
   onVolver: () => void
 }) {
   const [modo, setModo] = useState<"login" | "register">("login")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [nombre, setNombre] = useState("")
-  const [confirmarPassword, setConfirmarPassword] = useState("")
-  const [telefono, setTelefono] = useState("")
-  const [comuna, setComuna] = useState("")
-  const [region, setRegion] = useState("")
-  const [cargando, setCargando] = useState(false)
-  const [rechazo, setRechazo] = useState<string | null>(null)
-
-  const faltan: Faltante[] = useMemo(() => {
-    const vacios: Record<string, { falta: boolean; mensaje?: string }> = {
-      email: { falta: !email.trim(), mensaje: "Escribe un correo válido" },
-      password: { falta: !password || password.length < 6, mensaje: "Mínimo 6 caracteres" },
-    }
-    if (modo === "register") {
-      vacios.nombre = { falta: nombre.trim().length < 2, mensaje: "Mínimo 2 caracteres" }
-      vacios.telefono = { falta: telefono.trim().length < 6, mensaje: "Para coordinar la entrega" }
-      vacios.comuna = { falta: comuna.trim().length < 2 }
-      vacios.region = { falta: !region, mensaje: "Elige una de las regiones" }
-      vacios.confirmarPassword = {
-        falta: !confirmarPassword || confirmarPassword !== password,
-        mensaje:
-          confirmarPassword && confirmarPassword !== password
-            ? "Las dos contraseñas no coinciden"
-            : undefined,
-      }
-    }
-    return Object.entries(vacios)
-      .filter(([, estado]) => estado.falta)
-      .map(([campo, estado]) => ({
-        campo,
-        etiqueta: CAMPOS[campo],
-        ancla: ANCLAS[campo],
-        mensaje: estado.mensaje,
-      }))
-  }, [modo, email, password, nombre, telefono, comuna, region, confirmarPassword])
-
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (faltan.length > 0) {
-      avisar.revisar({
-        titulo: "Aún te faltan datos",
-        descripcion:
-          modo === "register"
-            ? `Completa ${faltan.length === 1 ? "el campo marcado" : `los ${faltan.length} campos marcados`} para crear tu cuenta.`
-            : "Escribe tu correo y tu contraseña para entrar.",
-        accion: {
-          etiqueta: "Llevarme al primer campo",
-          alPulsar: () => {
-            const ancla = faltan[0]?.ancla
-            const destino = ancla ? document.getElementById(ancla) : null
-            destino?.focus()
-          },
-        },
-      })
-      return
-    }
-    setRechazo(null)
-    setCargando(true)
-    try {
-      const data = await api<{ user: SesionUsuario }>(
-        modo === "register" ? "/api/auth/register" : "/api/auth/login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            modo === "register"
-              ? { nombre, email, password, confirmarPassword, telefono, comuna, region }
-              : { email, password },
-          ),
-        },
-      )
-      if (modo === "register") {
-        avisar.ok({
-          titulo: `Bienvenido a LEKTOR, ${data.user.nombre}`,
-          descripcion: "Ya puedes publicar tus tomos y seguir las compras que hagas.",
-        })
-      } else {
-        avisar.ok({
-          titulo: "Sesión iniciada",
-          descripcion: `Hola de nuevo, ${data.user.nombre}. Tu estantería te estaba esperando.`,
-        })
-      }
-      onSuccess(data.user)
-    } catch (error) {
-      const campos = error instanceof ApiFailure ? error.campos : undefined
-      setRechazo(mensajeDeFallo(error, "No se pudo iniciar sesión"))
-      avisar.falla({
-        titulo: modo === "register" ? "No pudimos crear tu cuenta" : "No pudimos iniciar sesión",
-        descripcion: mensajeDeFallo(error, "Revisa los datos e inténtalo otra vez."),
-        referencia: campos ? `${Object.keys(campos).length} campo(s) por corregir` : undefined,
-        duracion: 8000,
-      })
-    } finally {
-      setCargando(false)
-    }
-  }
 
   return (
     <div className="flex min-h-[calc(100vh-9rem)] items-center justify-center py-8">
@@ -191,146 +123,10 @@ export function AuthView({
               Crear Cuenta
             </Button>
           </div>
-          <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-            {modo === "register" && (
-              <>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="auth-name">Nombre visible</Label>
-                  <Input
-                    id="auth-name"
-                    value={nombre}
-                    onChange={(event) => setNombre(event.target.value)}
-                    placeholder="OtakuStore99"
-                    minLength={2}
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="auth-telefono">Teléfono de contacto</Label>
-                  <Input
-                    id="auth-telefono"
-                    type="tel"
-                    inputMode="tel"
-                    value={telefono}
-                    onChange={(event) => setTelefono(formatearTelefono(event.target.value))}
-                    placeholder="+56 9 1234 5678"
-                    minLength={6}
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="auth-comuna">Comuna</Label>
-                  <Input
-                    id="auth-comuna"
-                    value={comuna}
-                    onChange={(event) => setComuna(event.target.value)}
-                    placeholder="Providencia"
-                    minLength={2}
-                    required
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="auth-region">Región</Label>
-                  <Select value={region} onValueChange={setRegion}>
-                    <SelectTrigger id="auth-region" className="w-full">
-                      <SelectValue placeholder="Selecciona tu región" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {REGIONES.map((valor) => (
-                        <SelectItem key={valor} value={valor}>
-                          {valor}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="auth-email">Correo electrónico</Label>
-              <Input
-                id="auth-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="tu@email.com"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="auth-password">Contraseña</Label>
-              <Input
-                id="auth-password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="mínimo 6 caracteres"
-                minLength={6}
-                required
-              />
-            </div>
-            {modo === "register" && (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="auth-confirmar">Repite la contraseña</Label>
-                <Input
-                  id="auth-confirmar"
-                  type="password"
-                  value={confirmarPassword}
-                  onChange={(event) => setConfirmarPassword(event.target.value)}
-                  placeholder="mínimo 6 caracteres"
-                  minLength={6}
-                  required
-                />
-              </div>
-            )}
-            <Button type="submit" className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90" disabled={cargando}>
-              {cargando ? <LoaderCircle className="size-4 animate-spin" /> : <LogIn />}
-              {modo === "register" ? "Crear mi cuenta" : "Entrar"}
-            </Button>
-            {faltan.length > 0 ? (
-              <FaltanDatos
-                titulo="Para seguirte faltan"
-                datos={faltan}
-                vivo={false}
-              />
-            ) : null}
-            {rechazo ? (
-              <Aviso tono="falla" titulo={rechazo} className="mt-1" />
-            ) : null}
-          </form>
-          {modo === "login" && MOSTRAR_DEMO && (
-            <div
-              role="group"
-              aria-label="Cuentas de demostración"
-              className="mt-6 flex flex-col gap-2 border-t border-border/60 pt-5"
-            >
-              <p className="rotulo text-muted-foreground">Accesos rápidos</p>
-              <div className="grid grid-cols-2 gap-2">
-                {CUENTAS_DEMO.map((cuenta) => (
-                  <Button
-                    key={cuenta.email}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={() => {
-                      setEmail(cuenta.email)
-                      setPassword(cuenta.password)
-                      setRechazo(null)
-                      avisar.dato({
-                        titulo: "Formulario listo",
-                        descripcion: `Pulsa Entrar para iniciar sesión como ${cuenta.etiqueta.toLowerCase()}.`,
-                      })
-                    }}
-                  >
-                    {cuenta.etiqueta}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Cuentas de la demostración: rellenan el formulario, tú decides cuándo entrar.
-              </p>
-            </div>
+          {modo === "login" ? (
+            <FormularioAcceso onSuccess={onSuccess} />
+          ) : (
+            <FormularioRegistro onSuccess={onSuccess} />
           )}
           <Button variant="ghost" className="mt-4 w-full" onClick={onVolver}>
             Volver al catálogo
@@ -338,5 +134,303 @@ export function AuthView({
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function FormularioAcceso({ onSuccess }: { onSuccess: (user: SesionUsuario) => void }) {
+  const [cargando, setCargando] = useState(false)
+  const [rechazo, setRechazo] = useState<string | null>(null)
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: { email: "", password: "" },
+  })
+
+  // Sin `useMemo` a propósito: ver la nota en `checkout-view.tsx`. Memoizar
+  // sobre el Proxy de `errors` dejaba los pendientes marcados después de corregir
+  // el campo.
+  const faltan = resumenFaltantes(errors, ETIQUETAS_ACCESO, ANCLAS_ACCESO)
+
+  const entrar = handleSubmit(async (values) => {
+    setCargando(true)
+    setRechazo(null)
+    try {
+      const data = await api<{ user: SesionUsuario }>("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      })
+      avisar.ok({
+        titulo: "Sesión iniciada",
+        descripcion: `Hola de nuevo, ${data.user.nombre}. Tu estantería te estaba esperando.`,
+      })
+      onSuccess(data.user)
+    } catch (error) {
+      setRechazo(mensajeDeFallo(error, "No se pudo iniciar sesión"))
+      avisarFallo(error, "No pudimos iniciar sesión")
+    } finally {
+      setCargando(false)
+    }
+  })
+
+  return (
+    <>
+      <form onSubmit={entrar} noValidate className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="auth-email">Correo electrónico</Label>
+          <Input
+            id="auth-email"
+            type="email"
+            inputMode="email"
+            autoComplete="username"
+            placeholder="tu@email.com"
+            aria-invalid={errors.email ? true : undefined}
+            aria-describedby={errors.email ? "auth-email-error" : undefined}
+            {...register("email")}
+          />
+          <MensajeError campo="auth-email" className="mt-1" mensaje={errors.email?.message} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="auth-password">Contraseña</Label>
+          <Input
+            id="auth-password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="tu contraseña"
+            aria-invalid={errors.password ? true : undefined}
+            aria-describedby={errors.password ? "auth-password-error" : undefined}
+            {...register("password")}
+          />
+          <MensajeError campo="auth-password" className="mt-1" mensaje={errors.password?.message} />
+        </div>
+        <Button
+          type="submit"
+          className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+          disabled={cargando}
+        >
+          {cargando ? <LoaderCircle className="size-4 animate-spin" /> : <LogIn />}
+          Entrar
+        </Button>
+        {faltan.length > 0 ? (
+          <FaltanDatos titulo="Para entrar faltan" datos={faltan} vivo={false} />
+        ) : null}
+        {rechazo ? <Aviso tono="falla" titulo={rechazo} className="mt-1" /> : null}
+      </form>
+      {MOSTRAR_DEMO ? (
+        <div
+          role="group"
+          aria-label="Cuentas de demostración"
+          className="mt-6 flex flex-col gap-2 border-t border-border/60 pt-5"
+        >
+          <p className="rotulo text-muted-foreground">Accesos rápidos</p>
+          <div className="grid grid-cols-2 gap-2">
+            {CUENTAS_DEMO.map((cuenta) => (
+              <Button
+                key={cuenta.email}
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-xl"
+                onClick={() => {
+                  setValue("email", cuenta.email, { shouldValidate: true })
+                  setValue("password", cuenta.password, { shouldValidate: true })
+                  setRechazo(null)
+                  avisar.dato({
+                    titulo: "Formulario listo",
+                    descripcion: `Pulsa Entrar para iniciar sesión como ${cuenta.etiqueta.toLowerCase()}.`,
+                  })
+                }}
+              >
+                {cuenta.etiqueta}
+              </Button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Cuentas de la demostración: rellenan el formulario, tú decides cuándo entrar.
+          </p>
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+function FormularioRegistro({ onSuccess }: { onSuccess: (user: SesionUsuario) => void }) {
+  const [cargando, setCargando] = useState(false)
+  const [rechazo, setRechazo] = useState<string | null>(null)
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    control,
+    formState: { errors },
+  } = useForm<RegistroFormValues>({
+    resolver: zodResolver(registroSchema),
+    defaultValues: {
+      nombre: "",
+      telefono: "",
+      comuna: "",
+      region: "",
+      email: "",
+      password: "",
+      confirmarPassword: "",
+    },
+  })
+
+  const telefonoActual = useWatch({ control, name: "telefono" })
+  const regionActual = useWatch({ control, name: "region" })
+
+  const faltan = resumenFaltantes(errors, ETIQUETAS_REGISTRO, ANCLAS_REGISTRO)
+
+  const crearCuenta = handleSubmit(async (values) => {
+    setCargando(true)
+    setRechazo(null)
+    try {
+      const data = await api<{ user: SesionUsuario }>("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpoDeRegistro(values)),
+      })
+      avisar.ok({
+        titulo: `Bienvenido a LEKTOR, ${data.user.nombre}`,
+        descripcion: "Ya puedes publicar tus tomos y seguir las compras que hagas.",
+      })
+      onSuccess(data.user)
+    } catch (error) {
+      setRechazo(mensajeDeFallo(error, "No se pudo crear tu cuenta"))
+      avisarFallo(error, "No pudimos crear tu cuenta")
+    } finally {
+      setCargando(false)
+    }
+  })
+
+  return (
+    <form onSubmit={crearCuenta} noValidate className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="auth-name">Nombre visible</Label>
+        <Input
+          id="auth-name"
+          autoComplete="nickname"
+          placeholder="OtakuStore99"
+          aria-invalid={errors.nombre ? true : undefined}
+          aria-describedby={errors.nombre ? "auth-name-error" : undefined}
+          {...register("nombre")}
+        />
+        <MensajeError campo="auth-name" className="mt-1" mensaje={errors.nombre?.message} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="auth-telefono">Teléfono de contacto</Label>
+        <Input
+          id="auth-telefono"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="+56 9 1234 5678"
+          className="font-mono"
+          value={telefonoActual ?? ""}
+          onChange={(event) =>
+            setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: true })
+          }
+          aria-invalid={errors.telefono ? true : undefined}
+          aria-describedby={errors.telefono ? "auth-telefono-error" : undefined}
+        />
+        <MensajeError campo="auth-telefono" className="mt-1" mensaje={errors.telefono?.message} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="auth-comuna">Comuna</Label>
+        <Input
+          id="auth-comuna"
+          autoComplete="address-level2"
+          placeholder="Providencia"
+          aria-invalid={errors.comuna ? true : undefined}
+          aria-describedby={errors.comuna ? "auth-comuna-error" : undefined}
+          {...register("comuna")}
+        />
+        <MensajeError campo="auth-comuna" className="mt-1" mensaje={errors.comuna?.message} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="auth-region">Región</Label>
+        <Select
+          value={regionActual ?? ""}
+          onValueChange={(value) => setValue("region", value, { shouldValidate: true })}
+        >
+          <SelectTrigger
+            id="auth-region"
+            className="w-full"
+            aria-invalid={errors.region ? true : undefined}
+            aria-describedby={errors.region ? "auth-region-error" : undefined}
+          >
+            <SelectValue placeholder="Selecciona tu región" />
+          </SelectTrigger>
+          <SelectContent>
+            {REGIONES.map((valor) => (
+              <SelectItem key={valor} value={valor}>
+                {valor}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <MensajeError campo="auth-region" className="mt-1" mensaje={errors.region?.message} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="auth-email">Correo electrónico</Label>
+        <Input
+          id="auth-email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          placeholder="tu@email.com"
+          aria-invalid={errors.email ? true : undefined}
+          aria-describedby={errors.email ? "auth-email-error" : undefined}
+          {...register("email")}
+        />
+        <MensajeError campo="auth-email" className="mt-1" mensaje={errors.email?.message} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="auth-password">Contraseña</Label>
+        <Input
+          id="auth-password"
+          type="password"
+          autoComplete="new-password"
+          placeholder="mínimo 6 caracteres"
+          aria-invalid={errors.password ? true : undefined}
+          aria-describedby={errors.password ? "auth-password-error" : undefined}
+          {...register("password")}
+        />
+        <MensajeError campo="auth-password" className="mt-1" mensaje={errors.password?.message} />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="auth-confirmar">Repite la contraseña</Label>
+        <Input
+          id="auth-confirmar"
+          type="password"
+          autoComplete="new-password"
+          placeholder="mínimo 6 caracteres"
+          aria-invalid={errors.confirmarPassword ? true : undefined}
+          aria-describedby={errors.confirmarPassword ? "auth-confirmar-error" : undefined}
+          {...register("confirmarPassword")}
+        />
+        <MensajeError
+          campo="auth-confirmar"
+          className="mt-1"
+          mensaje={errors.confirmarPassword?.message}
+        />
+      </div>
+      <Button
+        type="submit"
+        className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+        disabled={cargando}
+      >
+        {cargando ? <LoaderCircle className="size-4 animate-spin" /> : <LogIn />}
+        Crear mi cuenta
+      </Button>
+      {faltan.length > 0 ? (
+        <FaltanDatos titulo="Para seguirte faltan" datos={faltan} vivo={false} />
+      ) : null}
+      {rechazo ? <Aviso tono="falla" titulo={rechazo} className="mt-1" /> : null}
+    </form>
   )
 }

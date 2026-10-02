@@ -8,6 +8,7 @@ import {
   RESERVA_HORAS,
   chatMessageSchema,
   comisionPlataforma,
+  cuerpoDeRegistro,
   datosDespachoSchema,
   listaFotosAUrls,
   nivelDePublicaciones,
@@ -22,6 +23,7 @@ import {
   envioSegunMetodo,
   estadoSegunStock,
   registroSchema,
+  loginFormSchema,
   transicionValida,
 } from "@/lib/catalog"
 
@@ -324,6 +326,49 @@ test("registroSchema exige todos los datos de contacto y la confirmación", () =
   assert.equal(registroSchema.safeParse({ ...valido, password: "12345" }).success, false)
   assert.equal(registroSchema.safeParse({ ...valido, email: "no-es-mail" }).success, false)
   assert.equal(registroSchema.safeParse({ ...valido, comuna: "X" }).success, false)
+})
+
+test("loginFormSchema canonicaliza el correo y acepta contraseñas de cualquier largo", () => {
+  const parsed = loginFormSchema.safeParse({ email: "  Nico@LEKTOR.CL ", password: "123456" })
+  assert.equal(parsed.success, true)
+  if (parsed.success) {
+    assert.equal(parsed.data.email, "nico@lektor.cl")
+  }
+
+  // El registro exige 6 caracteres; el login no, porque la contraseña ya existe
+  // en la base y solo tiene que coincidir con lo que hay guardado.
+  assert.equal(loginFormSchema.safeParse({ email: "nico@lektor.cl", password: "1" }).success, true)
+  assert.equal(
+    loginFormSchema.safeParse({ email: "nico@lektor.cl", password: "contraseña larguísima" }).success,
+    true,
+  )
+
+  assert.equal(loginFormSchema.safeParse({ email: "no-es-mail", password: "123456" }).success, false)
+  assert.equal(loginFormSchema.safeParse({ email: "nico@lektor.cl", password: "" }).success, false)
+  for (const campo of ["email", "password"]) {
+    const sinCampo: Record<string, unknown> = { email: "nico@lektor.cl", password: "123456" }
+    delete sinCampo[campo]
+    assert.equal(loginFormSchema.safeParse(sinCampo).success, false, `debería exigir ${campo}`)
+  }
+})
+
+test("cuerpoDeRegistro es aceptado por el esquema que valida la API", () => {
+  // El contrato cliente-servidor: lo que el formulario manda tiene que pasar por el
+  // mismo esquema que usa `POST /api/auth/register`, o el alta rebota con 400 y la
+  // causa no aparece ni en el typecheck ni en la simulación, que pega directo a la ruta.
+  const valores = {
+    nombre: "Ana Pérez",
+    email: "ana@lektor.cl",
+    password: "lektor123",
+    confirmarPassword: "lektor123",
+    telefono: "+56 9 1234 5678",
+    comuna: "Viña del Mar",
+    region: "Región de Valparaíso",
+  }
+  const cuerpo = cuerpoDeRegistro(valores)
+
+  assert.equal(registroSchema.safeParse(cuerpo).success, true, "el cuerpo tendría que ser válido")
+  assert.deepEqual(Object.keys(cuerpo).sort(), Object.keys(valores).sort(), "no debe viajar un campo de más o de menos")
 })
 
 test("estadoSegunStock mantiene la pausa y deriva agotada o activa", () => {

@@ -59,7 +59,12 @@ type Conversacion = {
   ultimoMensaje?: string | null
 }
 
-const etapas: { nombre: string; necesitaActores: boolean; fn: () => Promise<Resultado> }[] = []
+const etapas: {
+  nombre: string
+  necesitaActores: boolean
+  abreActores: boolean
+  fn: () => Promise<Resultado>
+}[] = []
 let fallos = 0
 
 function check(condicion: unknown, mensaje: string): boolean {
@@ -84,9 +89,17 @@ function igualLista<T>(real: T[], esperado: T[], etiqueta: string): boolean {
 function etapa(
   nombre: string,
   fn: () => Promise<Resultado>,
-  opciones: { necesitaActores?: boolean } = {},
+  opciones: { necesitaActores?: boolean; abreActores?: boolean } = {},
 ) {
-  etapas.push({ nombre, fn, necesitaActores: opciones.necesitaActores ?? true })
+  etapas.push({
+    nombre,
+    fn,
+    necesitaActores: opciones.necesitaActores ?? true,
+    // Solo la etapa que abre las sesiones habilita las que dependen de ellas: se
+    // marca acá en vez de adivinar por el nombre, porque si una etapa posterior
+    // falla no debe dejar sin correr todo lo que viene detrás.
+    abreActores: opciones.abreActores ?? false,
+  })
 }
 
 async function pedir(
@@ -247,6 +260,57 @@ etapa(
   { necesitaActores: false },
 )
 
+// ----------------------------------------------------------------- F1b registro
+
+/**
+ * El registro también se rechaza: un correo repetido no puede abrir una segunda
+ * cuenta y una contraseña corta no pasa el esquema. Como el límite es de 5
+ * intentos por hora y por IP, un 429 no es un fallo: la etapa se salta.
+ */
+etapa(
+  "F1b · un registro repetido o con contraseña corta se rechaza",
+  async () => {
+    const repetido = await pedir("/api/auth/register", {
+      method: "POST",
+      body: cuerpoRegistro(
+        VENDEDOR_NUEVO.nombre,
+        VENDEDOR_NUEVO.email,
+        VENDEDOR_NUEVO.telefono,
+        VENDEDOR_NUEVO.comuna,
+        VENDEDOR_NUEVO.region,
+      ),
+    })
+    if (repetido.status === 429) {
+      console.log("      · rate limit de registro activo (429); etapa sin comprobaciones")
+      return { ok: true, detalle: "rate limit activo, etapa omitida" }
+    }
+    igual(repetido.status, 409, "registro con correo ya usado")
+    igual(repetido.datos.reason, "email-exists", "motivo del correo ya usado")
+
+    // Mismo esquema que valida el formulario, con una contraseña de 5 caracteres.
+    const corta = await pedir("/api/auth/register", {
+      method: "POST",
+      body: {
+        ...cuerpoRegistro("Corto Sim", "corto@sim.cl", "+56911110011"),
+        password: "12345",
+        confirmarPassword: "12345",
+      },
+    })
+    igual(corta.status, 400, "registro con contraseña de 5 caracteres")
+    igual(corta.datos.reason, "invalid", "motivo de la contraseña corta")
+
+    // Y la cuenta corta nunca llegó a existir.
+    const intentoCorto = await pedir("/api/auth/login", {
+      method: "POST",
+      body: { email: "corto@sim.cl", password: "12345" },
+    })
+    igual(intentoCorto.status, 401, "la cuenta con contraseña corta llegó a existir")
+
+    return { ok: fallos === 0, detalle: "409 por correo repetido y 400 por contraseña corta" }
+  },
+  { necesitaActores: false },
+)
+
 // ------------------------------------------------------------------ F2 login
 
 etapa(
@@ -280,6 +344,149 @@ etapa(
     }
 
     return { ok: fallos === 0, detalle: `5 sesiones (vendedor: ${vend.email})` }
+  },
+  { necesitaActores: false, abreActores: true },
+)
+
+// ------------------------------------------------------------------ F2b login
+
+/**
+ * El login no distingue entre "correo equivocado" y "contraseña equivocada":
+ * las dos cosas responden igual para no filtrar qué correos están registrados.
+ */
+etapa(
+  "F2b · el login rechaza lo que no corresponde sin filtrar el correo",
+  async () => {
+    const malaClave = await pedir("/api/auth/login", {
+      method: "POST",
+      body: { email: COMPRADORES[0].email, password: "no-es-la-clave" },
+    })
+    igual(malaClave.status, 401, "login con contraseña incorrecta")
+    igual(malaClave.datos.reason, "bad-credentials", "motivo de la contraseña incorrecta")
+
+    const correoFantasma = await pedir("/api/auth/login", {
+      method: "POST",
+      body: { email: "nadie-aqui@lektor.cl", password: "123456" },
+    })
+    igual(correoFantasma.status, 401, "login con correo inexistente")
+    igual(correoFantasma.datos.reason, "bad-credentials", "motivo del correo inexistente")
+    igual(
+      correoFantasma.datos.error,
+      malaClave.datos.error,
+      "el mensaje tampoco distingue entre correo y contraseña",
+    )
+
+    // El límite anterior era por intentos fallidos, no una restricción de la
+    // cuenta: con los datos buenos se entra igual.
+    const buena = await pedir("/api/auth/login", {
+      method: "POST",
+      body: { email: COMPRADORES[0].email, password: COMPRADORES[0].password },
+    })
+    igual(buena.status, 200, "login correcto después de los fallidos")
+
+    return { ok: fallos === 0, detalle: "clave mala, correo inexistente y luego entrada correcta" }
+  },
+  { necesitaActores: false },
+)
+
+// --------------------------------------------------- F2c clave y cierre de sesión
+
+/**
+ * El cambio de clave y el cierre de sesión se prueban con la cuenta que la
+ * simulación se reserva para sí misma, nunca con las del seed: las claves del
+ * seed son fijas y otras etapas dependen de ellas. Sirve tanto la recién creada
+ * como la que quedó de una corrida previa (las dos se llaman
+ * `vendedor@sim.cl` con la clave de la simulación); si el registro se degradó al
+ * seed, la etapa se salta. La clave se restaura al final, incluso si una
+ * comprobación falla, para no dejar la base en un estado que rompa la próxima
+ * corrida.
+ */
+const CLAVE_NUEVA = "simulacion456"
+
+etapa(
+  "F2c · cambiar la clave cierra la sesión, y cerrar sesión la termina",
+  async () => {
+    if (origenVendedor === "seed") {
+      return { ok: true, detalle: "la cuenta reservada no existe: el registro degradó al seed" }
+    }
+
+    const correo = VENDEDOR_NUEVO.email
+    const inicial = await entrar(correo, CLAVE)
+    let restaurada = false
+    try {
+      if (!inicial) return { ok: false, detalle: `no se pudo abrir sesión de ${correo}` }
+      igual(inicial.cookie.length > 0, true, `cookie de ${correo}`)
+
+      const cambio = await pedir("/api/auth/password", {
+        method: "POST",
+        cookie: inicial.cookie,
+        body: { currentPassword: CLAVE, newPassword: CLAVE_NUEVA },
+      })
+      igual(cambio.status, 200, "cambio de clave")
+
+      // Cambiar la clave destruye la sesión con la que se hizo: la cookie vieja
+      // ya no sirve ni para un GET /api/auth/me.
+      const conCookieVieja = await pedir("/api/auth/me", { cookie: inicial.cookie })
+      igual(conCookieVieja.status, 401, "la sesión que cambió la clave")
+
+      const conClaveVieja = await pedir("/api/auth/login", {
+        method: "POST",
+        body: { email: correo, password: CLAVE },
+      })
+      igual(conClaveVieja.status, 401, "login con la clave anterior al cambio")
+
+      const conClaveNueva = await entrar(correo, CLAVE_NUEVA)
+      if (!conClaveNueva) return { ok: false, detalle: "la clave nueva no dejó entrar" }
+
+      // Cierre de sesión: la cookie sirve una vez y después queda anulada.
+      const salida = await pedir("/api/auth/logout", {
+        method: "POST",
+        cookie: conClaveNueva.cookie,
+      })
+      igual(salida.status, 200, "cierre de sesión")
+      const trasSalir = await pedir("/api/auth/me", { cookie: conClaveNueva.cookie })
+      igual(trasSalir.status, 401, "la sesión después de cerrar")
+
+      // Dejar la cuenta como estaba. Va con una sesión nueva porque la anterior
+      // se acaba de cerrar: es el precio de probar el cierre en la misma cuenta.
+      const paraRestaurar = await entrar(correo, CLAVE_NUEVA)
+      if (!paraRestaurar) return { ok: false, detalle: "no se pudo reabrir sesión para restaurar" }
+      const vuelta = await pedir("/api/auth/password", {
+        method: "POST",
+        cookie: paraRestaurar.cookie,
+        body: { currentPassword: CLAVE_NUEVA, newPassword: CLAVE },
+      })
+      igual(vuelta.status, 200, "restaurar la clave original")
+
+      const conClaveRestaurada = await entrar(correo, CLAVE)
+      restaurada = conClaveRestaurada !== null
+      igual(restaurada, true, `entrar con la clave restaurada de ${correo}`)
+
+      return {
+        ok: fallos === 0,
+        detalle: "cambio, sesión anulada, logout y clave restaurada",
+      }
+    } finally {
+      if (!restaurada) {
+        // Red de seguridad: si una comprobación falló a mitad de camino, la
+        // cuenta queda igual con la clave de siempre.
+        const vigente = await pedir("/api/auth/login", {
+          method: "POST",
+          body: { email: correo, password: CLAVE_NUEVA },
+        })
+        if (vigente.status === 200) {
+          await pedir("/api/auth/password", {
+            method: "POST",
+            cookie: cookieDe(vigente.headers),
+            body: { currentPassword: CLAVE_NUEVA, newPassword: CLAVE },
+          })
+          console.log(`      · la clave de ${correo} quedó restaurada a mano`)
+        }
+      }
+      if (inicial) {
+        await pedir("/api/auth/logout", { method: "POST", cookie: inicial.cookie })
+      }
+    }
   },
   { necesitaActores: false },
 )
@@ -727,7 +934,12 @@ etapa("F9c · solo quien recibió el ejemplar puede valorarlo", async () => {
   igual(creada.status, 201, "valoración publicada")
   const review = creada.datos.review as Valoracion | undefined
   check(Boolean(review), "la respuesta no trae la valoración creada")
-  igual(review?.puntaje, 4, "puntaje guardado")
+  // La API devuelve la valoración creada solo con su id y la lista ya
+  // recalculada; el puntaje se comprueba en la lista, que es lo que el cliente
+  // usa después de publicar.
+  const publicadas = creada.datos.reviews as Valoracion[] | undefined
+  const guardada = publicadas?.find((item) => item.id === review?.id)
+  igual(guardada?.puntaje, 4, "puntaje guardado")
 
   // La orden recibida queda marcada como valorada en el perfil del comprador.
   const compras = (await pedir("/api/orders?rol=comprador", {
@@ -1217,7 +1429,7 @@ async function main() {
   let actoresListos = false
   let omitidas = 0
 
-  for (const { nombre, necesitaActores, fn } of etapas) {
+  for (const { nombre, necesitaActores, abreActores, fn } of etapas) {
     // Sin sesiones no hay nada que probar: se omite en vez de encadenar errores.
     if (necesitaActores && !actoresListos) {
       omitidas += 1
@@ -1235,7 +1447,7 @@ async function main() {
       detalle = `excepción: ${error instanceof Error ? error.message : String(error)}`
     }
 
-    if (nombre.startsWith("F2")) actoresListos = fallos === antes
+    if (abreActores) actoresListos = fallos === antes
 
     const marca = fallos === antes ? "ok  " : "FALLA"
     console.log(`  [${marca}] ${nombre}${detalle ? ` — ${detalle}` : ""}`)
