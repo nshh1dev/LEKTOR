@@ -83,12 +83,9 @@ export async function requireSession(): Promise<SafeUser> {
   return user
 }
 
-export async function destroySession(): Promise<void> {
+/** Borra la cookie. El `maxAge: 0` es lo que la invalida en el navegador. */
+async function borrarCookieDeSesion(): Promise<void> {
   const store = await cookies()
-  const token = store.get(SESSION_COOKIE)?.value
-  if (token) {
-    await db.delete(sessions).where(eq(sessions.token, token))
-  }
   store.set(SESSION_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
@@ -96,6 +93,26 @@ export async function destroySession(): Promise<void> {
     path: "/",
     maxAge: 0,
   })
+}
+
+export async function destroySession(): Promise<void> {
+  const store = await cookies()
+  const token = store.get(SESSION_COOKIE)?.value
+  if (token) {
+    await db.delete(sessions).where(eq(sessions.token, token))
+  }
+  await borrarCookieDeSesion()
+}
+
+/**
+ * Cierra todas las sesiones del usuario, no solo la de esta petición. Se usa al
+ * cambiar la contraseña: si el motivo del cambio es que otra persona entró, dejar
+ * vivas las sesiones anteriores sería volver a dejarle la puerta abierta. Cerrar
+ * sesión (logout) sí es solo la de quien cierra.
+ */
+export async function destroySessionsOf(userId: string): Promise<void> {
+  await db.delete(sessions).where(eq(sessions.userId, userId))
+  await borrarCookieDeSesion()
 }
 
 export class ApiError extends Error {

@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs"
 import { eq } from "drizzle-orm"
 import { db } from "@/db"
 import { users } from "@/db/schema"
-import { destroySession, requireSession } from "@/lib/auth"
+import { destroySessionsOf, requireSession } from "@/lib/auth"
 import { fail, jsonError, ok } from "@/lib/api"
 import { passwordChangeSchema } from "@/lib/catalog"
 import { limiteExcedido, olvidar, rateLimit } from "@/lib/rate-limit"
@@ -36,7 +36,9 @@ export async function POST(request: Request) {
     const passwordHash = await bcrypt.hash(newPassword, 10)
     await db.update(users).set({ passwordHash }).where(eq(users.id, user.id))
     olvidar(clave)
-    await destroySession()
+    // Todas, no solo esta: si alguien más tenía la sesión abierta, cambiar la
+    // contraseña es el aviso de que ya no la quiere.
+    await destroySessionsOf(user.id)
     return ok({ reautenticacion: true })
   } catch (error) {
     return fail(error)
