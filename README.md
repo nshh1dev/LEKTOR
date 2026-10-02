@@ -227,8 +227,9 @@ LEKTOR/
 
 ## Trabajo con Git
 
-El proyecto se desarrolla en la rama `main`, committing con frecuencia para que el historial cuente
-qué se hizo y cuándo:
+El proyecto se desarrolla en la rama `main`, que es la línea de integración y donde ya está todo lo
+construido. Cada unidad de trabajo nueva sale de una rama `feature/<módulo>` actualizada con `main` y
+vuelve a `main` por PR. El detalle de la convención está en `AGENTS.md`.
 
 1. **Clonar** el repo (una sola vez):
 
@@ -236,29 +237,33 @@ qué se hizo y cuándo:
    git clone https://github.com/nshh1dev/LEKTOR.git
    ```
 
-2. **Antes de empezar a trabajar**, baja los últimos cambios:
+2. **Antes de empezar a trabajar**, baja los últimos cambios y ponte al día en tu rama:
 
    ```bash
+   git switch main
    git pull
+   git switch feature/<modulo>   # o crea la rama: git switch -c feature/<modulo>
+   git merge main                # la rama se queda al día; nunca al revés
    ```
 
 3. **Mientras trabajas**, commitea a menudo y con un mensaje que describa el cambio, no un
    `wip`. Si un cambio queda a medias, haz un commit aunque no compile todavía: así puedes volver
    atrás con `git reset` sin perder lo demás.
 
-4. **Al terminar**, sube tus cambios:
+4. **Al terminar**, sube la rama y abre el PR a `main`:
 
    ```bash
    git add .
    git commit -m "descripción del cambio"
    git push
+   gh pr create --fill --base main
    ```
 
 ### Si aparece un conflicto
 
-Git te avisará con un mensaje tipo `CONFLICT` / `Merge conflict`. La solución:
+Git te avisará con un mensaje tipo `CONFLICT` / `Merge conflict`. La solución, siempre en tu rama:
 
-1. Baja y fusiona: `git pull`
+1. Baja `main` y fusiona en la rama: `git fetch origin` → `git merge origin/main`
 2. Abre el archivo marcado y decide qué líneas se quedan (las marcas `<<<<<<<` / `=======` / `>>>>>>>` indican las partes en conflicto).
 3. Sube el resultado: `git add .` → `git commit -m "resolver conflicto"` → `git push`
 

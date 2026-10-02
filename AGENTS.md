@@ -141,6 +141,14 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   - perf/     -> mejoras de rendimiento (ej.: perf/catalogo-consultas)
   - hotfix/   -> arreglos urgentes sobre main (ej.: hotfix/stock-negativo)
   Base siempre main (último commit). Crear ramas desde main actualizado. Un PR = una única unidad de trabajo, destino main.
+- `main` es la línea de integración y **no se reescribe**. Todo el trabajo hecho hasta ahora está
+  fusionado ahí, módulo por módulo y en commits atómicos, no en ramas: para ver cómo entró un módulo
+  se usa `git log -- <archivos>`, no se parte la historia para reconstruir lo ya hecho.
+- Las ocho `feature/*` del repositorio son marcadores de módulo: apuntan a la base de `main` y no
+  tienen commits propios. Sirven para el trabajo que venga, no como destino del pasado.
+- Trabajo nuevo: `git switch feature/<módulo>` → `git merge main` (fast-forward si la rama solo va
+  atrasada) → commits frecuentes → PR a `main`. Si otra persona commitea en `main` en paralelo, la
+  rama se pone al día con `git merge main`; `main` nunca se rebasea.
 - `.gitattributes` fija LF en todo el repositorio y Git normaliza al commitear: da igual si el editor
   guarda en CRLF, no hay que convertir archivos a mano.
 
