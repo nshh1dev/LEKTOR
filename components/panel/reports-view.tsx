@@ -349,7 +349,7 @@ export function ReportsView() {
                         <TableHeader>
                           <TableRow>
                             <TableHead scope="col">Publicación</TableHead>
-                            <TableHead scope="col" className="text-right">Unidades</TableHead>
+                            <TableHead scope="col" className="text-right">Unidades recibidas</TableHead>
                             <TableHead scope="col" className="text-right">Ventas</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -380,7 +380,7 @@ export function ReportsView() {
                       badge={data.resumen.recibidas === 0 ? "Sin ventas" : undefined}
                       badgeVariant="secondary"
                     />
-                    <Fila label="Unidades en período" valor={data.resumen.unidades.toString()} />
+                    <Fila label="Unidades recibidas" valor={data.resumen.unidades.toString()} />
                     <Fila label="Ventas realizadas" valor={formatCLP(data.resumen.ventas)} />
                     <Fila label="Ventas brutas" valor={formatCLP(data.resumen.brutas)} />
                     <Fila label="Envíos cobrados" valor={formatCLP(data.resumen.envios)} />
