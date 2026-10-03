@@ -9,19 +9,29 @@ type Filtros = {
   categoria: Categoria[]
   condicion: Condicion[]
   comuna: string[]
+  autor: string | null
+  editorial: string | null
   precioMin: number | null
   precioMax: number | null
 }
 
 type FacetasIndice = Pick<
   Facetas,
-  "totalActivos" | "categorias" | "condiciones" | "comunas" | "precioMin" | "precioMax"
+  | "totalActivos"
+  | "categorias"
+  | "condiciones"
+  | "comunas"
+  | "autores"
+  | "editoriales"
+  | "precioMin"
+  | "precioMax"
 >
 
 export function IndiceFiltros({
   facetas,
   filtros,
   alternarFiltro,
+  elegirFiltro,
   setPrecioRango,
   limpiarFiltros,
   filtrosActivos,
@@ -30,6 +40,7 @@ export function IndiceFiltros({
   facetas: FacetasIndice
   filtros: Filtros
   alternarFiltro: <K extends "categoria" | "condicion" | "comuna">(grupo: K, valor: string) => void
+  elegirFiltro: (grupo: "autor" | "editorial", valor: string) => void
   setPrecioRango: (min: number | null, max: number | null) => void
   limpiarFiltros: () => void
   filtrosActivos: number
@@ -41,7 +52,7 @@ export function IndiceFiltros({
         <p className="rotulo">Catálogo</p>
         <p className="mt-2.5 font-serif text-2xl leading-tight">Afina tu búsqueda</p>
         <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-          Acota por tipo, estado, precio o comuna para llegar antes al que buscas.
+          Acota por tipo, autor, editorial, estado, precio o comuna para llegar antes al que buscas.
         </p>
         {filtrosActivos > 0 && (
           <button
@@ -64,6 +75,34 @@ export function IndiceFiltros({
             total={item.total}
           />
         ))}
+      </Bloque>
+
+      <Bloque idRaiz={idRaiz} titulo="Autoría">
+        {facetas.autores.length > 0 ? (
+          <ListaFiltros
+            items={facetas.autores}
+            activo={(value) => filtros.autor === value}
+            onAlternar={(value) => elegirFiltro("autor", value)}
+          />
+        ) : (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Aún no hay ejemplares con autor registrado.
+          </p>
+        )}
+      </Bloque>
+
+      <Bloque idRaiz={idRaiz} titulo="Editorial">
+        {facetas.editoriales.length > 0 ? (
+          <ListaFiltros
+            items={facetas.editoriales}
+            activo={(value) => filtros.editorial === value}
+            onAlternar={(value) => elegirFiltro("editorial", value)}
+          />
+        ) : (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Aún no hay ejemplares con editorial registrada.
+          </p>
+        )}
       </Bloque>
 
       <Bloque idRaiz={idRaiz} titulo="Estado del ejemplar">

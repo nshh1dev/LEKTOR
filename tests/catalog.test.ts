@@ -226,6 +226,25 @@ test("parseSearchParams acepta varias comunas y acota la lista", () => {
   )
 })
 
+test("parseSearchParams acepta autor y editorial como valores sueltos", () => {
+  const query = parseSearchParams(
+    new URLSearchParams("autor=Fujimoto&editorial=Ivrea"),
+  )
+  assert.equal(query.autor, "Fujimoto")
+  assert.equal(query.editorial, "Ivrea")
+
+  const sinFiltros = parseSearchParams(new URLSearchParams(""))
+  assert.equal(sinFiltros.autor, undefined)
+  assert.equal(sinFiltros.editorial, undefined)
+
+  // El recorte corre antes que el tope, igual que en autor: un valor en blanco
+  // queda en cadena vacía y no se aplica filtro, y lo que manda es el largo.
+  assert.equal(searchQuerySchema.parse({ editorial: "  Ivrea  " }).editorial, "Ivrea")
+  assert.equal(searchQuerySchema.parse({ editorial: "   " }).editorial, "")
+  assert.equal(searchQuerySchema.safeParse({ editorial: "x".repeat(201) }).success, false)
+  assert.equal(searchQuerySchema.safeParse({ autor: "x".repeat(201) }).success, false)
+})
+
 test("datosDespachoSchema exige dirección y punto de retiro según el método", () => {
   const base = {
     nombreRecibe: "Ana Pérez",

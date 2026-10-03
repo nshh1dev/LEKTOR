@@ -60,9 +60,19 @@ export function LektorMarketplace({
     categoria: Categoria[]
     condicion: Condicion[]
     comuna: string[]
+    autor: string | null
+    editorial: string | null
     precioMin: number | null
     precioMax: number | null
-  }>({ categoria: [], condicion: [], comuna: [], precioMin: null, precioMax: null })
+  }>({
+    categoria: [],
+    condicion: [],
+    comuna: [],
+    autor: null,
+    editorial: null,
+    precioMin: null,
+    precioMax: null,
+  })
   const [orden, setOrden] = useState<OrdenCatalogo>("recientes")
   const [pagina, setPagina] = useState(1)
 
@@ -86,6 +96,8 @@ export function LektorMarketplace({
       if (filtros.categoria.length) params.set("categoria", filtros.categoria.join(","))
       if (filtros.condicion.length) params.set("condicion", filtros.condicion.join(","))
       if (filtros.comuna.length) params.set("comuna", filtros.comuna.join(","))
+      if (filtros.autor) params.set("autor", filtros.autor)
+      if (filtros.editorial) params.set("editorial", filtros.editorial)
       if (filtros.precioMin !== null) params.set("precioMin", String(filtros.precioMin))
       if (filtros.precioMax !== null) params.set("precioMax", String(filtros.precioMax))
       params.set("orden", orden)
@@ -238,6 +250,8 @@ export function LektorMarketplace({
     filtros.categoria.length +
     filtros.condicion.length +
     filtros.comuna.length +
+    (filtros.autor ? 1 : 0) +
+    (filtros.editorial ? 1 : 0) +
     (filtros.precioMin !== null || filtros.precioMax !== null ? 1 : 0)
 
   const alternarFiltro = <K extends "categoria" | "condicion" | "comuna">(
@@ -252,6 +266,16 @@ export function LektorMarketplace({
         : [...lista, valor]
       return { ...current, [grupo]: siguiente } as typeof current
     })
+  }
+
+  // Autor y editorial son de un solo valor, a diferencia de los grupos de arriba.
+  // Volver a elegir el mismo lo desmarca.
+  const elegirFiltro = (grupo: "autor" | "editorial", valor: string) => {
+    setPagina(1)
+    setFiltros((current) => ({
+      ...current,
+      [grupo]: current[grupo] === valor ? null : valor,
+    }))
   }
 
   return (
@@ -349,6 +373,7 @@ export function LektorMarketplace({
             }}
             filtros={filtros}
             alternarFiltro={alternarFiltro}
+            elegirFiltro={elegirFiltro}
             setPrecioRango={(min, max) => {
               setFiltros((current) => ({ ...current, precioMin: min, precioMax: max }))
               setPagina(1)
@@ -358,6 +383,8 @@ export function LektorMarketplace({
                 categoria: [],
                 condicion: [],
                 comuna: [],
+                autor: null,
+                editorial: null,
                 precioMin: null,
                 precioMax: null,
               })
