@@ -13,10 +13,39 @@
  * escribirse acá: una copia se desincroniza sin avisar.
  */
 
+import "dotenv/config"
+
+import { sql } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/node-postgres"
+import { Pool } from "pg"
+
 import { COMISION_PLATAFORMA, COSTO_ENVIO_DOMICILIO, PAGE_SIZE_MAX, RANGOS_PRECISO, comisionPlataforma } from "../lib/catalog"
 
 const BASE = process.env.SIMULAR_BASE_URL ?? "http://localhost:3000"
 const CLAVE = "simulacion123"
+
+/**
+ * Una sola conexión, y solo para envejecer reservas: no hay forma de esperar 48 horas
+ * dentro de una corrida, y ningún endpoint permite hacerlo. Todo lo demás se comprueba
+ * por HTTP contra el servidor, como el resto de la simulación.
+ */
+let pool: Pool | null = null
+
+function baseDeDatos() {
+  if (!pool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("Falta DATABASE_URL en .env, y sin ella no se puede envejecer una reserva")
+    }
+    pool = new Pool({ connectionString: process.env.DATABASE_URL })
+  }
+  return drizzle(pool)
+}
+
+async function cerrarBaseDeDatos(): Promise<void> {
+  if (!pool) return
+  await pool.end()
+  pool = null
+}
 
 type Actor = { nombre: string; email: string; rol: string; cookie: string }
 type Resultado = { ok: boolean; detalle: string }
@@ -45,6 +74,7 @@ type Movimiento = {
   cantidad: number
   stockAnterior: number
   stockResultante: number
+  motivo?: string
   publicacion?: { id: string; titulo: string }
   publicacionId?: string
 }
@@ -104,11 +134,17 @@ function etapa(
 
 async function pedir(
   ruta: string,
-  opciones: { method?: string; cookie?: string; body?: unknown } = {},
+  opciones: {
+    method?: string
+    cookie?: string
+    body?: unknown
+    headers?: Record<string, string>
+  } = {},
 ): Promise<{ status: number; datos: Respuesta; headers: Headers }> {
   const respuesta = await fetch(`${BASE}${ruta}`, {
     method: opciones.method ?? "GET",
     headers: {
+      ...(opciones.headers ?? {}),
       ...(opciones.cookie ? { cookie: opciones.cookie } : {}),
       ...(opciones.body ? { "content-type": "application/json" } : {}),
     },
@@ -1420,6 +1456,92 @@ etapa("F9b · cancelar una reserva devuelve el stock con entrada auditada", asyn
   return { ok: fallos === 0, detalle: `stock devuelto a ${stockCreado} con entrada auditada` }
 })
 
+// --------------------------------------- F9j vencimiento automático de reservas
+
+etapa("F9j · una reserva vencida vuelve al catálogo con entrada auditada", async () => {
+  const orden = ordenes[2]
+  const publicacion = publicaciones.find((p) => p.id === orden.publicacionId)!
+  const stockCreado = publicacion.stock
+
+  const antes = await pedir(`/api/publications/${orden.publicacionId}`, {
+    cookie: actor.vendedor.cookie,
+  })
+  const stockReservado = (antes.datos.publication as Publicacion).stock
+  igual(stockReservado, stockCreado - 1, "stock reservado antes de que la reserva venza")
+
+  const secreto = process.env.CRON_SECRET
+  check(Boolean(secreto), "CRON_SECRET no está definido en .env, no se puede probar el barrido")
+
+  // Envejecer la fila es lo único que no se puede pedir por la API: no hay forma de
+  // esperar 48 horas dentro de una corrida. El barrido, la devolución del stock y los
+  // avisos se comprueban todos contra el servidor.
+  const db = baseDeDatos()
+  const envejecida = await db.execute(sql`
+    update orders set reserva_expira_en = now() - interval '1 minute'
+    where id = ${orden.id} and estado = 'reservada'`)
+  igual(envejecida.rowCount, 1, "la reserva quedó con el vencimiento en el pasado")
+
+  if (secreto) {
+    const barrido = await pedir("/api/cron/reservas", {
+      headers: { authorization: `Bearer ${secreto}` },
+    })
+    igual(barrido.status, 200, "barrido de reservas vencidas")
+    const canceladas = barrido.datos.canceladas as number | undefined
+    check(
+      typeof canceladas === "number" && canceladas > 0,
+      `el barrido no canceló ninguna reserva vencida: ${String(canceladas)}`,
+    )
+  }
+
+  const despues = await pedir(`/api/publications/${orden.publicacionId}`, {
+    cookie: actor.vendedor.cookie,
+  })
+  igual(
+    (despues.datos.publication as Publicacion).stock,
+    stockCreado,
+    "stock devuelto al vencer la reserva",
+  )
+
+  const historial = await pedir(
+    `/api/panel/movimientos?publicacionId=${orden.publicacionId}&tipo=entrada`,
+    { cookie: actor.admin.cookie },
+  )
+  igual(historial.status, 200, "lectura del movimiento por reserva vencida")
+  const entradas = lista<Movimiento>(historial.datos, "movimientos")
+  const devolucion = entradas.find((m) => m.stockResultante === stockCreado)
+  check(Boolean(devolucion), `ninguna entrada deja el stock en ${stockCreado}`)
+  if (devolucion) {
+    igual(devolucion.stockAnterior, stockReservado, "stock previo en la devolución por vencimiento")
+    igual(devolucion.cantidad, 1, "cantidad devuelta por el vencimiento")
+    check(
+      (devolucion.motivo ?? "").includes("vencida"),
+      `el motivo del movimiento no menciona el vencimiento: ${devolucion.motivo}`,
+    )
+  }
+
+  // El barrido avisa al comprador con el tipo `orden_cancelada`.
+  const afectado =
+    [actor.comprador1, actor.comprador2].find((c) => c.email === orden.compradorEmail) ??
+    actor.comprador2
+  const notificaciones = await pedir("/api/notifications", { cookie: afectado.cookie })
+  igual(
+    notificaciones.status,
+    200,
+    "lectura de notificaciones del comprador con la reserva vencida",
+  )
+  const avisos = lista<{ titulo?: string; datos?: { orderId?: string } }>(
+    notificaciones.datos,
+    "notifications",
+  )
+  check(
+    avisos.some((n) => n.datos?.orderId === orden.id && (n.titulo ?? "").includes("Reserva")),
+    `${afectado.email} no fue avisado de que venció la reserva ${orden.id.slice(0, 8)}`,
+  )
+
+  orden.estado = "cancelada"
+  return { ok: fallos === 0, detalle: `reserva vencida devolvió el stock a ${stockCreado}` }
+})
+
 // ------------------------------------------------- F10 cuadre de inventario
 
 etapa("F10 · el inventario cuadra con los movimientos", async () => {
@@ -1536,6 +1658,8 @@ async function main() {
     const marca = fallos === antes ? "ok  " : "FALLA"
     console.log(`  [${marca}] ${nombre}${detalle ? ` — ${detalle}` : ""}`)
   }
+
+  await cerrarBaseDeDatos()
 
   console.log("")
   if (omitidas > 0) {
