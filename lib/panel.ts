@@ -609,7 +609,12 @@ export async function ordenesPanel(filtros: PanelOrdenesQuery) {
       .orderBy(asc(orders.reservaExpiraEn), desc(orders.fechaCreacion))
       .limit(filtros.porPagina)
       .offset((filtros.pagina - 1) * filtros.porPagina),
-    db.select({ total: count() }).from(orders).where(where),
+    db
+      .select({ total: count() })
+      .from(orders)
+      .innerJoin(compradorAlias, eq(orders.compradorId, compradorAlias.id))
+      .innerJoin(vendedorAlias, eq(orders.vendedorId, vendedorAlias.id))
+      .where(where),
     db.select({ estado: orders.estado, total: count() }).from(orders).groupBy(orders.estado),
   ])
 
