@@ -523,6 +523,12 @@ export const panelOrdenesQuerySchema = z.object({
 
 export const FILTROS_MOVIMIENTO = ["todos", ...TIPOS_MOVIMIENTO_UI] as const
 
+export const misOrdenesQuerySchema = z.object({
+  rol: z.enum(["comprador", "vendedor"]).default("comprador"),
+  pagina: z.coerce.number().int().min(1).default(1),
+  porPagina: z.coerce.number().int().min(1).max(50).default(10),
+})
+
 export const panelMovimientosQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   tipo: z.enum(FILTROS_MOVIMIENTO).default("todos"),

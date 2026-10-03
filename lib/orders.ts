@@ -1,7 +1,7 @@
 import "server-only"
 
 import { after } from "next/server"
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { db } from "@/db"
 import { chatMessages, notifications, orders, publications, stockMovements, users } from "@/db/schema"
@@ -11,6 +11,7 @@ import {
   transicionValida,
   type DatosDespacho,
   type EstadoOrden,
+  type Paginacion,
 } from "@/lib/catalog"
 import { ApiError, type SafeUser } from "@/lib/auth"
 import { ESTADO_ORDEN_LABEL } from "@/lib/format"
@@ -141,28 +142,50 @@ export async function createOrder(
   })
 }
 
-export async function listOrders(userId: string, rol: "comprador" | "vendedor") {
-  return db
-    .select({
-      ...orderColumns,
-      comprador: {
-        id: compradorAlias.id,
-        nombre: compradorAlias.nombre,
-        telefono: compradorAlias.telefono,
-        comuna: compradorAlias.comuna,
-      },
-      vendedor: {
-        id: vendedorAlias.id,
-        nombre: vendedorAlias.nombre,
-        telefono: vendedorAlias.telefono,
-        comuna: vendedorAlias.comuna,
-      },
-    })
-    .from(orders)
-    .innerJoin(compradorAlias, eq(orders.compradorId, compradorAlias.id))
-    .innerJoin(vendedorAlias, eq(orders.vendedorId, vendedorAlias.id))
-    .where(rol === "vendedor" ? eq(orders.vendedorId, userId) : eq(orders.compradorId, userId))
-    .orderBy(desc(orders.fechaCreacion))
+export async function listOrders(
+  userId: string,
+  rol: "comprador" | "vendedor",
+  pagina: number,
+  porPagina: number,
+) {
+  const where = rol === "vendedor" ? eq(orders.vendedorId, userId) : eq(orders.compradorId, userId)
+
+  const [filas, [conteo]] = await Promise.all([
+    db
+      .select({
+        ...orderColumns,
+        comprador: {
+          id: compradorAlias.id,
+          nombre: compradorAlias.nombre,
+          telefono: compradorAlias.telefono,
+          comuna: compradorAlias.comuna,
+        },
+        vendedor: {
+          id: vendedorAlias.id,
+          nombre: vendedorAlias.nombre,
+          telefono: vendedorAlias.telefono,
+          comuna: vendedorAlias.comuna,
+        },
+      })
+      .from(orders)
+      .innerJoin(compradorAlias, eq(orders.compradorId, compradorAlias.id))
+      .innerJoin(vendedorAlias, eq(orders.vendedorId, vendedorAlias.id))
+      .where(where)
+      .orderBy(desc(orders.fechaCreacion))
+      .limit(porPagina)
+      .offset((pagina - 1) * porPagina),
+    db.select({ total: count() }).from(orders).where(where),
+  ])
+
+  return {
+    ordenes: filas,
+    paginacion: {
+      pagina,
+      porPagina,
+      total: conteo.total,
+      paginas: Math.max(1, Math.ceil(conteo.total / porPagina)),
+    } satisfies Paginacion,
+  }
 }
 
 export async function getOrderForUser(id: string, user: SafeUser) {

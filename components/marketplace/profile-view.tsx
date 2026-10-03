@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowLeft, KeyRound, LayoutDashboard, LoaderCircle, MessageCircle, Tag, Trash2, UserPen } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, KeyRound, LayoutDashboard, LoaderCircle, MessageCircle, Tag, Trash2, UserPen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { avisar } from "@/components/notificacion/avisar"
 import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
 import { mensajeDeFallo } from "@/lib/avisos"
-import { REGIONES, esStaff, perfilFormSchema, type ConversacionUI, type EstadoOrden, type NotificacionUI, type OrdenUI, type PublicacionListItem, type ReviewUI, type SesionUsuario } from "@/lib/catalog"
+import { REGIONES, esStaff, perfilFormSchema, type ConversacionUI, type EstadoOrden, type NotificacionUI, type OrdenUI, type Paginacion, type PublicacionListItem, type ReviewUI, type SesionUsuario } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
 import { ESTADO_ORDEN_LABEL, ESTADO_PUBLICACION_LABEL, formatCLP, formatDate, formatDateTime } from "@/lib/format"
 import { normalizarFila, MensajeError } from "@/components/marketplace/shared"
@@ -57,6 +57,10 @@ export function PerfilView({
   const [misPublicaciones, setMisPublicaciones] = useState<PublicacionListItem[]>([])
   const [ventas, setVentas] = useState<OrdenUI[]>([])
   const [compras, setCompras] = useState<OrdenUI[]>([])
+  const [paginas, setPaginas] = useState<{ ventas: Paginacion; compras: Paginacion }>({
+    ventas: { pagina: 1, porPagina: 10, total: 0, paginas: 1 },
+    compras: { pagina: 1, porPagina: 10, total: 0, paginas: 1 },
+  })
   const [notificaciones, setNotificaciones] = useState<NotificacionUI[]>([])
   const [reseñas, setReseñas] = useState<{ escritas: ReviewUI[]; recibidas: ReviewUI[] }>({
     escritas: [],
@@ -89,8 +93,8 @@ export function PerfilView({
       const [datos, propias, ordenesVendedor, ordenesComprador, avisos, misReseñas, hilos] = await Promise.all([
         api<{ perfil: typeof perfil; esVendedor: boolean; publicaciones: number }>("/api/profile"),
         api<{ publications: Record<string, unknown>[] }>(`/api/publications?vendedor=${usuario.id}&porPagina=48`),
-        api<{ orders: OrdenUI[] }>("/api/orders?rol=vendedor"),
-        api<{ orders: OrdenUI[] }>("/api/orders?rol=comprador"),
+        api<{ orders: OrdenUI[]; paginacion: Paginacion }>("/api/orders?rol=vendedor"),
+        api<{ orders: OrdenUI[]; paginacion: Paginacion }>("/api/orders?rol=comprador"),
         api<{ notifications: NotificacionUI[] }>("/api/notifications"),
         api<{ escritas: ReviewUI[]; recibidas: ReviewUI[] }>("/api/profile/reviews"),
         api<{ conversaciones: ConversacionUI[] }>("/api/conversaciones"),
@@ -109,6 +113,7 @@ export function PerfilView({
       setMisPublicaciones(propias.publications.map(normalizarFila))
       setVentas(ordenesVendedor.orders)
       setCompras(ordenesComprador.orders)
+      setPaginas({ ventas: ordenesVendedor.paginacion, compras: ordenesComprador.paginacion })
       setNotificaciones(avisos.notifications)
       setReseñas(misReseñas)
       setConversaciones(hilos.conversaciones)
@@ -120,6 +125,26 @@ export function PerfilView({
       })
     }
   }, [usuario.id, reset])
+
+  const cambiarPaginaOrdenes = useCallback(
+    async (rol: "ventas" | "compras", pagina: number) => {
+      const consulta = rol === "ventas" ? "vendedor" : "comprador"
+      try {
+        const r = await api<{ orders: OrdenUI[]; paginacion: Paginacion }>(
+          `/api/orders?rol=${consulta}&pagina=${pagina}`,
+        )
+        setPaginas((actual) => ({ ...actual, [rol]: r.paginacion }))
+        if (rol === "ventas") setVentas(r.orders)
+        else setCompras(r.orders)
+      } catch (error) {
+        avisar.falla({
+          titulo: "No se pudieron cambiar las órdenes",
+          descripcion: mensajeDeFallo(error, "Inténtalo otra vez en un momento."),
+        })
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     void cargarTodo()
@@ -204,7 +229,9 @@ export function PerfilView({
         titulo: `Orden ${ESTADO_ORDEN_LABEL[estado].toLowerCase()}`,
         descripcion: "El comprador ya puede ver el nuevo estado.",
       })
-      await cargarTodo()
+      // Solo se recarga la lista afectada y en la página que ya se estaba viendo.
+      const rol = ventas.some((orden) => orden.id === ordenId) ? "ventas" : "compras"
+      await cambiarPaginaOrdenes(rol, paginas[rol].pagina)
     } catch (error) {
       avisar.falla({
         titulo: "No se pudo actualizar la orden",
@@ -557,15 +584,22 @@ export function PerfilView({
               <CardDescription>Cuando alguien reserve uno de tus ejemplares aparecerá aquí.</CardDescription>
             </Card>
           ) : (
-            ventas.map((orden) => (
-              <TarjetaOrden
-                key={orden.id}
-                orden={orden}
-                rol="vendedor"
-                yoId={usuario.id}
-                alCambiarEstado={cambiarEstadoOrden}
+            <>
+              {ventas.map((orden) => (
+                <TarjetaOrden
+                  key={orden.id}
+                  orden={orden}
+                  rol="vendedor"
+                  yoId={usuario.id}
+                  alCambiarEstado={cambiarEstadoOrden}
+                />
+              ))}
+              <PaginacionOrdenes
+                paginacion={paginas.ventas}
+                etiqueta="Paginación de tus ventas"
+                alCambiar={(valor) => void cambiarPaginaOrdenes("ventas", valor)}
               />
-            ))
+            </>
           )}
         </div>
       )}
@@ -578,15 +612,22 @@ export function PerfilView({
               <CardDescription>Tu primera reserva aparecerá aquí con su estado y contacto del vendedor.</CardDescription>
             </Card>
           ) : (
-            compras.map((orden) => (
-              <TarjetaOrden
-                key={orden.id}
-                orden={orden}
-                rol="comprador"
-                yoId={usuario.id}
-                alCambiarEstado={cambiarEstadoOrden}
+            <>
+              {compras.map((orden) => (
+                <TarjetaOrden
+                  key={orden.id}
+                  orden={orden}
+                  rol="comprador"
+                  yoId={usuario.id}
+                  alCambiarEstado={cambiarEstadoOrden}
+                />
+              ))}
+              <PaginacionOrdenes
+                paginacion={paginas.compras}
+                etiqueta="Paginación de tus compras"
+                alCambiar={(valor) => void cambiarPaginaOrdenes("compras", valor)}
               />
-            ))
+            </>
           )}
         </div>
       )}
@@ -815,5 +856,47 @@ export function PerfilView({
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+function PaginacionOrdenes({
+  paginacion,
+  etiqueta,
+  alCambiar,
+}: {
+  paginacion: Paginacion
+  etiqueta: string
+  alCambiar: (pagina: number) => void
+}) {
+  if (paginacion.paginas <= 1) return null
+
+  return (
+    <nav
+      aria-label={etiqueta}
+      className="flex items-center justify-between gap-3 border-t border-border/60 pt-6"
+    >
+      <Button
+        variant="ghost"
+        size="sm"
+        className="rounded-full"
+        disabled={paginacion.pagina <= 1}
+        onClick={() => alCambiar(paginacion.pagina - 1)}
+      >
+        <ChevronLeft data-icon="inline-start" /> Anterior
+      </Button>
+      <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+        {String(paginacion.pagina).padStart(2, "0")} / {String(paginacion.paginas).padStart(2, "0")}
+        <span className="ml-2">· {paginacion.total} en total</span>
+      </p>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="rounded-full"
+        disabled={paginacion.pagina >= paginacion.paginas}
+        onClick={() => alCambiar(paginacion.pagina + 1)}
+      >
+        Siguiente <ChevronRight data-icon="inline-end" />
+      </Button>
+    </nav>
   )
 }
