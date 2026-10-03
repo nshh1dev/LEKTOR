@@ -89,9 +89,14 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - Esos mismos comandos corren en `.github/workflows/ci.yml` en cada `push` a `main` y en cada
   PR. La CI **avisa, no bloquea**: avisa si algo falla, pero el cambio ya está en `main` o en el
   PR. La CI no necesita PostgreSQL porque las pruebas del dominio son puras.
+- Ojo con esto: la CI **no corre al empujar una rama**, solo en `push` a `main` y en PR a `main`.
+  Una rama subida sin PR no la valida nadie, así que sus commits pueden llevar días sin que GitHub
+  los mire. Las puertas locales (`pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`) sí
+  pasan, pero son las de esta máquina: abrir el PR es lo que dispara la única verificación
+  independiente.
 - Todo cambio bueno y verificado se sube a GitHub en cuanto `pnpm typecheck`, `pnpm lint`,
-  `pnpm test` y `pnpm build` pasen: commit descriptivo en español y `push` a `main`. No esperar
-  a que lo pidan cuando el cambio ya está probado.
+  `pnpm test` y `pnpm build` pasen: commit descriptivo en español, `push` **a la rama de
+  trabajo** y PR a `main`. Nunca se empuja directo a `main`, aunque las puertas estén en verde.
 - El proyecto no se despliega a producción: es académico y se demuestra con `pnpm dev` y
   `pnpm simular`. No agregar pasos de despliegue, variables de un entorno real ni secretos.
 - Si cambian el esquema o el seed: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`.
@@ -108,7 +113,7 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   formatear en vivo, el `Input` va como `type="text"` con `inputMode="numeric"` y el `onChange` de
   React Hook Form vuelve a escribir con `setValue`; no se usa `valueAsNumber` en campos formateados.
 - Las pruebas viven en `tests/` y usan el runner nativo de Node con `tsx` (`node --import tsx --test`).
-  Cubren el dominio puro (`lib/isbn.ts`, `lib/format.ts`, `lib/catalog.ts`, `lib/entrada.ts`, `lib/pago.ts`, `lib/rate-limit-store.ts`,
+  Cubren el dominio puro (`lib/isbn.ts`, `lib/format.ts`, `lib/catalog.ts`, `lib/entrada.ts`, `lib/pago.ts`, `lib/avisos.ts`, `lib/rate-limit-store.ts`,
   `lib/panel-sql.ts`) y un guardián de codificación; lo que depende de Next o de la base de datos se
   prueba con `pnpm simular`, que hace peticiones reales contra el dev server.
 - `scripts/simular-flujo.ts` (`pnpm simular`) es la puerta de calidad de los flujos: necesita
@@ -125,8 +130,9 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
     puertas (`pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`), que no necesitan ninguno de
     los dos. Las etapas de simulación que tocan base de datos se pueden auditar de forma alternativa
     con `pnpm db:seed` y consultas directas de solo lectura.
-- El rate limit de registro es de 5 intentos por hora y por IP, y el contador vive en la memoria del
-  proceso: al ampliar la simulación, reutilizar cuentas del seed en vez de registrar más actores.
+- Hay dos topes de intentos, los dos por IP y con el contador en la memoria del proceso: el registro
+  admite 5 intentos por hora y el login 30 cada 5 minutos. Al ampliar la simulación, reutilizar
+  cuentas del seed en vez de registrar más actores.
 - Todo cambio de stock debe dejar movimiento en `stock_movements` (venta, ajuste y devolución por
   cancelación o reserva vencida). La simulación audita que la cadena de movimientos sea continua y
   termine en el stock actual de la publicación.
@@ -150,25 +156,28 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - `main` es la línea de integración y **no se reescribe**. Todo el trabajo hecho hasta ahora está
   fusionado ahí, módulo por módulo y en commits atómicos, no en ramas: para ver cómo entró un módulo
   se usa `git log -- <archivos>`, no se parte la historia para reconstruir lo ya hecho.
-- Las ocho `feature/*` del repositorio son marcadores de módulo: apuntan a la base de `main` y no
+- Las nueve `feature/*` del repositorio son marcadores de módulo: apuntan a la base de `main` y no
   tienen commits propios. Sirven para el trabajo que venga, no como destino del pasado.
 - Trabajo nuevo: `git switch feature/<módulo>` → `git merge main` (fast-forward si la rama solo va
   atrasada) → commits frecuentes → PR a `main`. `main` nunca se rebasea ni se reescribe.
-- **Trabajo en equipo**: el proyecto se armó commiteando directo en `main`, así que sigue habiendo
-  gente que pushea ahí. Eso deja las ramas `feature/*` atrás sin avisar, y el síntoma típico es que
-  el PR se marque en conflicto o que `pnpm build` falle por archivos que no tocaste. Antes de
-  seguir trabajando y antes de abrir el PR, pon la rama al día:
+- **Trabajo en equipo**: desde el 2026-10-03 el flujo acordado es rama → PR → `main`; ya no se
+  empuja directo a `main`. Eso no elimina la deriva: `main` sigue moviéndose, ahora por merges,
+  así que las ramas se atrasan igual y el síntoma sigue siendo el mismo, que el PR se marque en
+  conflicto o que `pnpm build` falle por archivos que no tocaste. Antes de seguir trabajando y
+  antes de abrir el PR, pon la rama al día:
   `git switch feature/<módulo>` → `git fetch origin` → `git merge origin/main` → resolver los
   conflictos **en la rama** → volver a correr `pnpm typecheck`, `pnpm lint`, `pnpm test` y
   `pnpm build`. Nunca al revés: no se reescribe `main` ni se fuerza un push.
 - `main` está **protegido en GitHub** desde el 2026-10-02: no se admiten force pushes, no se puede borrar
-  la rama, y la regla también aplica a los administradores. Eso es todo lo que frena GitHub: **no** se pide
-  pull request y **no** se exigen checks para pushear, así que se sigue commiteando directo a `main`, que es
-  como trabaja el equipo. La CI sigue corriendo en cada push y avisa si algo falla, pero un commit roto
+  la rama, y la regla también aplica a los administradores. Y nada más: **no** se pide pull request y
+  **no** se exigen checks para pushear. La protección frena que se destruya la historia, no que alguien
+  salte el flujo, así que trabajar en rama es una convención que el equipo respeta, no una barrera que
+  lo imponga GitHub. La CI sigue corriendo en cada push y avisa si algo falla, pero un commit roto
   llega igual a `main` y queda en rojo: la garantía es que la historia no se puede reescribir ni borrar.
-  Si algún día se quiere bloquear el merge sin CI, se activa "Require status checks to pass" en los ajustes
-  de la rama, pero ojo: eso **también rechaza los `push` directos** cuya CI no esté en verde, así que obliga
-  a que todo el equipo trabaje con ramas y PR.
+  Ese ajuste se dejó así a propósito el 2026-10-03. Activar "Require status checks to pass" ya no
+  obligaría al equipo a abandonar las ramas, porque ya trabajan en ramas, así que algún día se
+  puede activar sin el costo que tenía antes; conviene hacerlo cuando la CI sea estable. Lo que sí
+  rechazaría, siempre, son los `push` directos a `main`.
 - `.gitattributes` fija LF en todo el repositorio y Git normaliza al commitear: da igual si el editor
   guarda en CRLF, no hay que convertir archivos a mano.
 
