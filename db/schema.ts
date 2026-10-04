@@ -173,6 +173,29 @@ export const stockMovements = pgTable(
   ],
 )
 
+export const orderEvents = pgTable(
+  "order_events",
+  {
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    ordenId: uuid("orden_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    // Nulo cuando el cambio no lo empujó una persona: el barrido de reservas vencidas.
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    estadoAnterior: varchar("estado_anterior", { length: 20 }).notNull(),
+    estadoNuevo: varchar("estado_nuevo", { length: 20 }).notNull(),
+    motivo: varchar("motivo", { length: 200 }),
+    // La administración puede empujar una orden sin ser comprador ni vendedor. Acá queda
+    // ese caso marcado, porque es el único que no se puede leer en la propia orden.
+    intervencionAdmin: boolean("intervencion_admin").notNull().default(false),
+    fechaCreacion: timestamp("fecha_creacion", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("order_events_orden_fecha_idx").on(table.ordenId, table.fechaCreacion),
+    index("order_events_actor_idx").on(table.actorId),
+  ],
+)
+
 export const notifications = pgTable(
   "notifications",
   {
