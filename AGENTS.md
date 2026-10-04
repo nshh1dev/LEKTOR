@@ -117,6 +117,12 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - `scripts/simular-flujo.ts` (`pnpm simular`) es la puerta de calidad de los flujos: necesita
   `pnpm dev` en marcha, crea sus propios datos y sale con `1` si algo no cuadra. Antes de repetirla
   desde cero: `pnpm db:reset` (`scripts/db-reset.ts`, destructivo y restringido a URLs locales).
+- La etapa `F9j` prueba el vencimiento automático de reservas y necesita `CRON_SECRET` **activo**
+  en `.env` (en `.env.example` viene comentado a propósito, porque el endpoint debe responder 503
+  cuando no hay secreto). Además es la única parte de la simulación que abre una conexión a
+  PostgreSQL, y solo para envejecer una fila: no hay forma de esperar 48 horas por HTTP. Si el
+  tope por IP de 60 cada 5 min se quema, la simulación falla con 429 en `F2`: eso es el store en
+  memoria, y se arregla reiniciando el dev server.
 - **El dev server solo se levanta cuando la persona lo pide de forma explícita.** La regla original
   (prohibir que un asistente arranque Next) se cambió el 2026-10-01 a pedido del equipo, porque
   obliga a cortar la sesión para ver la aplicación. Desde entonces:
