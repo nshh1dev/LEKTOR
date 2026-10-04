@@ -840,9 +840,33 @@ etapa("F7 · la administración ve las reservadas y las agotadas", async () => {
     cookie: actor.admin.cookie,
   })
   igual(r.status, 200, "lectura de órdenes del panel")
-  const ids = lista<{ id: string }>(r.datos, "ordenes").map((o) => o.id)
+  const filas = lista<{ id: string; vendedor: { nombre: string } }>(r.datos, "ordenes")
+  const ids = filas.map((o) => o.id)
   for (const orden of ordenes) {
     check(ids.includes(orden.id), `la orden ${orden.id} no aparece en el panel`)
+  }
+
+  // El buscador comparte su where con el conteo, y ese where menciona al comprador y
+  // al vendedor: si el conteo no declara los mismos joins, la ruta responde 500 en
+  // cuanto se escribe algo en el buscador.
+  const termino = filas[0]?.vendedor.nombre
+  check(Boolean(termino), "el panel no devolvió el nombre del vendedor para buscar")
+  if (termino) {
+    const buscado = await pedir(
+      `/api/panel/ordenes?estado=reservada&porPagina=50&q=${encodeURIComponent(termino)}`,
+      { cookie: actor.admin.cookie },
+    )
+    igual(buscado.status, 200, "búsqueda de órdenes del panel por nombre")
+    const halladas = lista<{ id: string }>(buscado.datos, "ordenes")
+    check(
+      halladas.some((o) => ids.includes(o.id)),
+      `buscar "${termino}" no devolvió ninguna de las órdenes reservadas`,
+    )
+    const conteo = buscado.datos.paginacion as { total?: number } | undefined
+    check(
+      (conteo?.total ?? 0) > 0,
+      `el conteo del panel no devolvió total para "${termino}": ${String(conteo?.total)}`,
+    )
   }
 
   const bajo = await pedir("/api/panel/publicaciones?orden=stock&porPagina=50", {
