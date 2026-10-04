@@ -20,6 +20,7 @@ import {
   publicationInputSchema,
   rangoPrecioDesde,
   searchQuerySchema,
+  misOrdenesQuerySchema,
   envioSegunMetodo,
   estadoSegunStock,
   registroSchema,
@@ -195,6 +196,24 @@ test("searchQuerySchema aplica valores por defecto y topes", () => {
   assert.equal(searchQuerySchema.parse({ precioMin: "5000", porPagina: "24" }).precioMin, 5000)
 })
 
+test("misOrdenesQuerySchema pagina el historial con topes", () => {
+  const base = misOrdenesQuerySchema.parse({})
+  assert.equal(base.rol, "comprador")
+  assert.equal(base.pagina, 1)
+  assert.equal(base.porPagina, 10)
+
+  const vendedor = misOrdenesQuerySchema.parse({ rol: "vendedor", pagina: "3", porPagina: "25" })
+  assert.equal(vendedor.rol, "vendedor")
+  assert.equal(vendedor.pagina, 3)
+  assert.equal(vendedor.porPagina, 25)
+
+  // Un tamaño de página sin techo convertiría el historial en una consulta sin límite.
+  assert.equal(misOrdenesQuerySchema.safeParse({ porPagina: 9999 }).success, false)
+  assert.equal(misOrdenesQuerySchema.safeParse({ pagina: 0 }).success, false)
+  assert.equal(misOrdenesQuerySchema.safeParse({ porPagina: 0 }).success, false)
+  assert.equal(misOrdenesQuerySchema.safeParse({ rol: "admin" }).success, false)
+})
+
 test("el rango de precio llega como pesos enteros", () => {
   const rango = searchQuerySchema.parse({ precioMin: "5000", precioMax: "15000" })
   assert.equal(rango.precioMin, 5000)
@@ -224,6 +243,25 @@ test("parseSearchParams acepta varias comunas y acota la lista", () => {
   assert.throws(() =>
     parseSearchParams(new URLSearchParams(`comuna=${Array(21).fill("X").join(",")}`)),
   )
+})
+
+test("parseSearchParams acepta autor y editorial como valores sueltos", () => {
+  const query = parseSearchParams(
+    new URLSearchParams("autor=Fujimoto&editorial=Ivrea"),
+  )
+  assert.equal(query.autor, "Fujimoto")
+  assert.equal(query.editorial, "Ivrea")
+
+  const sinFiltros = parseSearchParams(new URLSearchParams(""))
+  assert.equal(sinFiltros.autor, undefined)
+  assert.equal(sinFiltros.editorial, undefined)
+
+  // El recorte corre antes que el tope, igual que en autor: un valor en blanco
+  // queda en cadena vacía y no se aplica filtro, y lo que manda es el largo.
+  assert.equal(searchQuerySchema.parse({ editorial: "  Ivrea  " }).editorial, "Ivrea")
+  assert.equal(searchQuerySchema.parse({ editorial: "   " }).editorial, "")
+  assert.equal(searchQuerySchema.safeParse({ editorial: "x".repeat(201) }).success, false)
+  assert.equal(searchQuerySchema.safeParse({ autor: "x".repeat(201) }).success, false)
 })
 
 test("datosDespachoSchema exige dirección y punto de retiro según el método", () => {
