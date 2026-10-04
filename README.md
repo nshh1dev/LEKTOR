@@ -101,6 +101,11 @@ El resto de lectores de ejemplo usa la contraseña `123456` (`nico@`, `camila@`,
 
 ### Base de datos de demostración
 
+Cada persona del equipo levanta **su propio PostgreSQL en su propia máquina**: la `DATABASE_URL` de
+`.env.example` apunta a `localhost`, así que todos pueden usar el nombre `lektor` sin pisarse. Lo
+que nunca hay que hacer es apuntar a una base compartida en la red, porque `pnpm db:reset` borra
+todo y `db:migrate` y `db:seed` también escriben encima.
+
 `pnpm db:reset` borra **todos** los datos y vuelve a ejecutar el seed. Solo acepta una `DATABASE_URL`
 local: si apunta a otro host se detiene sin tocar nada. Es lo más simple para partir de cero:
 
@@ -210,8 +215,8 @@ LEKTOR/
 
 - Contraseñas con `bcryptjs` (coste 10). Las sesiones viven en la cookie `lektor_session`
   (`httpOnly`, `sameSite=lax`, `secure` en producción) y duran 24 h con renovación deslizante.
-- `lib/rate-limit.ts` limita por IP los endpoints sensibles: 10 intentos de login por
-  5 minutos y email, 5 registros por hora, 5 cambios de contraseña por cada 15 minutos
+- `lib/rate-limit.ts` limita por IP los endpoints sensibles: 60 intentos de login por IP y 10 por
+  email cada 5 minutos, 5 registros por hora, 5 cambios de contraseña por cada 15 minutos
   y 30 consultas de ISBN por 5 minutos. La IP se toma de las cabeceras que fija la
   plataforma (`x-vercel-forwarded-for`, `cf-connecting-ip`, `x-real-ip`); `x-forwarded-for`
   solo se usa como último recurso porque la puede falseificar el cliente.
@@ -234,7 +239,7 @@ vuelve a `main` por PR. El detalle de la convención está en `AGENTS.md`.
 1. **Clonar** el repo (una sola vez):
 
    ```bash
-   git clone https://github.com/nshh1dev/LEKTOR.git
+   git clone https://github.com/Lucianop5/LEKTOR.git
    ```
 
 2. **Antes de empezar a trabajar**, baja los últimos cambios y ponte al día en tu rama:
@@ -267,6 +272,12 @@ Git te avisará con un mensaje tipo `CONFLICT` / `Merge conflict`. La solución,
 2. Abre el archivo marcado y decide qué líneas se quedan (las marcas `<<<<<<<` / `=======` / `>>>>>>>` indican las partes en conflicto).
 3. Sube el resultado: `git add .` → `git commit -m "resolver conflicto"` → `git push`
 
+Un conflicto aparte del que resuelve Git: si dos personas cambian `db/schema.ts` al mismo tiempo,
+`pnpm db:generate` numera las migraciones solo con el estado del repo donde corre, así que las dos
+ramas generan un `0009_...` distinto y el merge deja dos entradas con `idx: 9` en
+`drizzle/meta/_journal.json`. Si te pasa, fusiona `origin/main` en tu rama, renombra tu migración al
+siguiente número y corrige el `idx` del journal, en vez de volver a generarla encima.
+
 ### Integración continua
 
 Cada `push` a `main` y cada PR ejecutan `.github/workflows/ci.yml`, que corre en dos trabajos:
@@ -279,6 +290,10 @@ Cada `push` a `main` y cada PR ejecutan `.github/workflows/ci.yml`, que corre en
 Las pruebas del dominio no tocan la base de datos, así que la CI no levanta PostgreSQL.
 Verás el resultado en la pestaña **Actions** del repo. Si la CI falla, corrige en local antes
 de volver a subir.
+
+Ojo: la CI **no corre al subir una rama**, solo con `push` a `main` y con el PR abierto. Una rama
+subida sin PR no la revisa nadie, así que los checks de GitHub son los únicos que no dependen de tu
+máquina.
 
 ### Fin de línea
 

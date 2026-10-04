@@ -100,6 +100,13 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - El proyecto no se despliega a producción: es académico y se demuestra con `pnpm dev` y
   `pnpm simular`. No agregar pasos de despliegue, variables de un entorno real ni secretos.
 - Si cambian el esquema o el seed: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`.
+- **Migraciones y trabajo en par**: `pnpm db:generate` numera solo con el estado del repo donde se
+  corra, así que dos ramas que cambien `db/schema.ts` desde el mismo `main` generan **el mismo
+  `0009_...`** con nombres distintos. Al fusionar los dos PR quedan dos entradas con `idx: 9` en
+  `drizzle/meta/_journal.json` y `db:migrate` deja de saber en qué orden aplicar. Cuando dos
+  personas tocan el esquema, la segunda debe rebasar su numeración sobre la rama ya avanzada
+  (`git merge origin/main`, renombrar su migración y corregir el `idx` del journal) en vez de
+  regenerarla encima.
 - Las fotos del aviso salen de `POST /api/uploads`, que valida la firma de los bytes y escribe en
   `public/uploads/`. Esa carpeta está en `.gitignore`: las imágenes del entorno local no se versionan.
 - Nada se escribe fuera de la carpeta del proyecto. El almacén de paquetes de pnpm está fijado con
@@ -130,9 +137,10 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
     puertas (`pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`), que no necesitan ninguno de
     los dos. Las etapas de simulación que tocan base de datos se pueden auditar de forma alternativa
     con `pnpm db:seed` y consultas directas de solo lectura.
-- Hay dos topes de intentos, los dos por IP y con el contador en la memoria del proceso: el registro
-  admite 5 intentos por hora y el login 30 cada 5 minutos. Al ampliar la simulación, reutilizar
-  cuentas del seed en vez de registrar más actores.
+- Los topes de intentos viven en la memoria del proceso, y hay que leerlos del código antes de
+  citarlos: el registro admite 5 por hora, el login 60 por IP y 10 por correo cada 5 minutos, el
+  cambio de contraseña 5 cada 15 minutos y la consulta de ISBN 30 cada 5 minutos. Al ampliar la
+  simulación, reutilizar cuentas del seed en vez de registrar más actores.
 - Todo cambio de stock debe dejar movimiento en `stock_movements` (venta, ajuste y devolución por
   cancelación o reserva vencida). La simulación audita que la cadena de movimientos sea continua y
   termine en el stock actual de la publicación.
