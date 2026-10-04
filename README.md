@@ -4,7 +4,7 @@
 
 Marketplace entre lectores para comprar y vender **mangas, cómics y libros físicos de segunda mano**.
 
-Proyecto de título de desarrollo individual. Aplicación web para conectar vendedores y compradores de libros usados, con módulos de gestión de inventario, usuarios y reportes.
+Proyecto de título de desarrollo grupal. Aplicación web para conectar vendedores y compradores de libros usados, con módulos de gestión de inventario, usuarios y reportes.
 
 > **Alcance:** es un proyecto académico, no un servicio en producción. No hay despliegue,
 > ni dominio, ni operación continua: se demuestra en desarrollo (`pnpm dev`) y con
@@ -18,7 +18,7 @@ Proyecto de título de desarrollo individual. Aplicación web para conectar vend
 - Catálogo con búsqueda, filtros por categoría, autor, editorial, condición, precio (por tramos) y comuna, más orden.
 - Fichas de publicación con galería de imágenes por URL, relacionados y perfil del vendedor.
 - Perfiles de usuario con reseñas y métricas de venta.
-- Escaneo de ISBN con la cámara del dispositivo (`BarcodeDetector`) o entrada manual, consultation de Open Library y caché local de metadatos.
+- Escaneo de ISBN con la cámara del dispositivo (`BarcodeDetector`) o entrada manual, consulta de Open Library y caché local de metadatos.
 - Compra directa con pasarela de pago por tarjeta, envío a domicilio o retiro en punto, y notificaciones de cada cambio de estado.
 - Reserva inmediata de ejemplares por **48 horas** con liberación automática de stock.
 

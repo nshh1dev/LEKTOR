@@ -15,6 +15,24 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - **Recharts** para gráficos de reportes
 - No hay estado global en cliente: los datos viven en PostgreSQL y el servidor los expone con route handlers.
 
+## Primer arranque
+
+El repositorio principal es **`nshh1dev/LEKTOR`**. El antiguo `Lucianop5/LEKTOR` está abandonado:
+no se trabaja ahí.
+
+```bash
+git clone https://github.com/nshh1dev/LEKTOR.git
+cd LEKTOR
+pnpm install          # Node 24 y pnpm 12
+cp .env.example .env  # la DATABASE_URL apunta a un PostgreSQL local
+pnpm db:migrate
+pnpm db:seed          # datos de arranque; es idempotente
+pnpm dev
+```
+
+Cada persona trabaja en su propio clon y su propia base local. Las cuatro puertas no necesitan
+ni la base ni el dev server; `pnpm simular` necesita ambos.
+
 ## Estructura de datos
 
 - `db/schema.ts` es la única fuente de verdad del esquema. Tras cambiarlo se ejecuta `pnpm db:generate` y se revisa la migración en `drizzle/`.
@@ -90,25 +108,25 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   - `pnpm lint`
   - `pnpm test`
   - `pnpm build`
-- Esos mismos comandos corren en `.github/workflows/ci.yml` en cada `push` a `main` y en cada
-  PR. La CI no necesita PostgreSQL porque las pruebas del dominio son puras.
+- Esos mismos comandos corren en `.github/workflows/ci.yml`, y son obligatorios para mergear: la
+  rama tiene que estar al día con `main` y ambos checks en verde. La CI **no corre al empujar una
+  rama**, solo en `push` a `main` y en PR a `main`: una rama subida sin PR no la valida nadie, así
+  que abrir el PR es lo que dispara la única verificación independiente de la máquina. La CI no
+  necesita PostgreSQL porque las pruebas del dominio son puras.
 - **Ningún cambio va directo a `main`.** El flujo es: rama propia → commits frecuentes → push de
   la rama → pull request a `main`. Cuando las cuatro puertas pasan, el cambio está listo para
   abrir el PR: no se espera a que lo pidan, pero tampoco se salta el PR, ni aunque las puertas
   estén en verde.
-- Ojo con esto: la CI **no corre al empujar una rama**, solo en `push` a `main` y en PR a `main`.
-  Una rama subida sin PR no la valida nadie, así que sus commits pueden llevar días sin que GitHub
-  los mire. Las puertas locales sí pasan, pero son las de una sola máquina: abrir el PR es lo que
-  dispara la única verificación independiente.
 - El proyecto no se despliega a producción: es académico y se demuestra con `pnpm dev` y
   `pnpm simular`. No agregar pasos de despliegue, variables de un entorno real ni secretos.
 - Si cambian el esquema o el seed: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`.
-- **Migraciones y trabajo en par**: `pnpm db:generate` numera solo con el estado del repo donde se
-  corra, así que dos ramas que cambien `db/schema.ts` desde el mismo `main` generan **el mismo
-  `0009_...`** con nombres distintos. Al fusionar los dos PR quedan dos entradas con `idx: 9` en
-  `drizzle/meta/_journal.json` y `pnpm db:migrate` deja de saber en qué orden aplicar. Cuando dos
-  personas tocan el esquema, la segunda **no regenera encima**: fusiona `origin/main`, renombra su
-  migración al número siguiente y corrige el `idx` del journal a mano.
+- **Migraciones y trabajo en par.** El journal va en `idx: 9`, así que la próxima migración es
+  `0010`. `pnpm db:generate` numera solo con el estado del repo donde se corra: dos ramas que
+  cambien `db/schema.ts` desde el mismo `main` generan **el mismo número** con nombres distintos, y
+  al fusionar los dos PR quedan dos entradas con el mismo `idx` en `drizzle/meta/_journal.json`,
+  donde `pnpm db:migrate` deja de saber en qué orden aplicar. La segunda persona **no regenera
+  encima**: fusiona `origin/main`, renombra su migración al número siguiente y corrige el `idx` a
+  mano. Siempre anotar el número en el PR.
 - Las fotos del aviso salen de `POST /api/uploads`, que valida la firma de los bytes y escribe en
   `public/uploads/`. Esa carpeta está en `.gitignore`: las imágenes del entorno local no se versionan.
 - Nada se escribe fuera de la carpeta del proyecto. El almacén de paquetes de pnpm está fijado con
@@ -128,23 +146,16 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - `scripts/simular-flujo.ts` (`pnpm simular`) es la puerta de calidad de los flujos: necesita
   `pnpm dev` en marcha, crea sus propios datos y sale con `1` si algo no cuadra. Antes de repetirla
   desde cero: `pnpm db:reset` (`scripts/db-reset.ts`, destructivo y restringido a URLs locales).
-- La etapa `F9j` prueba el vencimiento automático de reservas y necesita `CRON_SECRET` **activo**
-  en `.env` (en `.env.example` viene comentado a propósito, porque el endpoint debe responder 503
-  cuando no hay secreto). Además es la única parte de la simulación que abre una conexión a
-  PostgreSQL, y solo para envejecer una fila: no hay forma de esperar 48 horas por HTTP. Si el
-  tope por IP de 60 cada 5 min se quema, la simulación falla con 429 en `F2`: eso es el store en
-  memoria, y se arregla reiniciando el dev server.
-- **El dev server solo se levanta cuando la persona lo pide de forma explícita.** La regla original
-  (prohibir que un asistente arranque Next) se cambió el 2026-10-01 a pedido del equipo, porque
-  obliga a cortar la sesión para ver la aplicación. Desde entonces:
-  - Un asistente **puede** arrancar `pnpm dev` / `next dev` si la persona lo pide, pero **nunca por
-    iniciativa propia** para correr `pnpm simular` u otra puerta: primero se pergunta.
-  - Si lo arranca, avisa en qué puerto quedó y **lo detiene al terminar** la tarea o cuando se lo
-    pidan. No dejar procesos de Next escuchando en el puerto 3000 al cerrar la sesión.
-  - Si `pnpm simular` no puede correr porque no hay servidor, se dice y se sigue con el resto de las
-    puertas (`pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`), que no necesitan ninguno de
-    los dos. Las etapas de simulación que tocan base de datos se pueden auditar de forma alternativa
-    con `pnpm db:seed` y consultas directas de solo lectura.
+- La etapa `F9j` prueba el vencimiento automático de reservas: necesita `CRON_SECRET` **activo** en
+  `.env` (en `.env.example` viene comentado a propósito) y es la única que abre una conexión a
+  PostgreSQL, solo para envejecer una fila. Si se quema el tope por IP del login, la simulación falla
+  con 429 en `F2`: es el store en memoria, y se arregla reiniciando el dev server.
+- **El dev server solo se levanta cuando la persona lo pide de forma explícita.** Un asistente
+  puede arrancar `pnpm dev` si se lo piden, pero **nunca por iniciativa propia**, ni para correr
+  `pnpm simular` u otra puerta: primero se pregunta. Si lo arranca, avisa en qué puerto quedó y
+  **lo detiene al terminar**. No dejar procesos de Next escuchando en el puerto 3000 al cerrar la
+  sesión. Si `pnpm simular` no puede correr porque no hay servidor, se dice y se sigue con el resto
+  de las puertas, que no necesitan base ni servidor.
 - Los topes de intentos viven en la memoria del proceso, y hay que leerlos del código antes de
   citarlos: el registro admite 5 por hora, el login 60 por IP y 10 por correo cada 5 minutos, el
   cambio de contraseña 5 cada 15 minutos y la consulta de ISBN 30 cada 5 minutos. Al ampliar la
@@ -157,19 +168,10 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   página de códigos del sistema. Ese test además fija varias cadenas del marketplace (p. ej.
   `"quedó reservado por ti"`, `"Código de orden"`, `"Sesión cerrada"`): si se edita copy, la frase
   tiene que seguir apareciendo **contigua en el código**, no partida por un salto de línea de JSX.
-- Seguir el estilo y patrones ya existentes en el proyecto.
 - Los commits deben ser descriptivos y en español.
-- Ramas de Git: usar prefijos por tipo de trabajo. Nomenclatura: <tipo>/<descripcion-kebab-case>.
-  - feature/  -> nuevas funcionalidades (ej.: feature/auth-login-register, feature/favoritos)
-  - fix/      -> correcciones de bugs (ej.: fix/login-rate-limit)
-  - refactor/ -> reorganización sin cambiar comportamiento (ej.: refactor/orders-dominio)
-  - docs/     -> solo documentación (ej.: docs/actualizar-readme)
-  - chore/    -> mantenimiento/config/dependencias (ej.: chore/actualizar-tsx)
-  - test/     -> añadir/corregir tests (ej.: test/reviews-validacion)
-  - perf/     -> mejoras de rendimiento (ej.: perf/catalogo-consultas)
-  - hotfix/   -> arreglos urgentes sobre main (ej.: hotfix/stock-negativo)
-  Base siempre `main` actualizado. La rama se crea nueva y fresca; no se reutiliza una rama vieja
-  que quedó atrás. Un PR = una única unidad de trabajo, destino `main`. El nombre de la rama
+- Ramas de Git: `<tipo>/<descripcion-kebab-case>`, con tipo `feature`, `fix`, `refactor`, `docs`,
+  `chore`, `test`, `perf` o `hotfix`. La rama se crea **nueva** desde `main` actualizado; no se
+  reutiliza una rama vieja que quedó atrás. Un PR = una única unidad de trabajo, y el nombre
   describe **la tarea**, no el módulo: `feature/filtro-panel-ventas` y no `feature/panel`.
 - `main` es la línea de integración y **no se reescribe**: no se rebasea, no se borra y no se fuerza
   un push. Para ver cómo entró un módulo se usa `git log -- <archivos>`.
@@ -179,7 +181,9 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
     minutos y uno de una semana, horas.
   - Se trabaja en la rama propia con commits chicos. Si el cambio toca un archivo que otra
     persona está tocando, se avisa en el grupo antes de seguir.
-  - Antes de abrir el PR: las cuatro puertas. Nadie mergea su propio PR; lo revisa otra persona.
+  - Antes de abrir el PR: las cuatro puertas y push de la rama. El PR se mergea con **squash**, para
+    que quede un commit con el título del PR. Nadie aprueba su propio PR — GitHub no lo permite —:
+    lo revisa y aprueba otra persona del equipo.
 - **Reparto por áreas, para que los archivos no se pisen.** No es propiedad: cualquiera puede
   escribir en cualquier área, y el reparto indica quién **revisa** cada una y quién desempata.
   - Órdenes, checkout y pago → `components/marketplace/checkout-view.tsx`, `order-card.tsx`,
@@ -193,10 +197,6 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 - **Archivos compartidos: se serializan, no se reparten.**
   - `scripts/simular-flujo.ts` lo tocan casi todas las ramas: **un solo PR a la vez** sobre ese
     archivo, avisado en el grupo. No es de nadie.
-  - `db/schema.ts` y las migraciones: antes de correr `pnpm db:generate`, mirar el PR abierto
-    más reciente para ver qué número se está usando y **anotar el número en el PR**. Dos personas
-    que generan la misma dejan dos entradas con el mismo `idx` en `drizzle/meta/_journal.json` y
-    `pnpm db:migrate` deja de saber qué aplicar.
 - **Operaciones destructivas: se avisa antes, siempre.** Sin excepción y sin importar cuán
   urgente parezca:
   - `git push --mirror` **borra** en el remoto toda referencia que no exista en local. Es la causa
