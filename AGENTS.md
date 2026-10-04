@@ -19,6 +19,10 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 
 - `db/schema.ts` es la única fuente de verdad del esquema. Tras cambiarlo se ejecuta `pnpm db:generate` y se revisa la migración en `drizzle/`.
 - `lib/` concentra el dominio: `auth.ts` (sesiones y roles), `catalog.ts` (constantes, esquemas Zod y `TRANSICIONES_ORDEN`), `orders.ts` (operaciones de orden sobre la base), `panel.ts` (consultas del panel), `avisos.ts` (vocabulario de avisos), `reviews.ts` (valoraciones verificadas de solo estrellas: crear, editar, moderar y recalcular promedios, con el `orderId` opcional para anclar la reseña a la compra recibida), `sellers.ts` (perfil público del vendedor), `conversaciones.ts` (contacto previo antes de la compra: abrir, responder, listar y leer hilos), `isbn.ts`, `entrada.ts` (máscaras de precio y teléfono), `format.ts`, `pago.ts` (formato, Luhn y vigencia de tarjeta), `api.ts` (respuestas y errores HTTP), `rate-limit.ts` (límite de intentos por IP).
+- **Auditoría de órdenes**: cada cambio de estado deja una fila en `order_events` (`ordenId`, `actorId`, `estadoAnterior`, `estadoNuevo`, `motivo`, `intervencionAdmin`). Se escribe en `registrarEvento` (`lib/orders.ts`), dentro de la misma transacción que el cambio, y se lee en `GET /api/orders/[id]/events`, que solo abre a comprador, vendedor y administración. Tres reglas:
+  - `actorId` nulo significa que no hubo persona detrás: es el barrido de reservas vencidas (`sweepExpiredReservations`). Atribuirlo al vendedor sería inventar un autor.
+  - `intervencionAdmin` marca el caso que no se puede leer en la orden misma: la administración (`user.rol === "admin"`) que no es ni compradora ni vendedora. En ese caso el aviso a la contraparte usa el tipo `orden_intervenida` y lo dice en el título, y el motivo del movimiento de stock dice `cancelada por la administracion`.
+  - El seed deja las órdenes que crea sin historial, porque sus estados son anteriores a la tabla. No es un hueco del código.
 - `scripts/seed.ts` es idempotente: debe poder ejecutarse varias veces sin duplicar datos.
 - Conexión por `DATABASE_URL` (ver `.env.example`).
 
@@ -87,11 +91,10 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   - `pnpm test`
   - `pnpm build`
 - Esos mismos comandos corren en `.github/workflows/ci.yml` en cada `push` a `main` y en cada
-  PR. La CI **avisa, no bloquea**: avisa si algo falla, pero el cambio ya está en `main` o en el
   PR. La CI no necesita PostgreSQL porque las pruebas del dominio son puras.
-- Todo cambio bueno y verificado se sube a GitHub en cuanto `pnpm typecheck`, `pnpm lint`,
-  `pnpm test` y `pnpm build` pasen: commit descriptivo en español y `push` a `main`. No esperar
-  a que lo pidan cuando el cambio ya está probado.
+- **Ningún cambio va directo a `main`.** El flujo es: rama propia → commits frecuentes → push de
+  la rama → pull request a `main`. Cuando las cuatro puertas pasan, el cambio está listo para
+  abrir el PR: no se espera a que lo pidan, pero tampoco se salta el PR.
 - El proyecto no se despliega a producción: es académico y se demuestra con `pnpm dev` y
   `pnpm simular`. No agregar pasos de despliegue, variables de un entorno real ni secretos.
 - Si cambian el esquema o el seed: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`.
@@ -152,29 +155,48 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   - test/     -> añadir/corregir tests (ej.: test/reviews-validacion)
   - perf/     -> mejoras de rendimiento (ej.: perf/catalogo-consultas)
   - hotfix/   -> arreglos urgentes sobre main (ej.: hotfix/stock-negativo)
-  Base siempre main (último commit). Crear ramas desde main actualizado. Un PR = una única unidad de trabajo, destino main.
-- `main` es la línea de integración y **no se reescribe**. Todo el trabajo hecho hasta ahora está
-  fusionado ahí, módulo por módulo y en commits atómicos, no en ramas: para ver cómo entró un módulo
-  se usa `git log -- <archivos>`, no se parte la historia para reconstruir lo ya hecho.
-- Las ocho `feature/*` del repositorio son marcadores de módulo: apuntan a la base de `main` y no
-  tienen commits propios. Sirven para el trabajo que venga, no como destino del pasado.
-- Trabajo nuevo: `git switch feature/<módulo>` → `git merge main` (fast-forward si la rama solo va
-  atrasada) → commits frecuentes → PR a `main`. `main` nunca se rebasea ni se reescribe.
-- **Trabajo en equipo**: el proyecto se armó commiteando directo en `main`, así que sigue habiendo
-  gente que pushea ahí. Eso deja las ramas `feature/*` atrás sin avisar, y el síntoma típico es que
-  el PR se marque en conflicto o que `pnpm build` falle por archivos que no tocaste. Antes de
-  seguir trabajando y antes de abrir el PR, pon la rama al día:
-  `git switch feature/<módulo>` → `git fetch origin` → `git merge origin/main` → resolver los
-  conflictos **en la rama** → volver a correr `pnpm typecheck`, `pnpm lint`, `pnpm test` y
-  `pnpm build`. Nunca al revés: no se reescribe `main` ni se fuerza un push.
-- `main` está **protegido en GitHub** desde el 2026-10-02: no se admiten force pushes, no se puede borrar
-  la rama, y la regla también aplica a los administradores. Eso es todo lo que frena GitHub: **no** se pide
-  pull request y **no** se exigen checks para pushear, así que se sigue commiteando directo a `main`, que es
-  como trabaja el equipo. La CI sigue corriendo en cada push y avisa si algo falla, pero un commit roto
-  llega igual a `main` y queda en rojo: la garantía es que la historia no se puede reescribir ni borrar.
-  Si algún día se quiere bloquear el merge sin CI, se activa "Require status checks to pass" en los ajustes
-  de la rama, pero ojo: eso **también rechaza los `push` directos** cuya CI no esté en verde, así que obliga
-  a que todo el equipo trabaje con ramas y PR.
+  Base siempre `main` actualizado. La rama se crea nueva y fresca; no se reutiliza una rama vieja
+  que quedó atrás. Un PR = una única unidad de trabajo, destino `main`. El nombre de la rama
+  describe **la tarea**, no el módulo: `feature/filtro-panel-ventas` y no `feature/panel`.
+- `main` es la línea de integración y **no se reescribe**: no se rebasea, no se borra y no se fuerza
+  un push. Para ver cómo entró un módulo se usa `git log -- <archivos>`.
+- **Trabajo en equipo (tres personas).** El flujo diario es corto y sin reuniones:
+  - Al empezar el día: `git switch <tu-rama>` → `git fetch origin` → `git merge origin/main`.
+    Traer `main` **todos los días**, no solo antes de abrir el PR: un conflicto de un día cuesta
+    minutos y uno de una semana, horas.
+  - Se trabaja en la rama propia con commits chicos. Si el cambio toca un archivo que otra
+    persona está tocando, se avisa en el grupo antes de seguir.
+  - Antes de abrir el PR: las cuatro puertas. Nadie mergea su propio PR; lo revisa otra persona.
+- **Reparto por áreas, para que los archivos no se pisen.** No es propiedad: cualquiera puede
+  escribir en cualquier área, y el reparto indica quién **revisa** cada una y quién desempata.
+  - Órdenes, checkout y pago → `components/marketplace/checkout-view.tsx`, `order-card.tsx`,
+    `pago-view.tsx`, `comprobante.tsx`, `chat-orden.tsx`, `app/api/orders/*`, `lib/orders.ts`
+  - Panel y administración → `components/panel/*`, `components/admin/*`, `app/(panel)/*`,
+    `app/api/panel/*`, `lib/panel.ts`
+  - Perfil y valoraciones → `components/marketplace/profile-view.tsx`, `valoraciones.tsx`,
+    `dialogo-valoracion.tsx`, `seller-view.tsx`, `lib/reviews.ts`, `lib/sellers.ts`
+  - Zonas de aviso por solapamiento: `profile-view.tsx` (lo tocan órdenes y perfil) y
+    `lib/catalog.ts`. Quien los toque, lo dice en el grupo.
+- **Archivos compartidos: se serializan, no se reparten.**
+  - `scripts/simular-flujo.ts` lo tocan casi todas las ramas: **un solo PR a la vez** sobre ese
+    archivo, avisado en el grupo. No es de nadie.
+  - `db/schema.ts` y las migraciones: antes de correr `pnpm db:generate`, mirar el PR abierto
+    más reciente para ver qué número se está usando y **anotar el número en el PR**. Dos personas
+    que generan la misma dejan dos entradas con el mismo `idx` en `drizzle/meta/_journal.json` y
+    `pnpm db:migrate` deja de saber qué aplicar.
+- **Operaciones destructivas: se avisa antes, siempre.** Sin excepción y sin importar cuán
+  urgente parezca:
+  - `git push --mirror` **borra** en el remoto toda referencia que no exista en local. Es la causa
+    más común de perder un repositorio entero.
+  - `git push --force` a `main` está prohibido; `main` no se reescribe nunca.
+  - Borrar, renombrar o recrear el repositorio en GitHub requiere ser **owner**. Los owners son
+    decisiones del grupo: si una sola persona puede borrar el proyecto, un mal día se pierde todo.
+    Lo que se guarda en local (un `git bundle` o un clon completo) es la red de seguridad.
+  - `git fetch --prune` solo es seguro si las ramas que importan están respaldadas: borra las
+    referencias remotas que ya no existen en el remoto.
+- `main` está **protegido en GitHub**: no se admiten force pushes, no se puede borrar la rama, y la
+  regla aplica también a los administradores. La protección exige pull request, una aprobación y
+  que pasen las cuatro puertas, así que un commit roto no llega a `main`.
 - `.gitattributes` fija LF en todo el repositorio y Git normaliza al commitear: da igual si el editor
   guarda en CRLF, no hay que convertir archivos a mano.
 
