@@ -172,6 +172,7 @@ export const searchQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   categoria: z.array(z.enum(CATEGORIAS)).max(3).optional(),
   autor: z.string().trim().max(200).optional(),
+  editorial: z.string().trim().max(200).optional(),
   condicion: z.array(z.enum(CONDICIONES)).max(6).optional(),
   comuna: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
   precioMin: z.coerce.number().int().min(0).optional(),
@@ -195,6 +196,7 @@ export function parseSearchParams(params: URLSearchParams): SearchQuery {
     q: params.get("q") ?? undefined,
     categoria: repeated("categoria"),
     autor: params.get("autor") ?? undefined,
+    editorial: params.get("editorial") ?? undefined,
     condicion: repeated("condicion"),
     comuna: repeated("comuna"),
     precioMin: params.get("precioMin") ?? undefined,
@@ -821,6 +823,8 @@ export type Facetas = {
   categorias: { value: Categoria; total: number }[]
   condiciones: { value: Condicion; total: number }[]
   comunas: { value: string; total: number }[]
+  autores: { value: string; total: number }[]
+  editoriales: { value: string; total: number }[]
 }
 
 export type Paginacion = {

@@ -25,6 +25,8 @@ type Filtros = {
   categoria: Categoria[]
   condicion: Condicion[]
   comuna: string[]
+  autor: string | null
+  editorial: string | null
   precioMin: number | null
   precioMax: number | null
 }
@@ -40,6 +42,7 @@ export function CatalogView({
   setOrden,
   filtros,
   alternarFiltro,
+  elegirFiltro,
   setPrecioRango,
   limpiarFiltros,
   filtrosActivos,
@@ -55,6 +58,7 @@ export function CatalogView({
   setOrden: (value: OrdenCatalogo) => void
   filtros: Filtros
   alternarFiltro: <K extends GrupoFiltro>(grupo: K, valor: string) => void
+  elegirFiltro: (grupo: "autor" | "editorial", valor: string) => void
   setPrecioRango: (min: number | null, max: number | null) => void
   limpiarFiltros: () => void
   filtrosActivos: number
@@ -91,6 +95,7 @@ export function CatalogView({
       facetas={facetas}
       filtros={filtros}
       alternarFiltro={alternarFiltro}
+      elegirFiltro={elegirFiltro}
       setPrecioRango={setPrecioRango}
       limpiarFiltros={limpiarFiltros}
       filtrosActivos={filtrosActivos}

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic"
 const POR_PAGINA = 12
 
 export default async function HomePage() {
-  const [filas, [facetasPrecios], [activos], categorias, condiciones, comunas] =
+  const [filas, [facetasPrecios], [activos], categorias, condiciones, comunas, autores, editoriales] =
     await Promise.all([
       db
         .select({
@@ -71,6 +71,20 @@ export default async function HomePage() {
         .groupBy(users.comuna)
         .orderBy(desc(count()), users.comuna)
         .limit(24),
+      db
+        .select({ value: publications.autor, total: count() })
+        .from(publications)
+        .where(eq(publications.estado, "activa"))
+        .groupBy(publications.autor)
+        .orderBy(publications.autor)
+        .limit(200),
+      db
+        .select({ value: publications.editorial, total: count() })
+        .from(publications)
+        .where(eq(publications.estado, "activa"))
+        .groupBy(publications.editorial)
+        .orderBy(desc(count()), publications.editorial)
+        .limit(200),
     ])
 
   const initialPublications: PublicacionListItem[] = filas.map((fila) => ({
@@ -89,6 +103,8 @@ export default async function HomePage() {
     categorias: categorias as Facetas["categorias"],
     condiciones: condiciones as Facetas["condiciones"],
     comunas: comunas as Facetas["comunas"],
+    autores: autores as Facetas["autores"],
+    editoriales: editoriales as Facetas["editoriales"],
   }
 
   const paginacion: Paginacion = {
