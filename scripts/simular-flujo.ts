@@ -1707,6 +1707,46 @@ etapa("F11b · un lector no puede abrir los reportes", async () => {
   return { ok: fallos === 0, detalle: `lector bloqueado (${r.status})` }
 })
 
+etapa("F11c · las unidades del reporte significan lo mismo en todas sus tablas", async () => {
+  const r = await pedir("/api/panel/reportes?dias=365", { cookie: actor.admin.cookie })
+  igual(r.status, 200, "reporte de 365 días")
+
+  const resumen = r.datos.resumen as {
+    unidades: number
+    recibidas: number
+    ordenes: number
+  }
+  const serie = r.datos.serie as { unidades: number }[]
+  const porCategoria = r.datos.porCategoria as { unidades: number }[]
+
+  const deSerie = serie.reduce((total, fila) => total + fila.unidades, 0)
+  igual(
+    resumen.unidades,
+    deSerie,
+    "el resumen y el gráfico diario cuentan las mismas unidades",
+  )
+
+  const deCategorias = porCategoria.reduce((total, fila) => total + fila.unidades, 0)
+  igual(
+    resumen.unidades,
+    deCategorias,
+    "el resumen y el desglose por categoría cuentan las mismas unidades",
+  )
+
+  // Toda orden lleva cantidad 1, así que las unidades recibidas y las órdenes recibidas
+  // tienen que dar el mismo número. Si las unidades dejaran entrar canceladas, se irían.
+  igual(
+    resumen.unidades,
+    resumen.recibidas,
+    "las unidades no cuentan órdenes que no se recibieron",
+  )
+
+  return {
+    ok: fallos === 0,
+    detalle: `${resumen.unidades} unidades coinciden en serie, resumen y categorías de ${resumen.ordenes} órdenes`,
+  }
+})
+
 // -------------------------------------------- F12 auditoría de las intervenciones
 
 etapa("F12 · una intervención de la administración queda atribuida", async () => {

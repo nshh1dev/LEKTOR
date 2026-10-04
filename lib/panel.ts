@@ -413,7 +413,10 @@ export async function reportePanel({ dias }: PanelReportesQuery) {
       db
         .select({
           ordenes: sql<number>`count(*)::int`,
-          unidades: sql<number>`coalesce(sum(${orders.cantidad}), 0)::int`,
+          // En todo el reporte `unidades` son unidades recibidas, igual que `ventas` y
+          // que la serie diaria y el top de títulos. Lo que no se concretó va en `brutas`
+          // y `canceladas`, que cuentan órdenes, no unidades.
+          unidades: sql<number>`coalesce(sum(${orders.cantidad}) filter (where ${orders.estado} = 'recibida'), 0)::int`,
           ventas: sql<number>`coalesce(sum(${orders.total}) filter (where ${orders.estado} = 'recibida'), 0)::int`,
           brutas: sql<number>`coalesce(sum(${orders.total}), 0)::int`,
           recibidas: sql<number>`count(*) filter (where ${orders.estado} = 'recibida')::int`,
@@ -438,7 +441,7 @@ export async function reportePanel({ dias }: PanelReportesQuery) {
       db
         .select({
           categoria: publications.categoria,
-          unidades: sql<number>`coalesce(sum(${orders.cantidad}), 0)::int`,
+          unidades: sql<number>`coalesce(sum(${orders.cantidad}) filter (where ${orders.estado} = 'recibida'), 0)::int`,
           ventas: sql<number>`coalesce(sum(${orders.total}) filter (where ${orders.estado} = 'recibida'), 0)::int`,
         })
         .from(orders)
