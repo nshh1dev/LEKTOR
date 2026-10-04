@@ -779,6 +779,62 @@ etapa("F6 · el perfil marca esVendedor y un ajuste de stock deja rastro", async
 
 // ------------------------------------------------------------ F7 bodega
 
+etapa("F6b · el historial de órdenes se pagina sin perder ninguna", async () => {
+  const todas = await pedir("/api/orders?rol=comprador&porPagina=50", {
+    cookie: actor.comprador1.cookie,
+  })
+  igual(todas.status, 200, "lectura del historial completo")
+  const paginacion = todas.datos.paginacion as {
+    pagina: number
+    porPagina: number
+    total: number
+    paginas: number
+  }
+  const listado = todas.datos.orders as { id: string }[]
+  igual(listado.length, paginacion.total, "la página trae tantas órdenes como el total que anuncia")
+
+  const primera = await pedir("/api/orders?rol=comprador&pagina=1&porPagina=1", {
+    cookie: actor.comprador1.cookie,
+  })
+  igual(primera.status, 200, "primera página de una orden por página")
+  const enUna = primera.datos.orders as { id: string }[]
+  igual(enUna.length, 1, "pedir una orden por página devuelve exactamente una")
+  igual(
+    (primera.datos.paginacion as { paginas: number }).paginas,
+    paginacion.total,
+    "el número de páginas es el total dividido por el tamaño",
+  )
+
+  if (paginacion.total >= 2) {
+    const segunda = await pedir("/api/orders?rol=comprador&pagina=2&porPagina=1", {
+      cookie: actor.comprador1.cookie,
+    })
+    igual(segunda.status, 200, "segunda página de una orden por página")
+    const otra = (segunda.datos.orders as { id: string }[])[0]
+    check(Boolean(otra), "la segunda página vino vacía")
+    check(
+      otra?.id !== enUna[0]?.id,
+      "la segunda página trajo la misma orden que la primera",
+    )
+    // Ninguna página puede repetir lo que ya mostró la anterior.
+    const repetidas = listado.filter((orden) => orden.id === enUna[0]?.id).length
+    igual(repetidas, 1, "la orden de la primera página no aparece repetida en el listado")
+  }
+
+  const disparado = await pedir("/api/orders?rol=comprador&porPagina=9999", {
+    cookie: actor.comprador1.cookie,
+  })
+  check(
+    disparado.status === 400,
+    `un tamaño de página fuera de rango devolvió ${disparado.status} en vez de 400`,
+  )
+
+  return {
+    ok: fallos === 0,
+    detalle: `${paginacion.total} órdenes en ${paginacion.paginas} página(s) de ${paginacion.porPagina}`,
+  }
+})
+
 etapa("F7 · la administración ve las reservadas y las agotadas", async () => {
   const r = await pedir("/api/panel/ordenes?estado=reservada&porPagina=50", {
     cookie: actor.admin.cookie,

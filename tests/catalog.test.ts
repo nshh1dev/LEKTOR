@@ -20,6 +20,7 @@ import {
   publicationInputSchema,
   rangoPrecioDesde,
   searchQuerySchema,
+  misOrdenesQuerySchema,
   envioSegunMetodo,
   estadoSegunStock,
   registroSchema,
@@ -193,6 +194,24 @@ test("searchQuerySchema aplica valores por defecto y topes", () => {
     false,
   )
   assert.equal(searchQuerySchema.parse({ precioMin: "5000", porPagina: "24" }).precioMin, 5000)
+})
+
+test("misOrdenesQuerySchema pagina el historial con topes", () => {
+  const base = misOrdenesQuerySchema.parse({})
+  assert.equal(base.rol, "comprador")
+  assert.equal(base.pagina, 1)
+  assert.equal(base.porPagina, 10)
+
+  const vendedor = misOrdenesQuerySchema.parse({ rol: "vendedor", pagina: "3", porPagina: "25" })
+  assert.equal(vendedor.rol, "vendedor")
+  assert.equal(vendedor.pagina, 3)
+  assert.equal(vendedor.porPagina, 25)
+
+  // Un tamaño de página sin techo convertiría el historial en una consulta sin límite.
+  assert.equal(misOrdenesQuerySchema.safeParse({ porPagina: 9999 }).success, false)
+  assert.equal(misOrdenesQuerySchema.safeParse({ pagina: 0 }).success, false)
+  assert.equal(misOrdenesQuerySchema.safeParse({ porPagina: 0 }).success, false)
+  assert.equal(misOrdenesQuerySchema.safeParse({ rol: "admin" }).success, false)
 })
 
 test("el rango de precio llega como pesos enteros", () => {
