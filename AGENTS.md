@@ -94,10 +94,21 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   PR. La CI no necesita PostgreSQL porque las pruebas del dominio son puras.
 - **Ningún cambio va directo a `main`.** El flujo es: rama propia → commits frecuentes → push de
   la rama → pull request a `main`. Cuando las cuatro puertas pasan, el cambio está listo para
-  abrir el PR: no se espera a que lo pidan, pero tampoco se salta el PR.
+  abrir el PR: no se espera a que lo pidan, pero tampoco se salta el PR, ni aunque las puertas
+  estén en verde.
+- Ojo con esto: la CI **no corre al empujar una rama**, solo en `push` a `main` y en PR a `main`.
+  Una rama subida sin PR no la valida nadie, así que sus commits pueden llevar días sin que GitHub
+  los mire. Las puertas locales sí pasan, pero son las de una sola máquina: abrir el PR es lo que
+  dispara la única verificación independiente.
 - El proyecto no se despliega a producción: es académico y se demuestra con `pnpm dev` y
   `pnpm simular`. No agregar pasos de despliegue, variables de un entorno real ni secretos.
 - Si cambian el esquema o el seed: `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`.
+- **Migraciones y trabajo en par**: `pnpm db:generate` numera solo con el estado del repo donde se
+  corra, así que dos ramas que cambien `db/schema.ts` desde el mismo `main` generan **el mismo
+  `0009_...`** con nombres distintos. Al fusionar los dos PR quedan dos entradas con `idx: 9` en
+  `drizzle/meta/_journal.json` y `pnpm db:migrate` deja de saber en qué orden aplicar. Cuando dos
+  personas tocan el esquema, la segunda **no regenera encima**: fusiona `origin/main`, renombra su
+  migración al número siguiente y corrige el `idx` del journal a mano.
 - Las fotos del aviso salen de `POST /api/uploads`, que valida la firma de los bytes y escribe en
   `public/uploads/`. Esa carpeta está en `.gitignore`: las imágenes del entorno local no se versionan.
 - Nada se escribe fuera de la carpeta del proyecto. El almacén de paquetes de pnpm está fijado con
@@ -111,7 +122,7 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
   formatear en vivo, el `Input` va como `type="text"` con `inputMode="numeric"` y el `onChange` de
   React Hook Form vuelve a escribir con `setValue`; no se usa `valueAsNumber` en campos formateados.
 - Las pruebas viven en `tests/` y usan el runner nativo de Node con `tsx` (`node --import tsx --test`).
-  Cubren el dominio puro (`lib/isbn.ts`, `lib/format.ts`, `lib/catalog.ts`, `lib/entrada.ts`, `lib/pago.ts`, `lib/rate-limit-store.ts`,
+  Cubren el dominio puro (`lib/isbn.ts`, `lib/format.ts`, `lib/catalog.ts`, `lib/entrada.ts`, `lib/pago.ts`, `lib/avisos.ts`, `lib/rate-limit-store.ts`,
   `lib/panel-sql.ts`) y un guardián de codificación; lo que depende de Next o de la base de datos se
   prueba con `pnpm simular`, que hace peticiones reales contra el dev server.
 - `scripts/simular-flujo.ts` (`pnpm simular`) es la puerta de calidad de los flujos: necesita
@@ -134,8 +145,10 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
     puertas (`pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`), que no necesitan ninguno de
     los dos. Las etapas de simulación que tocan base de datos se pueden auditar de forma alternativa
     con `pnpm db:seed` y consultas directas de solo lectura.
-- El rate limit de registro es de 5 intentos por hora y por IP, y el contador vive en la memoria del
-  proceso: al ampliar la simulación, reutilizar cuentas del seed en vez de registrar más actores.
+- Los topes de intentos viven en la memoria del proceso, y hay que leerlos del código antes de
+  citarlos: el registro admite 5 por hora, el login 60 por IP y 10 por correo cada 5 minutos, el
+  cambio de contraseña 5 cada 15 minutos y la consulta de ISBN 30 cada 5 minutos. Al ampliar la
+  simulación, reutilizar cuentas del seed en vez de registrar más actores.
 - Todo cambio de stock debe dejar movimiento en `stock_movements` (venta, ajuste y devolución por
   cancelación o reserva vencida). La simulación audita que la cadena de movimientos sea continua y
   termine en el stock actual de la publicación.
@@ -194,9 +207,14 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
     Lo que se guarda en local (un `git bundle` o un clon completo) es la red de seguridad.
   - `git fetch --prune` solo es seguro si las ramas que importan están respaldadas: borra las
     referencias remotas que ya no existen en el remoto.
-- `main` está **protegido en GitHub**: no se admiten force pushes, no se puede borrar la rama, y la
-  regla aplica también a los administradores. La protección exige pull request, una aprobación y
-  que pasen las cuatro puertas, así que un commit roto no llega a `main`.
+- **`main` no está protegida, y conviene saber por qué.** El repositorio es privado y la cuenta es
+  gratuita, y GitHub solo ofrece protección de ramas en repos privados con plan de pago: la API
+  responde *"Upgrade to GitHub Pro or make this repository public to enable this feature"*. Con
+  Pro, que GitHub Education da gratis a estudiantes, quedan disponibles "Require a pull request",
+  "Require 1 approving review" y "Require status checks to pass". **Mientras tanto nada impide un
+  push directo a `main`, un force push o borrar la rama**: el flujo de rama → PR es una convención
+  que el equipo respeta, no una barrera que imponga GitHub. Lo único activo es el borrado
+  automático de la rama al mergear, y la defensa real es la CI, que corre en cada PR.
 - `.gitattributes` fija LF en todo el repositorio y Git normaliza al commitear: da igual si el editor
   guarda en CRLF, no hay que convertir archivos a mano.
 
