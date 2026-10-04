@@ -48,16 +48,18 @@ export async function POST(request: Request) {
       return jsonError(excedido.reason, excedido.mensaje, excedido.status, excedido.headers)
     }
 
-    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1)
-    const valid = user ? await bcrypt.compare(password, user.passwordHash) : false
     // El contador va antes de validar a propósito, para que un intento exitoso
     // también lo consuma: si el tope ya está quemado, acertar la clave tampoco
-    // abre la puerta.
+    // abre la puerta. Y va antes de la consulta y del bcrypt para que un rechazo
+    // por IP no pague el costo de comparar la clave.
     const porIp = rateLimit(`login:${ip}`, LIMITE_POR_IP)
     if (!porIp.permitido) {
       const excedido = limiteExcedido(porIp.reintentarEnSegundos)
       return jsonError(excedido.reason, excedido.mensaje, excedido.status, excedido.headers)
     }
+
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1)
+    const valid = user ? await bcrypt.compare(password, user.passwordHash) : false
     if (!user || !valid) {
       return jsonError("bad-credentials", CREDENCIALES_INVALIDAS, 401)
     }
