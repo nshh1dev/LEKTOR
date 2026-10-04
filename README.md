@@ -15,9 +15,9 @@ Proyecto de título de desarrollo individual. Aplicación web para conectar vend
 
 ### Marketplace
 
-- Catálogo con búsqueda, filtros por categoría, condición, precio (por tramos) y comuna, más orden.
+- Catálogo con búsqueda, filtros por categoría, autor, editorial, condición, precio (por tramos) y comuna, más orden.
 - Fichas de publicación con galería de imágenes por URL, relacionados y perfil del vendedor.
-- Perfiles de usuario con reseñas, métricas de venta y verificación de correo.
+- Perfiles de usuario con reseñas y métricas de venta.
 - Escaneo de ISBN con la cámara del dispositivo (`BarcodeDetector`) o entrada manual, consultation de Open Library y caché local de metadatos.
 - Compra directa con pasarela de pago por tarjeta, envío a domicilio o retiro en punto, y notificaciones de cada cambio de estado.
 - Reserva inmediata de ejemplares por **48 horas** con liberación automática de stock.

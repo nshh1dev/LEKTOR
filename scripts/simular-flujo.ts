@@ -13,10 +13,39 @@
  * escribirse acá: una copia se desincroniza sin avisar.
  */
 
+import "dotenv/config"
+
+import { sql } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/node-postgres"
+import { Pool } from "pg"
+
 import { COMISION_PLATAFORMA, COSTO_ENVIO_DOMICILIO, PAGE_SIZE_MAX, RANGOS_PRECISO, comisionPlataforma } from "../lib/catalog"
 
 const BASE = process.env.SIMULAR_BASE_URL ?? "http://localhost:3000"
 const CLAVE = "simulacion123"
+
+/**
+ * Una sola conexión, y solo para envejecer reservas: no hay forma de esperar 48 horas
+ * dentro de una corrida, y ningún endpoint permite hacerlo. Todo lo demás se comprueba
+ * por HTTP contra el servidor, como el resto de la simulación.
+ */
+let pool: Pool | null = null
+
+function baseDeDatos() {
+  if (!pool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("Falta DATABASE_URL en .env, y sin ella no se puede envejecer una reserva")
+    }
+    pool = new Pool({ connectionString: process.env.DATABASE_URL })
+  }
+  return drizzle(pool)
+}
+
+async function cerrarBaseDeDatos(): Promise<void> {
+  if (!pool) return
+  await pool.end()
+  pool = null
+}
 
 type Actor = { nombre: string; email: string; rol: string; cookie: string }
 type Resultado = { ok: boolean; detalle: string }
@@ -45,6 +74,7 @@ type Movimiento = {
   cantidad: number
   stockAnterior: number
   stockResultante: number
+  motivo?: string
   publicacion?: { id: string; titulo: string }
   publicacionId?: string
 }
@@ -104,11 +134,17 @@ function etapa(
 
 async function pedir(
   ruta: string,
-  opciones: { method?: string; cookie?: string; body?: unknown } = {},
+  opciones: {
+    method?: string
+    cookie?: string
+    body?: unknown
+    headers?: Record<string, string>
+  } = {},
 ): Promise<{ status: number; datos: Respuesta; headers: Headers }> {
   const respuesta = await fetch(`${BASE}${ruta}`, {
     method: opciones.method ?? "GET",
     headers: {
+      ...(opciones.headers ?? {}),
       ...(opciones.cookie ? { cookie: opciones.cookie } : {}),
       ...(opciones.body ? { "content-type": "application/json" } : {}),
     },
@@ -779,14 +815,94 @@ etapa("F6 · el perfil marca esVendedor y un ajuste de stock deja rastro", async
 
 // ------------------------------------------------------------ F7 bodega
 
+etapa("F6b · el historial de órdenes se pagina sin perder ninguna", async () => {
+  const todas = await pedir("/api/orders?rol=comprador&porPagina=50", {
+    cookie: actor.comprador1.cookie,
+  })
+  igual(todas.status, 200, "lectura del historial completo")
+  const paginacion = todas.datos.paginacion as {
+    pagina: number
+    porPagina: number
+    total: number
+    paginas: number
+  }
+  const listado = todas.datos.orders as { id: string }[]
+  igual(listado.length, paginacion.total, "la página trae tantas órdenes como el total que anuncia")
+
+  const primera = await pedir("/api/orders?rol=comprador&pagina=1&porPagina=1", {
+    cookie: actor.comprador1.cookie,
+  })
+  igual(primera.status, 200, "primera página de una orden por página")
+  const enUna = primera.datos.orders as { id: string }[]
+  igual(enUna.length, 1, "pedir una orden por página devuelve exactamente una")
+  igual(
+    (primera.datos.paginacion as { paginas: number }).paginas,
+    paginacion.total,
+    "el número de páginas es el total dividido por el tamaño",
+  )
+
+  if (paginacion.total >= 2) {
+    const segunda = await pedir("/api/orders?rol=comprador&pagina=2&porPagina=1", {
+      cookie: actor.comprador1.cookie,
+    })
+    igual(segunda.status, 200, "segunda página de una orden por página")
+    const otra = (segunda.datos.orders as { id: string }[])[0]
+    check(Boolean(otra), "la segunda página vino vacía")
+    check(
+      otra?.id !== enUna[0]?.id,
+      "la segunda página trajo la misma orden que la primera",
+    )
+    // Ninguna página puede repetir lo que ya mostró la anterior.
+    const repetidas = listado.filter((orden) => orden.id === enUna[0]?.id).length
+    igual(repetidas, 1, "la orden de la primera página no aparece repetida en el listado")
+  }
+
+  const disparado = await pedir("/api/orders?rol=comprador&porPagina=9999", {
+    cookie: actor.comprador1.cookie,
+  })
+  check(
+    disparado.status === 400,
+    `un tamaño de página fuera de rango devolvió ${disparado.status} en vez de 400`,
+  )
+
+  return {
+    ok: fallos === 0,
+    detalle: `${paginacion.total} órdenes en ${paginacion.paginas} página(s) de ${paginacion.porPagina}`,
+  }
+})
+
 etapa("F7 · la administración ve las reservadas y las agotadas", async () => {
   const r = await pedir("/api/panel/ordenes?estado=reservada&porPagina=50", {
     cookie: actor.admin.cookie,
   })
   igual(r.status, 200, "lectura de órdenes del panel")
-  const ids = lista<{ id: string }>(r.datos, "ordenes").map((o) => o.id)
+  const filas = lista<{ id: string; vendedor: { nombre: string } }>(r.datos, "ordenes")
+  const ids = filas.map((o) => o.id)
   for (const orden of ordenes) {
     check(ids.includes(orden.id), `la orden ${orden.id} no aparece en el panel`)
+  }
+
+  // El buscador comparte su where con el conteo, y ese where menciona al comprador y
+  // al vendedor: si el conteo no declara los mismos joins, la ruta responde 500 en
+  // cuanto se escribe algo en el buscador.
+  const termino = filas[0]?.vendedor.nombre
+  check(Boolean(termino), "el panel no devolvió el nombre del vendedor para buscar")
+  if (termino) {
+    const buscado = await pedir(
+      `/api/panel/ordenes?estado=reservada&porPagina=50&q=${encodeURIComponent(termino)}`,
+      { cookie: actor.admin.cookie },
+    )
+    igual(buscado.status, 200, "búsqueda de órdenes del panel por nombre")
+    const halladas = lista<{ id: string }>(buscado.datos, "ordenes")
+    check(
+      halladas.some((o) => ids.includes(o.id)),
+      `buscar "${termino}" no devolvió ninguna de las órdenes reservadas`,
+    )
+    const conteo = buscado.datos.paginacion as { total?: number } | undefined
+    check(
+      (conteo?.total ?? 0) > 0,
+      `el conteo del panel no devolvió total para "${termino}": ${String(conteo?.total)}`,
+    )
   }
 
   const bajo = await pedir("/api/panel/publicaciones?orden=stock&porPagina=50", {
@@ -1420,6 +1536,92 @@ etapa("F9b · cancelar una reserva devuelve el stock con entrada auditada", asyn
   return { ok: fallos === 0, detalle: `stock devuelto a ${stockCreado} con entrada auditada` }
 })
 
+// --------------------------------------- F9j vencimiento automático de reservas
+
+etapa("F9j · una reserva vencida vuelve al catálogo con entrada auditada", async () => {
+  const orden = ordenes[2]
+  const publicacion = publicaciones.find((p) => p.id === orden.publicacionId)!
+  const stockCreado = publicacion.stock
+
+  const antes = await pedir(`/api/publications/${orden.publicacionId}`, {
+    cookie: actor.vendedor.cookie,
+  })
+  const stockReservado = (antes.datos.publication as Publicacion).stock
+  igual(stockReservado, stockCreado - 1, "stock reservado antes de que la reserva venza")
+
+  const secreto = process.env.CRON_SECRET
+  check(Boolean(secreto), "CRON_SECRET no está definido en .env, no se puede probar el barrido")
+
+  // Envejecer la fila es lo único que no se puede pedir por la API: no hay forma de
+  // esperar 48 horas dentro de una corrida. El barrido, la devolución del stock y los
+  // avisos se comprueban todos contra el servidor.
+  const db = baseDeDatos()
+  const envejecida = await db.execute(sql`
+    update orders set reserva_expira_en = now() - interval '1 minute'
+    where id = ${orden.id} and estado = 'reservada'`)
+  igual(envejecida.rowCount, 1, "la reserva quedó con el vencimiento en el pasado")
+
+  if (secreto) {
+    const barrido = await pedir("/api/cron/reservas", {
+      headers: { authorization: `Bearer ${secreto}` },
+    })
+    igual(barrido.status, 200, "barrido de reservas vencidas")
+    const canceladas = barrido.datos.canceladas as number | undefined
+    check(
+      typeof canceladas === "number" && canceladas > 0,
+      `el barrido no canceló ninguna reserva vencida: ${String(canceladas)}`,
+    )
+  }
+
+  const despues = await pedir(`/api/publications/${orden.publicacionId}`, {
+    cookie: actor.vendedor.cookie,
+  })
+  igual(
+    (despues.datos.publication as Publicacion).stock,
+    stockCreado,
+    "stock devuelto al vencer la reserva",
+  )
+
+  const historial = await pedir(
+    `/api/panel/movimientos?publicacionId=${orden.publicacionId}&tipo=entrada`,
+    { cookie: actor.admin.cookie },
+  )
+  igual(historial.status, 200, "lectura del movimiento por reserva vencida")
+  const entradas = lista<Movimiento>(historial.datos, "movimientos")
+  const devolucion = entradas.find((m) => m.stockResultante === stockCreado)
+  check(Boolean(devolucion), `ninguna entrada deja el stock en ${stockCreado}`)
+  if (devolucion) {
+    igual(devolucion.stockAnterior, stockReservado, "stock previo en la devolución por vencimiento")
+    igual(devolucion.cantidad, 1, "cantidad devuelta por el vencimiento")
+    check(
+      (devolucion.motivo ?? "").includes("vencida"),
+      `el motivo del movimiento no menciona el vencimiento: ${devolucion.motivo}`,
+    )
+  }
+
+  // El barrido avisa al comprador con el tipo `orden_cancelada`.
+  const afectado =
+    [actor.comprador1, actor.comprador2].find((c) => c.email === orden.compradorEmail) ??
+    actor.comprador2
+  const notificaciones = await pedir("/api/notifications", { cookie: afectado.cookie })
+  igual(
+    notificaciones.status,
+    200,
+    "lectura de notificaciones del comprador con la reserva vencida",
+  )
+  const avisos = lista<{ titulo?: string; datos?: { orderId?: string } }>(
+    notificaciones.datos,
+    "notifications",
+  )
+  check(
+    avisos.some((n) => n.datos?.orderId === orden.id && (n.titulo ?? "").includes("Reserva")),
+    `${afectado.email} no fue avisado de que venció la reserva ${orden.id.slice(0, 8)}`,
+  )
+
+  orden.estado = "cancelada"
+  return { ok: fallos === 0, detalle: `reserva vencida devolvió el stock a ${stockCreado}` }
+})
+
 // ------------------------------------------------- F10 cuadre de inventario
 
 etapa("F10 · el inventario cuadra con los movimientos", async () => {
@@ -1505,6 +1707,96 @@ etapa("F11b · un lector no puede abrir los reportes", async () => {
   return { ok: fallos === 0, detalle: `lector bloqueado (${r.status})` }
 })
 
+// -------------------------------------------- F12 auditoría de las intervenciones
+
+etapa("F12 · una intervención de la administración queda atribuida", async () => {
+  const publicacion = publicaciones[0]
+  const creada = await pedir("/api/orders", {
+    method: "POST",
+    cookie: actor.comprador2.cookie,
+    body: {
+      publicacionId: publicacion.id,
+      datosDespacho: {
+        nombreRecibe: "Comprador Dos",
+        telefono: "+56911110012",
+        metodoEntrega: "coordinar",
+        direccion: null,
+        comuna: "Providencia",
+        region: "Región Metropolitana",
+        puntoRetiro: null,
+      },
+    },
+  })
+  igual(creada.status, 201, "orden reservada para probar la intervención")
+  const orden = creada.datos.order as Orden | undefined
+  if (!orden) return { ok: false, detalle: "no se pudo crear la orden" }
+
+  const push = await pedir(`/api/orders/${orden.id}`, {
+    method: "PATCH",
+    cookie: actor.admin.cookie,
+    body: { estado: "en_preparacion", motivo: "Ajuste de prueba" },
+  })
+  igual(push.status, 200, "la administración mueve una orden que no es suya")
+
+  type Evento = {
+    estadoAnterior: string
+    estadoNuevo: string
+    intervencionAdmin: boolean
+    actorId: string | null
+    actorNombre: string | null
+    motivo: string | null
+  }
+
+  const historial = await pedir(`/api/orders/${orden.id}/events`, {
+    cookie: actor.admin.cookie,
+  })
+  igual(historial.status, 200, "lectura del historial de la orden")
+  const eventos = lista<Evento>(historial.datos, "events")
+
+  const evento = eventos.find((e) => e.estadoNuevo === "en_preparacion")
+  check(Boolean(evento), "el historial no registró el paso a en_preparacion")
+  if (evento) {
+    igual(evento.estadoAnterior, "reservada", "estado anterior en el historial")
+    igual(
+      evento.intervencionAdmin,
+      true,
+      "el cambio quedó marcado como intervención del equipo",
+    )
+    check(Boolean(evento.actorId), "el historial no guarda quién hizo el cambio")
+    check(Boolean(evento.actorNombre), "el historial no resuelve el nombre de quien lo hizo")
+    igual(evento.motivo, "Ajuste de prueba", "el motivo queda guardado en el historial")
+  }
+
+  // El comprador es la contraparte: tiene que ver que el cambio no lo hizo el vendedor.
+  const avisos = await pedir("/api/notifications", { cookie: actor.comprador2.cookie })
+  const notificaciones = avisos.datos.notifications as {
+    tipo?: string
+    titulo?: string
+    datos?: { orderId?: string }
+  }[]
+  const aviso = notificaciones.find((n) => n.datos?.orderId === orden.id)
+  igual(aviso?.tipo, "orden_intervenida", "el aviso al comprador marca la intervención")
+  check(
+    (aviso?.titulo ?? "").includes("intervención"),
+    `el aviso no menciona la intervención: ${aviso?.titulo}`,
+  )
+
+  // El historial no es un informe abierto: un tercero sigue sin poder leerlo.
+  const intruso = await pedir(`/api/orders/${orden.id}/events`, {
+    cookie: actor.comprador1.cookie,
+  })
+  check(
+    intruso.status === 403 || intruso.status === 404,
+    `otro lector obtuvo ${intruso.status} en el historial de una orden ajena`,
+  )
+
+  orden.estado = "en_preparacion"
+  return {
+    ok: fallos === 0,
+    detalle: `${eventos.length} evento(s) en el historial, intervención atribuida`,
+  }
+})
+
 // ------------------------------------------------------------------- corrida
 
 async function main() {
@@ -1536,6 +1828,8 @@ async function main() {
     const marca = fallos === antes ? "ok  " : "FALLA"
     console.log(`  [${marca}] ${nombre}${detalle ? ` — ${detalle}` : ""}`)
   }
+
+  await cerrarBaseDeDatos()
 
   console.log("")
   if (omitidas > 0) {

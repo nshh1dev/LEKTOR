@@ -1,21 +1,47 @@
 import "server-only"
 
 import { after } from "next/server"
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm"
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm"
 import { alias } from "drizzle-orm/pg-core"
 import { db } from "@/db"
-import { chatMessages, notifications, orders, publications, stockMovements, users } from "@/db/schema"
+import { chatMessages, notifications, orderEvents, orders, publications, stockMovements, users } from "@/db/schema"
 import {
   RESERVA_HORAS,
   envioSegunMetodo,
   transicionValida,
   type DatosDespacho,
   type EstadoOrden,
+  type Paginacion,
 } from "@/lib/catalog"
 import { ApiError, type SafeUser } from "@/lib/auth"
 import { ESTADO_ORDEN_LABEL } from "@/lib/format"
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+type EventoDeOrden = {
+  ordenId: string
+  actorId: string | null
+  estadoAnterior: EstadoOrden
+  estadoNuevo: EstadoOrden
+  motivo?: string | null
+  intervencionAdmin?: boolean
+}
+
+/**
+ * Cada cambio de estado deja una fila. Sin esto, que la administración empuje una orden se
+ * ve igual que si lo hizo el vendedor: el movimiento de stock y el aviso existen, pero
+ * ninguno dice quién apretó. Un actor nulo es el barrido automático, no una persona.
+ */
+async function registrarEvento(tx: Tx, evento: EventoDeOrden) {
+  await tx.insert(orderEvents).values({
+    ordenId: evento.ordenId,
+    actorId: evento.actorId,
+    estadoAnterior: evento.estadoAnterior,
+    estadoNuevo: evento.estadoNuevo,
+    motivo: evento.motivo ?? null,
+    intervencionAdmin: evento.intervencionAdmin ?? false,
+  })
+}
 
 const compradorAlias = alias(users, "orden_comprador")
 const vendedorAlias = alias(users, "orden_vendedor")
@@ -141,28 +167,50 @@ export async function createOrder(
   })
 }
 
-export async function listOrders(userId: string, rol: "comprador" | "vendedor") {
-  return db
-    .select({
-      ...orderColumns,
-      comprador: {
-        id: compradorAlias.id,
-        nombre: compradorAlias.nombre,
-        telefono: compradorAlias.telefono,
-        comuna: compradorAlias.comuna,
-      },
-      vendedor: {
-        id: vendedorAlias.id,
-        nombre: vendedorAlias.nombre,
-        telefono: vendedorAlias.telefono,
-        comuna: vendedorAlias.comuna,
-      },
-    })
-    .from(orders)
-    .innerJoin(compradorAlias, eq(orders.compradorId, compradorAlias.id))
-    .innerJoin(vendedorAlias, eq(orders.vendedorId, vendedorAlias.id))
-    .where(rol === "vendedor" ? eq(orders.vendedorId, userId) : eq(orders.compradorId, userId))
-    .orderBy(desc(orders.fechaCreacion))
+export async function listOrders(
+  userId: string,
+  rol: "comprador" | "vendedor",
+  pagina: number,
+  porPagina: number,
+) {
+  const where = rol === "vendedor" ? eq(orders.vendedorId, userId) : eq(orders.compradorId, userId)
+
+  const [filas, [conteo]] = await Promise.all([
+    db
+      .select({
+        ...orderColumns,
+        comprador: {
+          id: compradorAlias.id,
+          nombre: compradorAlias.nombre,
+          telefono: compradorAlias.telefono,
+          comuna: compradorAlias.comuna,
+        },
+        vendedor: {
+          id: vendedorAlias.id,
+          nombre: vendedorAlias.nombre,
+          telefono: vendedorAlias.telefono,
+          comuna: vendedorAlias.comuna,
+        },
+      })
+      .from(orders)
+      .innerJoin(compradorAlias, eq(orders.compradorId, compradorAlias.id))
+      .innerJoin(vendedorAlias, eq(orders.vendedorId, vendedorAlias.id))
+      .where(where)
+      .orderBy(desc(orders.fechaCreacion))
+      .limit(porPagina)
+      .offset((pagina - 1) * porPagina),
+    db.select({ total: count() }).from(orders).where(where),
+  ])
+
+  return {
+    ordenes: filas,
+    paginacion: {
+      pagina,
+      porPagina,
+      total: conteo.total,
+      paginas: Math.max(1, Math.ceil(conteo.total / porPagina)),
+    } satisfies Paginacion,
+  }
 }
 
 export async function getOrderForUser(id: string, user: SafeUser) {
@@ -205,6 +253,30 @@ export async function getOrderForUser(id: string, user: SafeUser) {
   return { ...order, contraparte: isSeller ? comprador : vendedor, vendedor, comprador, publicacion }
 }
 
+/**
+ * Historial de cambios de estado de una orden. Solo lo ven el comprador, el vendedor y la
+ * administración: es el mismo acceso que al detalle, y ahí se apoya para no duplicar reglas.
+ */
+export async function getOrderEvents(id: string, user: SafeUser) {
+  await getOrderForUser(id, user)
+
+  return db
+    .select({
+      id: orderEvents.id,
+      estadoAnterior: orderEvents.estadoAnterior,
+      estadoNuevo: orderEvents.estadoNuevo,
+      motivo: orderEvents.motivo,
+      intervencionAdmin: orderEvents.intervencionAdmin,
+      fechaCreacion: orderEvents.fechaCreacion,
+      actorId: orderEvents.actorId,
+      actorNombre: users.nombre,
+    })
+    .from(orderEvents)
+    .leftJoin(users, eq(orderEvents.actorId, users.id))
+    .where(eq(orderEvents.ordenId, id))
+    .orderBy(asc(orderEvents.fechaCreacion), asc(orderEvents.id))
+}
+
 export async function transitionOrder(
   id: string,
   user: SafeUser,
@@ -226,6 +298,9 @@ export async function transitionOrder(
     if (!isBuyer && !isSeller && !esOperador) {
       throw new ApiError(403, "forbidden", "No tienes acceso a esta orden")
     }
+    // La administración puede empujar una orden, pero si no es parte de la operación su
+    // cambio queda marcado como intervención para que la contraparte no lo crea suyo.
+    const intervencion = esOperador && !isBuyer && !isSeller
 
     if (
       actual.estado === "reservada" &&
@@ -239,6 +314,14 @@ export async function transitionOrder(
         `Reserva ${current.id.slice(0, 8)} vencida`,
       )
       await tx.update(orders).set({ estado: "cancelada" }).where(eq(orders.id, id))
+      await registrarEvento(tx, {
+        ordenId: id,
+        actorId: user.id,
+        estadoAnterior: actual.estado as EstadoOrden,
+        estadoNuevo: "cancelada",
+        motivo: `Reserva ${current.id.slice(0, 8)} vencida`,
+        intervencionAdmin: intervencion,
+      })
       await tx.insert(notifications).values({
         userId: current.compradorId,
         tipo: "orden_cancelada",
@@ -269,21 +352,36 @@ export async function transitionOrder(
 
     await tx.update(orders).set({ estado: siguiente }).where(eq(orders.id, id))
 
+    await registrarEvento(tx, {
+      ordenId: id,
+      actorId: user.id,
+      estadoAnterior: estadoActual,
+      estadoNuevo: siguiente,
+      motivo,
+      intervencionAdmin: intervencion,
+    })
+
     if (siguiente === "cancelada") {
       await releaseStock(
         tx,
         current.publicacionId,
         current.vendedorId,
-        `Orden ${current.id.slice(0, 8)} cancelada`,
+        intervencion
+          ? `Orden ${current.id.slice(0, 8)} cancelada por la administracion`
+          : `Orden ${current.id.slice(0, 8)} cancelada`,
       )
     }
 
     const receiverId = siguiente === "recibida" ? current.vendedorId : current.compradorId
     await tx.insert(notifications).values({
       userId: receiverId,
-      tipo: "orden_actualizada",
-      titulo: `Orden por ${current.tituloSnapshot}: ${ESTADO_ORDEN_LABEL[siguiente]}`,
-      cuerpo: motivo ?? `La orden cambió de estado. Revisa el detalle para coordinar la entrega.`,
+      tipo: intervencion ? "orden_intervenida" : "orden_actualizada",
+      titulo: intervencion
+        ? `Orden por ${current.tituloSnapshot}: ${ESTADO_ORDEN_LABEL[siguiente]} (intervención del equipo)`
+        : `Orden por ${current.tituloSnapshot}: ${ESTADO_ORDEN_LABEL[siguiente]}`,
+      cuerpo: intervencion
+        ? `El equipo de LEKTOR actualizó esta orden a ${ESTADO_ORDEN_LABEL[siguiente]?.toLowerCase() ?? siguiente}. ${motivo ?? "Si no estás de acuerdo, responde al vendedor por el chat de la orden."}`
+        : (motivo ?? `La orden cambió de estado. Revisa el detalle para coordinar la entrega.`),
       datos: { orderId: id },
     })
 
@@ -424,6 +522,13 @@ export async function sweepExpiredReservations() {
         `Reserva ${order.id.slice(0, 8)} vencida`,
       )
       await tx.update(orders).set({ estado: "cancelada" }).where(eq(orders.id, order.id))
+      await registrarEvento(tx, {
+        ordenId: order.id,
+        actorId: null,
+        estadoAnterior: "reservada",
+        estadoNuevo: "cancelada",
+        motivo: `Reserva ${order.id.slice(0, 8)} vencida`,
+      })
       await tx.insert(notifications).values({
         userId: order.compradorId,
         tipo: "orden_cancelada",

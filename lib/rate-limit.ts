@@ -23,18 +23,29 @@ function primeraIp(valor: string | null | undefined): string | null {
   return null
 }
 
+/**
+ * Cabeceras que fija la plataforma cuando hay un proxy delante. Si no hay proxy que las
+ * reescriba, cualquiera puede mandarlas, así que no se leen salvo que `TRUST_PROXY=1`
+ * confirme que el despliegue está detrás de uno.
+ */
+const CABECERAS_DE_PLATAFORMA = [
+  "x-vercel-forwarded-for",
+  "cf-connecting-ip",
+  "fly-client-ip",
+  "x-real-ip",
+]
+
+/**
+ * Sin un proxy declarado no hay ninguna IP creíble: `x-forwarded-for` y `x-real-ip` las
+ * elige el cliente, así que girar una de ellas dejaría sin efecto todos los topes. En ese
+ * caso se devuelve una sola identidad y los límites por IP pasan a ser globales por
+ * proceso, que es el intercambio correcto: peor un tope compartido que uno que no tope.
+ */
 export async function clientIp(): Promise<string> {
   const store = await headers()
-  // Solo los encabezados que fija la plataforma se consideran confiables; x-forwarded-for
-  // es controlado por el cliente y se usa únicamente como último recurso.
-  const confiables = [
-    store.get("x-vercel-forwarded-for"),
-    store.get("cf-connecting-ip"),
-    store.get("fly-client-ip"),
-    store.get("x-real-ip"),
-  ]
-  for (const valor of confiables) {
-    const ip = primeraIp(valor)
+  if (process.env.TRUST_PROXY !== "1") return "desconocido"
+  for (const nombre of CABECERAS_DE_PLATAFORMA) {
+    const ip = primeraIp(store.get(nombre))
     if (ip) return ip
   }
   return primeraIp(store.get("x-forwarded-for")) ?? "desconocido"

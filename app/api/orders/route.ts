@@ -1,15 +1,20 @@
 import { requireSession } from "@/lib/auth"
 import { created, fail, ok } from "@/lib/api"
-import { orderCreateSchema } from "@/lib/catalog"
+import { orderCreateSchema, misOrdenesQuerySchema } from "@/lib/catalog"
 import { createOrder, listOrders, programarBarrido } from "@/lib/orders"
 
 export async function GET(request: Request) {
   try {
     const user = await requireSession()
     programarBarrido()
-    const rol = new URL(request.url).searchParams.get("rol") === "vendedor" ? "vendedor" : "comprador"
-    const orders = await listOrders(user.id, rol)
-    return ok({ orders })
+    const params = new URL(request.url).searchParams
+    const { rol, pagina, porPagina } = misOrdenesQuerySchema.parse({
+      rol: params.get("rol") ?? undefined,
+      pagina: params.get("pagina") ?? undefined,
+      porPagina: params.get("porPagina") ?? undefined,
+    })
+    const { ordenes, paginacion } = await listOrders(user.id, rol, pagina, porPagina)
+    return ok({ orders: ordenes, paginacion })
   } catch (error) {
     return fail(error)
   }
