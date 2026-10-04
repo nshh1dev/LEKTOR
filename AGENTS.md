@@ -19,6 +19,10 @@ LEKTOR es un marketplace entre lectores para comprar y vender mangas, cómics y 
 
 - `db/schema.ts` es la única fuente de verdad del esquema. Tras cambiarlo se ejecuta `pnpm db:generate` y se revisa la migración en `drizzle/`.
 - `lib/` concentra el dominio: `auth.ts` (sesiones y roles), `catalog.ts` (constantes, esquemas Zod y `TRANSICIONES_ORDEN`), `orders.ts` (operaciones de orden sobre la base), `panel.ts` (consultas del panel), `avisos.ts` (vocabulario de avisos), `reviews.ts` (valoraciones verificadas de solo estrellas: crear, editar, moderar y recalcular promedios, con el `orderId` opcional para anclar la reseña a la compra recibida), `sellers.ts` (perfil público del vendedor), `conversaciones.ts` (contacto previo antes de la compra: abrir, responder, listar y leer hilos), `isbn.ts`, `entrada.ts` (máscaras de precio y teléfono), `format.ts`, `pago.ts` (formato, Luhn y vigencia de tarjeta), `api.ts` (respuestas y errores HTTP), `rate-limit.ts` (límite de intentos por IP).
+- **Auditoría de órdenes**: cada cambio de estado deja una fila en `order_events` (`ordenId`, `actorId`, `estadoAnterior`, `estadoNuevo`, `motivo`, `intervencionAdmin`). Se escribe en `registrarEvento` (`lib/orders.ts`), dentro de la misma transacción que el cambio, y se lee en `GET /api/orders/[id]/events`, que solo abre a comprador, vendedor y administración. Tres reglas:
+  - `actorId` nulo significa que no hubo persona detrás: es el barrido de reservas vencidas (`sweepExpiredReservations`). Atribuirlo al vendedor sería inventar un autor.
+  - `intervencionAdmin` marca el caso que no se puede leer en la orden misma: la administración (`user.rol === "admin"`) que no es ni compradora ni vendedora. En ese caso el aviso a la contraparte usa el tipo `orden_intervenida` y lo dice en el título, y el motivo del movimiento de stock dice `cancelada por la administracion`.
+  - El seed deja las órdenes que crea sin historial, porque sus estados son anteriores a la tabla. No es un hueco del código.
 - `scripts/seed.ts` es idempotente: debe poder ejecutarse varias veces sin duplicar datos.
 - Conexión por `DATABASE_URL` (ver `.env.example`).
 
