@@ -1505,6 +1505,96 @@ etapa("F11b · un lector no puede abrir los reportes", async () => {
   return { ok: fallos === 0, detalle: `lector bloqueado (${r.status})` }
 })
 
+// -------------------------------------------- F12 auditoría de las intervenciones
+
+etapa("F12 · una intervención de la administración queda atribuida", async () => {
+  const publicacion = publicaciones[0]
+  const creada = await pedir("/api/orders", {
+    method: "POST",
+    cookie: actor.comprador2.cookie,
+    body: {
+      publicacionId: publicacion.id,
+      datosDespacho: {
+        nombreRecibe: "Comprador Dos",
+        telefono: "+56911110012",
+        metodoEntrega: "coordinar",
+        direccion: null,
+        comuna: "Providencia",
+        region: "Región Metropolitana",
+        puntoRetiro: null,
+      },
+    },
+  })
+  igual(creada.status, 201, "orden reservada para probar la intervención")
+  const orden = creada.datos.order as Orden | undefined
+  if (!orden) return { ok: false, detalle: "no se pudo crear la orden" }
+
+  const push = await pedir(`/api/orders/${orden.id}`, {
+    method: "PATCH",
+    cookie: actor.admin.cookie,
+    body: { estado: "en_preparacion", motivo: "Ajuste de prueba" },
+  })
+  igual(push.status, 200, "la administración mueve una orden que no es suya")
+
+  type Evento = {
+    estadoAnterior: string
+    estadoNuevo: string
+    intervencionAdmin: boolean
+    actorId: string | null
+    actorNombre: string | null
+    motivo: string | null
+  }
+
+  const historial = await pedir(`/api/orders/${orden.id}/events`, {
+    cookie: actor.admin.cookie,
+  })
+  igual(historial.status, 200, "lectura del historial de la orden")
+  const eventos = lista<Evento>(historial.datos, "events")
+
+  const evento = eventos.find((e) => e.estadoNuevo === "en_preparacion")
+  check(Boolean(evento), "el historial no registró el paso a en_preparacion")
+  if (evento) {
+    igual(evento.estadoAnterior, "reservada", "estado anterior en el historial")
+    igual(
+      evento.intervencionAdmin,
+      true,
+      "el cambio quedó marcado como intervención del equipo",
+    )
+    check(Boolean(evento.actorId), "el historial no guarda quién hizo el cambio")
+    check(Boolean(evento.actorNombre), "el historial no resuelve el nombre de quien lo hizo")
+    igual(evento.motivo, "Ajuste de prueba", "el motivo queda guardado en el historial")
+  }
+
+  // El comprador es la contraparte: tiene que ver que el cambio no lo hizo el vendedor.
+  const avisos = await pedir("/api/notifications", { cookie: actor.comprador2.cookie })
+  const notificaciones = avisos.datos.notifications as {
+    tipo?: string
+    titulo?: string
+    datos?: { orderId?: string }
+  }[]
+  const aviso = notificaciones.find((n) => n.datos?.orderId === orden.id)
+  igual(aviso?.tipo, "orden_intervenida", "el aviso al comprador marca la intervención")
+  check(
+    (aviso?.titulo ?? "").includes("intervención"),
+    `el aviso no menciona la intervención: ${aviso?.titulo}`,
+  )
+
+  // El historial no es un informe abierto: un tercero sigue sin poder leerlo.
+  const intruso = await pedir(`/api/orders/${orden.id}/events`, {
+    cookie: actor.comprador1.cookie,
+  })
+  check(
+    intruso.status === 403 || intruso.status === 404,
+    `otro lector obtuvo ${intruso.status} en el historial de una orden ajena`,
+  )
+
+  orden.estado = "en_preparacion"
+  return {
+    ok: fallos === 0,
+    detalle: `${eventos.length} evento(s) en el historial, intervención atribuida`,
+  }
+})
+
 // ------------------------------------------------------------------- corrida
 
 async function main() {
