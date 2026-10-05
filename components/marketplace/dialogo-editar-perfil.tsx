@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Image from "next/image"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { KeyRound, LoaderCircle, UserPen } from "lucide-react"
@@ -28,6 +29,10 @@ import {
 import { formatearTelefono } from "@/lib/entrada"
 import { api } from "@/components/marketplace/api"
 import { MensajeError } from "@/components/marketplace/shared"
+
+/** Etiqueta de campo en versalitas, como los rótulos del resto del marketplace. */
+const ETIQUETA =
+  "text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted-foreground"
 
 /**
  * "Editar perfil" del perfil del lector: los datos que ve la contraparte (nombre, bio,
@@ -143,117 +148,166 @@ export function DialogoEditarPerfil({
     }
   }
 
+  const iniciales = (perfil?.nombre ?? nombreActual).slice(0, 2).toUpperCase()
+  const ubicacion = [perfil?.comuna, perfil?.region].filter(Boolean).join(", ")
+
   return (
     <Dialog open={abierto} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
-        <DialogHeader className="border-b border-border/60 p-6 pb-4">
-          <DialogTitle>Editar perfil</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="sombra-tomo flex max-h-[85vh] flex-col gap-0 overflow-hidden rounded-xl border border-border/70 bg-card p-0 sm:max-w-lg">
+        <DialogHeader className="papel gap-3.5 bg-muted/40 p-6 pr-14 pb-5">
+          <div className="flex items-center gap-3.5">
+            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary font-serif text-sm font-semibold text-primary-foreground ring-1 ring-oro/40">
+              {perfil?.avatarUrl ? (
+                <Image
+                  src={perfil.avatarUrl}
+                  alt=""
+                  width={48}
+                  height={48}
+                  className="size-full object-cover"
+                  unoptimized
+                />
+              ) : (
+                iniciales
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="rotulo text-oro/80">Tu ficha</p>
+              <DialogTitle className="mt-1 truncate font-serif text-xl font-semibold tracking-tight">
+                {perfil?.nombre ?? nombreActual}
+              </DialogTitle>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {ubicacion || "Sin ubicación"}
+              </p>
+            </div>
+          </div>
+          <DialogDescription className="text-[0.8125rem] leading-relaxed text-muted-foreground">
             Estos datos son los que ven los compradores cuando coordinan la entrega.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
-          <form id="perfil-datos" onSubmit={guardarPerfil} className="grid gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-1 md:col-span-2">
-              <Label htmlFor="perfil-nombre">Nombre visible</Label>
-              <Input aria-invalid={errors.nombre ? true : undefined} aria-describedby={errors.nombre ? "nombre-error" : undefined} id="perfil-nombre" {...register("nombre")} />
-              <MensajeError campo="nombre" mensaje={errors.nombre?.message} />
-            </div>
-            <div className="flex flex-col gap-1 md:col-span-2">
-              <Label htmlFor="perfil-bio">Bio</Label>
-              <Textarea aria-invalid={errors.bio ? true : undefined} aria-describedby={errors.bio ? "bio-error" : undefined} id="perfil-bio" rows={2} placeholder="Coleccionista de mangas, compro sellados y los intercambio" {...register("bio")} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="perfil-telefono">Teléfono de contacto</Label>
-              <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" inputMode="tel" autoComplete="tel" placeholder="+56 9 1234 5678" className="font-mono" value={telefonoActual ?? ""} onChange={(event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: true })} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="perfil-comuna">Comuna</Label>
-              <Input aria-invalid={errors.comuna ? true : undefined} aria-describedby={errors.comuna ? "comuna-error" : undefined} id="perfil-comuna" placeholder="Providencia" {...register("comuna")} />
-            </div>
-            <div className="flex flex-col gap-1 md:col-span-2">
-              <Label htmlFor="perfil-region">Región</Label>
-              <Select value={regionActual ?? ""} onValueChange={(value) => setValue("region", value, { shouldValidate: true })}>
-                <SelectTrigger id="perfil-region" className="w-full">
-                  <SelectValue placeholder="Selecciona tu región" />
-                </SelectTrigger>
-                <SelectContent>
-                  {REGIONES.map((region) => (
-                    <SelectItem key={region} value={region}>
-                      {region}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <div className="filete shrink-0" />
+
+        <div className="scrollbar-fina flex flex-1 flex-col gap-7 overflow-y-auto p-6">
+          <form
+            id="perfil-datos"
+            onSubmit={guardarPerfil}
+            className="flex flex-col gap-4"
+            aria-label="Datos del perfil"
+          >
+            <p className="rotulo text-oro/80">Datos</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <Label className={ETIQUETA} htmlFor="perfil-nombre">Nombre visible</Label>
+                <Input aria-invalid={errors.nombre ? true : undefined} aria-describedby={errors.nombre ? "nombre-error" : undefined} id="perfil-nombre" {...register("nombre")} />
+                <MensajeError campo="nombre" mensaje={errors.nombre?.message} />
+              </div>
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <Label className={ETIQUETA} htmlFor="perfil-bio">Bio</Label>
+                <Textarea aria-invalid={errors.bio ? true : undefined} aria-describedby={errors.bio ? "bio-error" : undefined} id="perfil-bio" rows={2} placeholder="Coleccionista de mangas, compro sellados y los intercambio" {...register("bio")} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className={ETIQUETA} htmlFor="perfil-telefono">Teléfono de contacto</Label>
+                <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" inputMode="tel" autoComplete="tel" placeholder="+56 9 1234 5678" className="font-mono" value={telefonoActual ?? ""} onChange={(event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: true })} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className={ETIQUETA} htmlFor="perfil-comuna">Comuna</Label>
+                <Input aria-invalid={errors.comuna ? true : undefined} aria-describedby={errors.comuna ? "comuna-error" : undefined} id="perfil-comuna" placeholder="Providencia" {...register("comuna")} />
+              </div>
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <Label className={ETIQUETA} htmlFor="perfil-region">Región</Label>
+                <Select value={regionActual ?? ""} onValueChange={(value) => setValue("region", value, { shouldValidate: true })}>
+                  <SelectTrigger id="perfil-region" className="w-full">
+                    <SelectValue placeholder="Selecciona tu región" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REGIONES.map((region) => (
+                      <SelectItem key={region} value={region}>
+                        {region}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </form>
 
-          <form onSubmit={cambiarClave} className="grid gap-4 border-t border-border/60 pt-6 md:grid-cols-2">
-            <div className="flex flex-col gap-1 md:col-span-2">
-              <h3 className="flex items-center gap-2 text-base font-semibold">
-                <KeyRound className="size-4" /> Seguridad
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Al cambiar la contraseña se cerrará tu sesión en este dispositivo.
-              </p>
+          <div className="filete" />
+
+          <form onSubmit={cambiarClave} className="flex flex-col gap-4" aria-label="Seguridad">
+            <div className="flex items-start gap-3">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-oro/15 text-oro">
+                <KeyRound className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="rotulo text-oro/80">Seguridad</p>
+                <p className="mt-1 text-[0.8125rem] leading-relaxed text-muted-foreground">
+                  Al cambiar la contraseña se cerrará tu sesión en este dispositivo.
+                </p>
+              </div>
             </div>
-            <div className="flex flex-col gap-1 md:col-span-2">
-              <Label htmlFor="clave-actual">Contraseña actual</Label>
-              <Input
-                id="clave-actual"
-                type="password"
-                autoComplete="current-password"
-                value={clave.actual}
-                onChange={(event) => setClave((valor) => ({ ...valor, actual: event.target.value }))}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="clave-nueva">Nueva contraseña</Label>
-              <Input
-                id="clave-nueva"
-                type="password"
-                autoComplete="new-password"
-                minLength={6}
-                value={clave.nueva}
-                onChange={(event) => setClave((valor) => ({ ...valor, nueva: event.target.value }))}
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label htmlFor="clave-confirmar">Repite la nueva contraseña</Label>
-              <Input
-                id="clave-confirmar"
-                type="password"
-                autoComplete="new-password"
-                minLength={6}
-                value={clave.confirmar}
-                onChange={(event) => setClave((valor) => ({ ...valor, confirmar: event.target.value }))}
-                required
-              />
-            </div>
-            <div className="flex justify-end md:col-span-2">
-              <Button
-                type="submit"
-                variant="outline"
-                className="rounded-xl"
-                disabled={cambiandoClave}
-              >
-                {cambiandoClave && <LoaderCircle className="size-4 animate-spin" />} Cambiar contraseña
-              </Button>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <Label className={ETIQUETA} htmlFor="clave-actual">Contraseña actual</Label>
+                <Input
+                  id="clave-actual"
+                  type="password"
+                  autoComplete="current-password"
+                  className="font-mono"
+                  value={clave.actual}
+                  onChange={(event) => setClave((valor) => ({ ...valor, actual: event.target.value }))}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className={ETIQUETA} htmlFor="clave-nueva">Nueva contraseña</Label>
+                <Input
+                  id="clave-nueva"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={6}
+                  className="font-mono"
+                  value={clave.nueva}
+                  onChange={(event) => setClave((valor) => ({ ...valor, nueva: event.target.value }))}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className={ETIQUETA} htmlFor="clave-confirmar">Repite la nueva contraseña</Label>
+                <Input
+                  id="clave-confirmar"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={6}
+                  className="font-mono"
+                  value={clave.confirmar}
+                  onChange={(event) => setClave((valor) => ({ ...valor, confirmar: event.target.value }))}
+                  required
+                />
+              </div>
+              <div className="flex justify-end md:col-span-2">
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="rounded-lg"
+                  disabled={cambiandoClave}
+                >
+                  {cambiandoClave && <LoaderCircle className="size-4 animate-spin" />} Cambiar contraseña
+                </Button>
+              </div>
             </div>
           </form>
         </div>
 
-        <DialogFooter className="border-t border-border/60 bg-muted/30 p-4">
-          <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
+        <div className="filete shrink-0" />
+
+        <DialogFooter className="bg-muted/40 p-4">
+          <Button variant="ghost" className="rounded-lg" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button
             type="submit"
             form="perfil-datos"
-            className="rounded-xl"
+            className="rounded-lg bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
             disabled={guardando}
           >
             {guardando ? (
