@@ -7,10 +7,11 @@ import { gruposComunas, regionDeComuna, type Region } from "@/lib/comunas"
 import { cn } from "@/lib/utils"
 
 /**
- * Campo de comuna con el índice del país: al abrirlo se ven todas las comunas separadas
- * por región, con la de la región elegida arriba. Al elegir una, o al salir del campo con
- * una comuna escrita, la región se completa sola. El campo sigue siendo texto libre: el
- * catálogo propone, no bloquea, porque una comuna escrita a mano también tiene que servir.
+ * Campo de comuna con el índice del país: con región elegida se abre el de esa región —de 21
+ * a 58 comunas, no las 346 del país— y sin ella, todas separadas por región. Al elegir una, o
+ * al salir del campo con una comuna escrita, la región se completa sola. El campo sigue siendo
+ * texto libre: el catálogo propone, no bloquea, porque una comuna escrita a mano también tiene
+ * que servir.
  *
  * El índice va en el flujo del formulario y no en un popover portalizado: dentro de un
  * diálogo modal, la lista flotante queda fuera del área que el diálogo deja desplazar y
@@ -103,11 +104,8 @@ export function ComunaInput({
           setActivo(0)
           setAbierto(true)
         }}
-        onClick={() => setAbierto((estado) => !estado)}
-        onFocus={(event) => {
-          // Solo con el teclado: con el mouse el clic abre el índice por su cuenta.
-          if (event.target.matches(":focus-visible")) setAbierto(true)
-        }}
+        onClick={() => setAbierto(true)}
+        onFocus={() => setAbierto(true)}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
             event.preventDefault()

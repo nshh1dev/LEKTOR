@@ -135,10 +135,13 @@ export type GrupoComunas = {
 }
 
 /**
- * El índice de comunas del campo: todas las del país, separadas por región y con el
- * nombre de la región arriba de cada bloque. Escrito algo, se filtra por ese texto
- * —sin tildes ni mayúsculas— y se recortan los grupos que quedan sin coincidencias. Con
- * la región elegida, su grupo va primero: es el que se está eligiendo.
+ * El índice de comunas del campo. Con región elegida se abre el de esa región: son de 21 a
+ * 58 comunas, no las 346 del país, y es lo que la persona está eligiendo. Sin región, se
+ * muestran todas separadas por región, porque todavía no se sabe dónde está.
+ *
+ * Escrito algo, se filtra por ese texto —sin tildes ni mayúsculas—, se recortan los bloques
+ * que quedan sin coincidencias y se limita el total. Si en la región elegida no aparece nada,
+ * se propone lo que hay en las demás: buscar una comuna es buscar en el país.
  */
 export function gruposComunas(
   texto: string,
@@ -146,9 +149,24 @@ export function gruposComunas(
   limite = 8,
 ): GrupoComunas[] {
   const busca = normalizar(texto)
-  const grupos: GrupoComunas[] = []
+  // Una región que no está en el catálogo no acota nada: se cae al país entero, que es mejor
+  // que una lista vacía.
+  const elegida = REGIONES.find((nombre) => nombre === region) ?? null
 
-  for (const nombre of REGIONES) {
+  const propias = bloques(elegida ? [elegida] : REGIONES, busca)
+  if (!elegida || propias.length > 0) return busca === "" ? propias : recortar(propias, limite)
+
+  const otras = bloques(
+    REGIONES.filter((nombre) => nombre !== elegida),
+    busca,
+  )
+  return recortar(otras, limite)
+}
+
+/** Un bloque por región, con sus comunas ya filtradas por el texto escrito. */
+function bloques(regiones: readonly Region[], busca: string): GrupoComunas[] {
+  const grupos: GrupoComunas[] = []
+  for (const nombre of regiones) {
     const candidatas = COMUNAS_POR_REGION[nombre].filter(
       (comuna) => busca === "" || normalizar(comuna).includes(busca),
     )
@@ -161,16 +179,11 @@ export function gruposComunas(
     }
     grupos.push({ region: nombre, comunas: candidatas })
   }
+  return grupos
+}
 
-  if (region) {
-    const indice = grupos.findIndex((grupo) => grupo.region === region)
-    if (indice > 0) grupos.unshift(...grupos.splice(indice, 1))
-  }
-
-  if (busca === "") return grupos
-
-  // Con texto escrito el país entero no cabe en una lista: se recorta el total y cada
-  // bloque se lleva lo que queda, para que el resultado de otra región no desaparezca.
+/** El país entero no cabe en una lista: se recorta el total y cada bloque se lleva lo que queda. */
+function recortar(grupos: GrupoComunas[], limite: number): GrupoComunas[] {
   const recortados: GrupoComunas[] = []
   let restantes = limite
   for (const grupo of grupos) {

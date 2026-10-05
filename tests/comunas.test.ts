@@ -28,15 +28,17 @@ test("el índice muestra todas las comunas del país separadas por región", () 
   assert.equal(total, 346)
 })
 
-test("la región elegida pone su bloque arriba del índice", () => {
-  // Es el bloque que se está eligiendo: si quedara entre los otros, habría que recorrer
-  // el país entero para llegar.
+test("la región elegida acota el índice a sus propias comunas", () => {
+  // Con la región ya decidida la lista es la de esa región: de 21 a 58 comunas, no las 346
+  // del país, que obligaban a recorrer el país entero para llegar a la que se busca.
   const grupos = gruposComunas("", "Región del Ñuble")
+  assert.equal(grupos.length, 1)
   assert.equal(grupos[0].region, "Región del Ñuble")
+  assert.deepEqual(grupos[0].comunas, [...COMUNAS_POR_REGION["Región del Ñuble"]])
   assert.ok(grupos[0].comunas.includes("Chillán"))
-  assert.equal(grupos.length, 16)
-  // Sin región elegida el orden es el del catálogo, sin nada movido de lugar.
-  assert.equal(gruposComunas("", "Región que no existe")[0].region, REGIONES[0])
+  // Sin región elegida el índice es el del país entero, en el orden del catálogo.
+  assert.equal(gruposComunas("", null)[0].region, REGIONES[0])
+  assert.equal(gruposComunas("", "Región que no existe").length, 16)
 })
 
 test("escribir filtra por el texto sin depender de tildes ni mayúsculas", () => {
@@ -51,6 +53,18 @@ test("escribir filtra por el texto sin depender de tildes ni mayúsculas", () =>
 test("los bloques que se quedan sin coincidencias no aparecen", () => {
   assert.deepEqual(gruposComunas("ñuble", null), [])
   assert.deepEqual(gruposComunas("NoExiste", "Región de Tarapacá"), [])
+})
+
+test("con región elegida, escribir una comuna de otra región la propone igual", () => {
+  // Buscar una comuna es buscar en el país: si lo escrito no está en la región elegida, la
+  // lista ofrece las coincidencias de las demás en vez de quedarse vacía.
+  assert.deepEqual(gruposComunas("Valparaíso", "Región Metropolitana"), [
+    { region: "Región de Valparaíso", comunas: ["Valparaíso"] },
+  ])
+  // Y si sí está en la región elegida, solo aparecen las de esa región.
+  assert.deepEqual(gruposComunas("Maipú", "Región Metropolitana"), [
+    { region: "Región Metropolitana", comunas: ["Maipú"] },
+  ])
 })
 
 test("mientras se escribe recorta el total y pone primero lo que empieza por lo escrito", () => {
