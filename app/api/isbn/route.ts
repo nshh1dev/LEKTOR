@@ -5,6 +5,7 @@ import { ApiError, requireSession } from "@/lib/auth"
 import { fail, jsonError, ok } from "@/lib/api"
 import { isValidIsbn, normalizeIsbn, toIsbn13 } from "@/lib/isbn"
 import { clientIp, limiteExcedido, rateLimit } from "@/lib/rate-limit"
+import { traducirAlEspanol } from "@/lib/traducir"
 
 const CACHE_DIAS = 30
 const OPEN_LIBRARY_URL = "https://openlibrary.org/search.json"
@@ -102,7 +103,19 @@ export async function GET(request: Request) {
       )
     }
 
-    const registro = { ...book, isbn, consultadoEn: new Date() }
+    const traducidos = await Promise.all([
+      traducirAlEspanol(book.titulo),
+      traducirAlEspanol(book.autor),
+      traducirAlEspanol(book.editorial),
+    ])
+    const registro = {
+      ...book,
+      titulo: traducidos[0],
+      autor: traducidos[1],
+      editorial: traducidos[2],
+      isbn,
+      consultadoEn: new Date(),
+    }
 
     await db
       .insert(bookMetadata)
