@@ -36,7 +36,7 @@ ni la base ni el dev server; `pnpm simular` necesita ambos.
 ## Estructura de datos
 
 - `db/schema.ts` es la única fuente de verdad del esquema. Tras cambiarlo se ejecuta `pnpm db:generate` y se revisa la migración en `drizzle/`.
-- `lib/` concentra el dominio: `auth.ts` (sesiones y roles), `catalog.ts` (constantes, esquemas Zod y `TRANSICIONES_ORDEN`), `orders.ts` (operaciones de orden sobre la base), `panel.ts` (consultas del panel), `avisos.ts` (vocabulario de avisos), `reviews.ts` (valoraciones verificadas de solo estrellas: crear, editar, moderar y recalcular promedios, con el `orderId` opcional para anclar la reseña a la compra recibida), `sellers.ts` (perfil público del vendedor), `conversaciones.ts` (contacto previo antes de la compra: abrir, responder, listar y leer hilos), `isbn.ts`, `entrada.ts` (máscaras de precio y teléfono), `format.ts`, `pago.ts` (formato, Luhn y vigencia de tarjeta), `api.ts` (respuestas y errores HTTP), `rate-limit.ts` (límite de intentos por IP).
+- `lib/` concentra el dominio: `auth.ts` (sesiones y roles), `catalog.ts` (constantes, esquemas Zod y `TRANSICIONES_ORDEN`), `orders.ts` (operaciones de orden sobre la base), `panel.ts` (consultas del panel), `avisos.ts` (vocabulario de avisos), `reviews.ts` (valoraciones verificadas de solo estrellas: crear, editar, moderar y recalcular promedios, con el `orderId` opcional para anclar la reseña a la compra recibida), `sellers.ts` (perfil público del vendedor), `conversaciones.ts` (contacto previo antes de la compra: abrir, responder, listar y leer hilos), `isbn.ts`, `entrada.ts` (máscaras de precio y teléfono), `comunas.ts` (las 346 comunas por región para sugerir y deducir la región), `format.ts`, `pago.ts` (formato, Luhn y vigencia de tarjeta), `api.ts` (respuestas y errores HTTP), `rate-limit.ts` (límite de intentos por IP).
 - **Auditoría de órdenes**: cada cambio de estado deja una fila en `order_events` (`ordenId`, `actorId`, `estadoAnterior`, `estadoNuevo`, `motivo`, `intervencionAdmin`). Se escribe en `registrarEvento` (`lib/orders.ts`), dentro de la misma transacción que el cambio, y se lee en `GET /api/orders/[id]/events`, que solo abre a comprador, vendedor y administración. Tres reglas:
   - `actorId` nulo significa que no hubo persona detrás: es el barrido de reservas vencidas (`sweepExpiredReservations`). Atribuirlo al vendedor sería inventar un autor.
   - `intervencionAdmin` marca el caso que no se puede leer en la orden misma: la administración (`user.rol === "admin"`) que no es ni compradora ni vendedora. En ese caso el aviso a la contraparte usa el tipo `orden_intervenida` y lo dice en el título, y el motivo del movimiento de stock dice `cancelada por la administracion`.
@@ -62,7 +62,7 @@ ni la base ni el dev server; `pnpm simular` necesita ambos.
 - TypeScript estricto y tipado explícito donde aporte claridad.
 - Usar los componentes base de `components/ui` (shadcn/ui) y no reimplementarlos.
 - Colocar componentes por área:
-  - `components/marketplace/` — vistas del marketplace público (`catalog-view`, `detail-view`, `sell-view`, `checkout-view`, `pago-view`, `profile-view`, `seller-view`, `auth-view`, `order-card`, `product-card`, `dialogo-contacto`, `filter-index`, `hero`) más `types.ts`, `api.ts` y `shared.tsx`. El shell que las coordina sigue en `components/lektor-marketplace.tsx`.
+  - `components/marketplace/` — vistas del marketplace público (`catalog-view`, `detail-view`, `sell-view`, `checkout-view`, `pago-view`, `profile-view`, `seller-view`, `auth-view`, `order-card`, `product-card`, `dialogo-contacto`, `dialogo-editar-perfil`, `comuna-input`, `filter-index`, `hero`) más `types.ts`, `api.ts` y `shared.tsx`. El shell que las coordina sigue en `components/lektor-marketplace.tsx`.
   - `components/notificacion/` — sistema único de avisos: `avisar.tsx` (toasts), `avisos.tsx` (bloques en línea y lista de datos faltantes), `sello.tsx` (sello estampado), `toaster.tsx` y `confirmar-accion.tsx`.
   - `components/escaner-isbn.tsx` — lector de ISBN por cámara, compartido por `sell-view` y el escáner del panel.
   - `components/admin/` — shell del panel.
@@ -140,7 +140,7 @@ ni la base ni el dev server; `pnpm simular` necesita ambos.
   formatear en vivo, el `Input` va como `type="text"` con `inputMode="numeric"` y el `onChange` de
   React Hook Form vuelve a escribir con `setValue`; no se usa `valueAsNumber` en campos formateados.
 - Las pruebas viven en `tests/` y usan el runner nativo de Node con `tsx` (`node --import tsx --test`).
-  Cubren el dominio puro (`lib/isbn.ts`, `lib/format.ts`, `lib/catalog.ts`, `lib/entrada.ts`, `lib/pago.ts`, `lib/avisos.ts`, `lib/rate-limit-store.ts`,
+  Cubren el dominio puro (`lib/isbn.ts`, `lib/format.ts`, `lib/catalog.ts`, `lib/entrada.ts`, `lib/comunas.ts`, `lib/pago.ts`, `lib/avisos.ts`, `lib/rate-limit-store.ts`,
   `lib/panel-sql.ts`) y un guardián de codificación; lo que depende de Next o de la base de datos se
   prueba con `pnpm simular`, que hace peticiones reales contra el dev server.
 - `scripts/simular-flujo.ts` (`pnpm simular`) es la puerta de calidad de los flujos: necesita

@@ -27,7 +27,9 @@ import {
   type PerfilUI,
 } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
+import { regionDeComuna } from "@/lib/comunas"
 import { api } from "@/components/marketplace/api"
+import { ComunaInput } from "@/components/marketplace/comuna-input"
 import { MensajeError } from "@/components/marketplace/shared"
 
 /** Etiqueta de campo en versalitas, como los rótulos del resto del marketplace. */
@@ -72,6 +74,7 @@ export function DialogoEditarPerfil({
   })
 
   const regionActual = useWatch({ control, name: "region" })
+  const comunaActual = useWatch({ control, name: "comuna" })
   const telefonoActual = useWatch({ control, name: "telefono" })
 
   // El diálogo siempre abre con lo que hay guardado: se resetea al abrir y no con cada
@@ -204,18 +207,39 @@ export function DialogoEditarPerfil({
               <div className="flex flex-col gap-1.5 md:col-span-2">
                 <Label className={ETIQUETA} htmlFor="perfil-bio">Bio</Label>
                 <Textarea aria-invalid={errors.bio ? true : undefined} aria-describedby={errors.bio ? "bio-error" : undefined} id="perfil-bio" rows={2} placeholder="Coleccionista de mangas, compro sellados y los intercambio" {...register("bio")} />
+                <MensajeError campo="bio" mensaje={errors.bio?.message} />
               </div>
               <div className="flex flex-col gap-1.5 md:col-span-2">
                 <Label className={ETIQUETA} htmlFor="perfil-telefono">Teléfono de contacto</Label>
                 <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" inputMode="tel" autoComplete="tel" placeholder="+56 9 1234 5678" className="font-mono" value={telefonoActual ?? ""} onChange={(event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: true })} />
+                <MensajeError campo="telefono" mensaje={errors.telefono?.message} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className={ETIQUETA} htmlFor="perfil-comuna">Comuna</Label>
-                <Input aria-invalid={errors.comuna ? true : undefined} aria-describedby={errors.comuna ? "comuna-error" : undefined} id="perfil-comuna" placeholder="Providencia" {...register("comuna")} />
+                <ComunaInput
+                  describedBy={errors.comuna ? "comuna-error" : undefined}
+                  id="perfil-comuna"
+                  invalid={errors.comuna ? true : undefined}
+                  onRegionSugerida={(value) => setValue("region", value, { shouldValidate: true })}
+                  onValueChange={(valor) => setValue("comuna", valor, { shouldValidate: true })}
+                  placeholder="Providencia"
+                  region={regionActual}
+                  value={comunaActual ?? ""}
+                />
+                <MensajeError campo="comuna" mensaje={errors.comuna?.message} />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label className={ETIQUETA} htmlFor="perfil-region">Región</Label>
-                <Select value={regionActual ?? ""} onValueChange={(value) => setValue("region", value, { shouldValidate: true })}>
+                <Select
+                  value={regionActual ?? ""}
+                  onValueChange={(value) => {
+                    // La comuna escrita manda: si pertenece a otra región se limpia, para no
+                    // guardar una pareja que el catálogo no reconoce.
+                    const regionDeLaComuna = regionDeComuna(comunaActual ?? "")
+                    if (regionDeLaComuna && regionDeLaComuna !== value) setValue("comuna", "")
+                    setValue("region", value, { shouldValidate: true })
+                  }}
+                >
                   <SelectTrigger id="perfil-region" className="w-full">
                     <SelectValue placeholder="Selecciona tu región" />
                   </SelectTrigger>
