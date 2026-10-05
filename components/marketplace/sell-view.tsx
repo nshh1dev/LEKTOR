@@ -192,7 +192,9 @@ export function PublicarView({
           titulo:
             data.libro.fuente === "google-books"
               ? "Datos encontrados en Google Books"
-              : "Datos encontrados en Open Library",
+              : data.libro.fuente === "openbd"
+                ? "Datos encontrados en OpenBD"
+                : "Datos encontrados en Open Library",
           descripcion: "Revisa y completa la condición física antes de publicar.",
           referencia: `ISBN ${limpio}`,
         })

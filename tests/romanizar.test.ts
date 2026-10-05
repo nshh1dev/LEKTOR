@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { contieneNoLatino } from "../lib/romanizar"
 import { urlGoogleBooks } from "../lib/google-books"
+import { urlOpenBd } from "../lib/openbd"
 
 test("detecta escritura japonesa, coreana, china, cirílica y árabe", () => {
   assert.equal(contieneNoLatino("進撃の巨人"), true)
@@ -24,4 +25,10 @@ test("la URL de Google Books busca por ISBN en inglés", () => {
   const url = new URL(urlGoogleBooks("9784065127001"))
   assert.equal(url.searchParams.get("q"), "isbn:9784065127001")
   assert.equal(url.searchParams.get("langRestrict"), "en")
+})
+
+test("la URL de OpenBD pide el ISBN directamente", () => {
+  const url = new URL(urlOpenBd("9784065133984"))
+  assert.equal(url.searchParams.get("isbn"), "9784065133984")
+  assert.equal(url.hostname, "api.openbd.jp")
 })

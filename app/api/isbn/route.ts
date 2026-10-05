@@ -7,6 +7,7 @@ import { isValidIsbn, normalizeIsbn, toIsbn13 } from "@/lib/isbn"
 import { clientIp, limiteExcedido, rateLimit } from "@/lib/rate-limit"
 import { buscarVersionLatina, contieneNoLatino } from "@/lib/romanizar"
 import { consultarGoogleBooks } from "@/lib/google-books"
+import { consultarOpenBd } from "@/lib/openbd"
 
 const CACHE_DIAS = 30
 const OPEN_LIBRARY_URL = "https://openlibrary.org/search.json"
@@ -106,16 +107,25 @@ export async function GET(request: Request) {
       })
     }
 
+    // Cadena de proveedores: Open Library, luego Google Books, luego OpenBD.
+    // consultarOpenLibrary lanza 502 si el servicio falla; los otros devuelven
+    // null y dejan seguir con el siguiente.
     const desdeOpenLibrary = await consultarOpenLibrary(isbn)
-    const book = desdeOpenLibrary ?? (await consultarGoogleBooks(isbn))
+    const desdeGoogle = desdeOpenLibrary ? null : await consultarGoogleBooks(isbn)
+    const desdeOpenBd = desdeOpenLibrary || desdeGoogle ? null : await consultarOpenBd(isbn)
+    const book = desdeOpenLibrary ?? desdeGoogle ?? desdeOpenBd
     if (!book) {
       throw new ApiError(
         404,
         "sin-datos",
-        "Ni Open Library ni Google Books tienen datos para este ISBN: completa la ficha a mano",
+        "Ninguna fuente (Open Library, Google Books, OpenBD) tiene datos para este ISBN: completa la ficha a mano",
       )
     }
-    const fuente: "openlibrary" | "google-books" = desdeOpenLibrary ? "openlibrary" : "google-books"
+    const fuente: "openlibrary" | "google-books" | "openbd" = desdeOpenLibrary
+      ? "openlibrary"
+      : desdeGoogle
+        ? "google-books"
+        : "openbd"
 
     // Si algún campo viene en una escritura no latina (japonés, chino, coreano,
     // cirílico, árabe...), se intenta traer la versión en alfabeto latino.

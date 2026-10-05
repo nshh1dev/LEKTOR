@@ -181,7 +181,9 @@ export function ScannerView() {
                           ? "Caché interna"
                           : metadata.fuente === "google-books"
                             ? "Google Books"
-                            : "Open Library"
+                            : metadata.fuente === "openbd"
+                              ? "OpenBD"
+                              : "Open Library"
                       }
                     />
                   </dl>
