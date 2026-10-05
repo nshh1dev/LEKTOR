@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils"
 
 /**
  * Campo de comuna con el índice del país: con región elegida se abre el de esa región —de 21
- * a 58 comunas, no las 346 del país— y sin ella, todas separadas por región. Al elegir una, o
- * al salir del campo con una comuna escrita, la región se completa sola. El campo sigue siendo
+ * a 58 comunas, no las 346 del país— y sin ella, todas separadas por región. Si lo escrito
+ * identifica una comuna de otra región, la de arriba se corrige sola. El campo sigue siendo
  * texto libre: el catálogo propone, no bloquea, porque una comuna escrita a mano también tiene
  * que servir.
  *
@@ -32,7 +32,7 @@ export function ComunaInput({
   value: string
   onValueChange: (valor: string) => void
   region: string | null | undefined
-  /** Se llama cuando la comuna escrita pertenece a otra región, para que se pueda completar. */
+  /** Se llama cuando lo escrito identifica una comuna de otra región, para corregir la de arriba. */
   onRegionSugerida?: (region: Region) => void
   placeholder?: string
   invalid?: boolean
@@ -59,6 +59,13 @@ export function ComunaInput({
     [bloques],
   )
 
+  /**
+   * Corrige la región de arriba cuando lo escrito ya identifica una comuna de otra. Se
+   * llama con cada tecla, no al salir del campo: elegir región y luego escribir una comuna
+   * que no es de esa región es un error de una tecla, y se corrige apenas se escribe, que
+   * es cuando la persona se da cuenta de que se equivocó. Solo actúa con el nombre
+   * completo y exacto, así que un texto a medias no mueve nada.
+   */
   const avisarRegion = (comuna: string) => {
     const hallada = regionDeComuna(comuna)
     if (hallada && hallada !== region) onRegionSugerida?.(hallada)
@@ -95,12 +102,11 @@ export function ComunaInput({
         autoComplete="off"
         className={className}
         id={id}
-        onBlur={() => {
-          cerrar()
-          avisarRegion(value)
-        }}
+        onBlur={() => cerrar()}
         onChange={(event) => {
-          onValueChange(event.target.value)
+          const texto = event.target.value
+          onValueChange(texto)
+          avisarRegion(texto)
           setActivo(0)
           setAbierto(true)
         }}
