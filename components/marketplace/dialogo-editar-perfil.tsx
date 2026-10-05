@@ -251,7 +251,7 @@ export function DialogoEditarPerfil({
                     side="top"
                     align="start"
                     sideOffset={6}
-                    className="max-h-52 w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]"
+                    className="max-h-72 w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]"
                   >
                     {REGIONES.map((region) => (
                       <SelectItem key={region} value={region}>

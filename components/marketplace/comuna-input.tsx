@@ -3,14 +3,15 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
-import { buscarComunas, regionDeComuna, type Region } from "@/lib/comunas"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { gruposComunas, regionDeComuna, type Region } from "@/lib/comunas"
 import { cn } from "@/lib/utils"
 
 /**
- * Campo de comuna que sugiere las comunas de la región elegida y, si la persona escribe una
- * comuna sin región, deduce cuál es. El campo sigue siendo texto libre: el catálogo propone,
- * no bloquea, porque una comuna escrita a mano también tiene que servir.
+ * Campo de comuna con el índice del país: al abrirlo se ven todas las comunas separadas
+ * por región, con la de la región elegida arriba. Al elegir una, o al salir del campo con
+ * una comuna escrita, la región se completa sola. El campo sigue siendo texto libre: el
+ * catálogo propone, no bloquea, porque una comuna escrita a mano también tiene que servir.
  */
 export function ComunaInput({
   id,
@@ -40,8 +41,20 @@ export function ComunaInput({
   const [activo, setActivo] = useState(-1)
   const [ancho, setAncho] = useState<number | undefined>(undefined)
 
-  const sugerencias = useMemo(() => buscarComunas(value, region), [value, region])
-  const haySugerencias = sugerencias.length > 0 || value.trim() !== ""
+  const grupos = useMemo(() => gruposComunas(value, region), [value, region])
+  // El teclado recorre el índice aplanado y la vista lo muestra por regiones: la posición
+  // de cada comuna es su número en esa lista, que es lo que lleva `aria-activedescendant`.
+  const bloques = useMemo(() => {
+    let siguiente = 0
+    return grupos.map((grupo) => ({
+      region: grupo.region,
+      comunas: grupo.comunas.map((comuna) => ({ comuna, posicion: siguiente++ })),
+    }))
+  }, [grupos])
+  const opciones = useMemo(
+    () => bloques.flatMap((bloque) => bloque.comunas.map((item) => item.comuna)),
+    [bloques],
+  )
 
   const avisarRegion = (comuna: string) => {
     const hallada = regionDeComuna(comuna)
@@ -72,14 +85,17 @@ export function ComunaInput({
   }, [abierto, activo, listaId])
 
   return (
+    // El input es el disparador y no un ancla: si fuera un ancla, el mismo clic que abre
+    // el índice lo cerraría, porque el popover leería ese clic como un toque fuera.
     <Popover open={abierto} onOpenChange={setAbierto}>
-      <PopoverAnchor asChild>
+      <PopoverTrigger asChild>
         <Input
           aria-activedescendant={activo >= 0 ? `${listaId}-${activo}` : undefined}
           aria-autocomplete="list"
           aria-controls={listaId}
           aria-describedby={describedBy}
           aria-expanded={abierto}
+          aria-haspopup="listbox"
           aria-invalid={invalid ? true : undefined}
           autoComplete="off"
           className={className}
@@ -93,16 +109,19 @@ export function ComunaInput({
             setActivo(0)
             setAbierto(true)
           }}
-          onFocus={() => setAbierto(haySugerencias)}
+          onFocus={(event) => {
+            // Solo con el teclado: con el mouse el clic abre el índice por su cuenta.
+            if (event.target.matches(":focus-visible")) setAbierto(true)
+          }}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown" || event.key === "ArrowUp") {
               event.preventDefault()
-              if (sugerencias.length === 0) return
+              if (opciones.length === 0) return
               setAbierto(true)
               setActivo((indice) => {
                 const paso = event.key === "ArrowDown" ? 1 : -1
-                if (indice === -1) return paso === 1 ? 0 : sugerencias.length - 1
-                return (indice + paso + sugerencias.length) % sugerencias.length
+                if (indice === -1) return paso === 1 ? 0 : opciones.length - 1
+                return (indice + paso + opciones.length) % opciones.length
               })
               return
             }
@@ -111,9 +130,9 @@ export function ComunaInput({
               return
             }
             if (event.key === "Enter") {
-              if (abierto && activo >= 0 && sugerencias[activo]) {
+              if (abierto && activo >= 0 && opciones[activo]) {
                 event.preventDefault()
-                elegir(sugerencias[activo])
+                elegir(opciones[activo])
               }
               return
             }
@@ -125,37 +144,49 @@ export function ComunaInput({
           type="text"
           value={value}
         />
-      </PopoverAnchor>
+      </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="scrollbar-fina max-h-60 min-w-40 overflow-y-auto p-1"
+        className="scrollbar-fina max-h-72 min-w-56 overflow-y-auto p-1"
         collisionPadding={12}
         onOpenAutoFocus={(event) => event.preventDefault()}
         side="bottom"
         sideOffset={6}
         style={{ width: ancho }}
       >
-        {region ? <p className="rotulo truncate px-2 pt-1.5 pb-2">{region}</p> : null}
-        <ul id={listaId} role="listbox" aria-label="Comunas">
-          {sugerencias.map((comuna, indice) => (
-            <li
-              aria-selected={indice === activo}
-              className={cn(
-                "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
-                indice === activo && "bg-accent text-accent-foreground",
-              )}
-              id={`${listaId}-${indice}`}
-              key={comuna}
-              onClick={() => elegir(comuna)}
-              onMouseDown={(event) => event.preventDefault()}
-              role="option"
-            >
-              <span className="min-w-0 flex-1 truncate">{comuna}</span>
-              {comuna === value ? <Check className="size-3.5 shrink-0 text-oro" /> : null}
+        <ul id={listaId} role="listbox" aria-label="Comunas de Chile">
+          {bloques.map((bloque) => (
+            <li key={bloque.region} role="group" aria-labelledby={`${listaId}-${bloque.region}`}>
+              <p
+                id={`${listaId}-${bloque.region}`}
+                className={cn(
+                  "rotulo sticky top-0 z-10 bg-popover px-2 pt-2.5 pb-1.5",
+                  bloque.region === region && "text-oro",
+                )}
+              >
+                {bloque.region}
+              </p>
+              {bloque.comunas.map(({ comuna, posicion }) => (
+                <div
+                  aria-selected={posicion === activo}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+                    posicion === activo && "bg-accent text-accent-foreground",
+                  )}
+                  id={`${listaId}-${posicion}`}
+                  key={comuna}
+                  onClick={() => elegir(comuna)}
+                  onMouseDown={(event) => event.preventDefault()}
+                  role="option"
+                >
+                  <span className="min-w-0 flex-1 truncate">{comuna}</span>
+                  {comuna === value ? <Check className="size-3.5 shrink-0 text-oro" /> : null}
+                </div>
+              ))}
             </li>
           ))}
         </ul>
-        {value.trim() !== "" && sugerencias.length === 0 ? (
+        {value.trim() !== "" && grupos.length === 0 ? (
           <p className="px-2 py-1.5 text-sm text-muted-foreground">
             No está en la lista: puedes dejarla escrita igual.
           </p>

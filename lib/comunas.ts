@@ -102,8 +102,6 @@ export const COMUNAS_POR_REGION: Record<Region, readonly string[]> = {
   ],
 }
 
-const TODAS_LAS_COMUNAS: readonly string[] = REGIONES.flatMap((region) => COMUNAS_POR_REGION[region])
-
 function sinTildes(valor: string): string {
   return valor.normalize("NFD").replace(/\p{Diacritic}/gu, "")
 }
@@ -130,29 +128,58 @@ function indexarComunas(): Map<string, Region | null> {
 
 const INDICE_REGION_POR_COMUNA = indexarComunas()
 
+/** Las comunas de una región, como las presenta el índice del campo de comuna. */
+export type GrupoComunas = {
+  region: Region
+  comunas: string[]
+}
+
 /**
- * Sugerencias para el campo de comuna. Sin región no hay lista completa que mostrar, así
- * que solo sugiere desde que hay algo escrito; con región elegida muestra todas sus
- * comunas mientras el campo está vacío y filtra por lo que se va tecleando.
+ * El índice de comunas del campo: todas las del país, separadas por región y con el
+ * nombre de la región arriba de cada bloque. Escrito algo, se filtra por ese texto
+ * —sin tildes ni mayúsculas— y se recortan los grupos que quedan sin coincidencias. Con
+ * la región elegida, su grupo va primero: es el que se está eligiendo.
  */
-export function buscarComunas(
+export function gruposComunas(
   texto: string,
   region: string | null | undefined,
   limite = 8,
-): string[] {
-  const deLaRegion = region ? (COMUNAS_POR_REGION[region as Region] ?? []) : []
+): GrupoComunas[] {
   const busca = normalizar(texto)
-  const candidatas = deLaRegion.length > 0 ? deLaRegion : busca ? TODAS_LAS_COMUNAS : []
-  if (candidatas.length === 0) return []
-  if (busca === "") return [...candidatas]
+  const grupos: GrupoComunas[] = []
 
-  return candidatas
-    .filter((comuna) => normalizar(comuna).includes(busca))
-    .sort((a, b) => {
-      const inicio = Number(normalizar(b).startsWith(busca)) - Number(normalizar(a).startsWith(busca))
-      return inicio !== 0 ? inicio : comparar(a, b)
-    })
-    .slice(0, limite)
+  for (const nombre of REGIONES) {
+    const candidatas = COMUNAS_POR_REGION[nombre].filter(
+      (comuna) => busca === "" || normalizar(comuna).includes(busca),
+    )
+    if (candidatas.length === 0) continue
+    if (busca !== "") {
+      candidatas.sort((a, b) => {
+        const inicio = Number(normalizar(b).startsWith(busca)) - Number(normalizar(a).startsWith(busca))
+        return inicio !== 0 ? inicio : comparar(a, b)
+      })
+    }
+    grupos.push({ region: nombre, comunas: candidatas })
+  }
+
+  if (region) {
+    const indice = grupos.findIndex((grupo) => grupo.region === region)
+    if (indice > 0) grupos.unshift(...grupos.splice(indice, 1))
+  }
+
+  if (busca === "") return grupos
+
+  // Con texto escrito el país entero no cabe en una lista: se recorta el total y cada
+  // bloque se lleva lo que queda, para que el resultado de otra región no desaparezca.
+  const recortados: GrupoComunas[] = []
+  let restantes = limite
+  for (const grupo of grupos) {
+    if (restantes <= 0) break
+    const comuna = grupo.comunas.slice(0, restantes)
+    restantes -= comuna.length
+    recortados.push({ region: grupo.region, comunas: comuna })
+  }
+  return recortados
 }
 
 /**

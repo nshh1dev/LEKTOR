@@ -2,7 +2,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 
 import { REGIONES } from "@/lib/catalog"
-import { COMUNAS_POR_REGION, buscarComunas, regionDeComuna } from "@/lib/comunas"
+import { COMUNAS_POR_REGION, gruposComunas, regionDeComuna } from "@/lib/comunas"
 
 test("el catálogo cubre las 16 regiones con las 346 comunas del país", () => {
   assert.deepEqual(Object.keys(COMUNAS_POR_REGION).sort(), [...REGIONES].sort())
@@ -12,8 +12,8 @@ test("el catálogo cubre las 16 regiones con las 346 comunas del país", () => {
 })
 
 test("ninguna comuna se repite entre regiones, así que siempre se sabe cuál es", () => {
-  // La deduplicación es lo que permite deducir la región al escribir la comuna: si un
-  // nombre se repitiera, el índice lo dejaría sin región en vez de elegir una al azar.
+  // La deduplicación es lo que permite deducir la región al elegir o escribir la comuna: si
+  // un nombre se repitiera, el índice lo dejaría sin región en vez de elegir una al azar.
   for (const region of REGIONES) {
     for (const comuna of COMUNAS_POR_REGION[region]) {
       assert.equal(regionDeComuna(comuna), region, comuna)
@@ -21,46 +21,49 @@ test("ninguna comuna se repite entre regiones, así que siempre se sabe cuál es
   }
 })
 
-test("buscarComunas filtra por lo escrito sin depender de tildes ni mayúsculas", () => {
-  assert.deepEqual(buscarComunas("nunoa", "Región Metropolitana"), ["Ñuñoa"])
-  assert.deepEqual(buscarComunas("VINA DEL MAR", "Región de Valparaíso"), ["Viña del Mar"])
-  assert.deepEqual(buscarComunas("  tiltil  ", "Región Metropolitana"), ["Tiltil"])
+test("el índice muestra todas las comunas del país separadas por región", () => {
+  const grupos = gruposComunas("", null)
+  assert.deepEqual(grupos.map((grupo) => grupo.region), [...REGIONES])
+  const total = grupos.reduce((suma, grupo) => suma + grupo.comunas.length, 0)
+  assert.equal(total, 346)
 })
 
-test("con región elegida solo ofrece las comunas de esa región", () => {
-  const resultado = buscarComunas("p", "Región Metropolitana")
-  assert.ok(resultado.includes("Providencia"))
-  // Mismo prefijo, otras regiones: la lista tiene que quedar filtrada.
-  assert.ok(!resultado.includes("Punta Arenas"))
-  assert.ok(!resultado.includes("Pozo Almonte"))
+test("la región elegida pone su bloque arriba del índice", () => {
+  // Es el bloque que se está eligiendo: si quedara entre los otros, habría que recorrer
+  // el país entero para llegar.
+  const grupos = gruposComunas("", "Región del Ñuble")
+  assert.equal(grupos[0].region, "Región del Ñuble")
+  assert.ok(grupos[0].comunas.includes("Chillán"))
+  assert.equal(grupos.length, 16)
+  // Sin región elegida el orden es el del catálogo, sin nada movido de lugar.
+  assert.equal(gruposComunas("", "Región que no existe")[0].region, REGIONES[0])
 })
 
-test("sin región no tira la lista entera del país, pero sí busca en ella", () => {
-  // Con el campo vacío y sin región no hay nada que ofrecer: son 346 nombres de golpe.
-  assert.deepEqual(buscarComunas("", null), [])
-  assert.deepEqual(buscarComunas("   ", ""), [])
-  // Escrito algo, sí se busca en todo el país, que es el caso de quien no elige región.
-  assert.ok(buscarComunas("ñu", null).includes("Ñuñoa"))
-})
-
-test("con la región elegida y el campo vacío ofrece todas sus comunas para elegir a dedo", () => {
-  assert.deepEqual(buscarComunas("", "Región de Arica y Parinacota"), [
-    "Arica",
-    "Camarones",
-    "General Lagos",
-    "Putre",
+test("escribir filtra por el texto sin depender de tildes ni mayúsculas", () => {
+  assert.deepEqual(gruposComunas("NUNOA", null), [
+    { region: "Región Metropolitana", comunas: ["Ñuñoa"] },
+  ])
+  assert.deepEqual(gruposComunas("vina del mar", null), [
+    { region: "Región de Valparaíso", comunas: ["Viña del Mar"] },
   ])
 })
 
-test("mientras se escribe limita las sugerencias y pone primero las que empiezan por eso", () => {
-  assert.equal(buscarComunas("a", "Región Metropolitana", 3).length, 3)
-  // "Alhué" es la única que empieza por "a"; el resto solo la contiene.
-  assert.equal(buscarComunas("a", "Región Metropolitana")[0], "Alhué")
+test("los bloques que se quedan sin coincidencias no aparecen", () => {
+  assert.deepEqual(gruposComunas("ñuble", null), [])
+  assert.deepEqual(gruposComunas("NoExiste", "Región de Tarapacá"), [])
 })
 
-test("una comuna que no existe no rompe la búsqueda", () => {
-  assert.deepEqual(buscarComunas("zzz", null), [])
-  assert.deepEqual(buscarComunas("zzz", "Región de Tarapacá"), [])
+test("mientras se escribe recorta el total y pone primero lo que empieza por lo escrito", () => {
+  const conTres = gruposComunas("a", null, 3)
+  assert.equal(
+    conTres.reduce((suma, grupo) => suma + grupo.comunas.length, 0),
+    3,
+  )
+  // "Alhué" es la única comuna de la Metropolitana que empieza por "a"; el resto solo la
+  // contiene, así que tiene que quedar detrás aunque se alfabetice antes.
+  const Metropolitana = gruposComunas("a", "Región Metropolitana")
+  assert.equal(Metropolitana[0].region, "Región Metropolitana")
+  assert.equal(Metropolitana[0].comunas[0], "Alhué")
 })
 
 test("regionDeComuna deduce la región de una comuna escrita a mano", () => {
