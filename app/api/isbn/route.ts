@@ -5,6 +5,7 @@ import { ApiError, requireSession } from "@/lib/auth"
 import { fail, jsonError, ok } from "@/lib/api"
 import { isValidIsbn, normalizeIsbn, toIsbn13 } from "@/lib/isbn"
 import { clientIp, limiteExcedido, rateLimit } from "@/lib/rate-limit"
+import { buscarVersionLatina, contieneNoLatino } from "@/lib/romanizar"
 
 const CACHE_DIAS = 30
 const OPEN_LIBRARY_URL = "https://openlibrary.org/search.json"
@@ -90,7 +91,10 @@ export async function GET(request: Request) {
     const cacheVigente =
       cached && Date.now() - cached.consultadoEn.getTime() < CACHE_DIAS * 86_400_000
     if (cacheVigente && cached.titulo) {
-      return ok({ libro: { ...cached, isbn, fuente: "cache" as const } })
+      const sinTraduccion = [cached.titulo, cached.autor, cached.editorial].some((campo) =>
+        contieneNoLatino(campo),
+      )
+      return ok({ libro: { ...cached, isbn, fuente: "cache" as const, sinTraduccion } })
     }
 
     const book = await consultarOpenLibrary(isbn)
@@ -102,6 +106,23 @@ export async function GET(request: Request) {
       )
     }
 
+    // Si algún campo viene en una escritura no latina (japonés, chino, coreano,
+    // cirílico, árabe...), se intenta traer la versión en alfabeto latino.
+    const necesitaVersionLatina = [book.titulo, book.autor, book.editorial].some((campo) =>
+      contieneNoLatino(campo),
+    )
+    if (necesitaVersionLatina) {
+      const latina = await buscarVersionLatina(isbn)
+      if (latina) {
+        if (contieneNoLatino(book.titulo) && latina.titulo) book.titulo = latina.titulo
+        if (contieneNoLatino(book.autor) && latina.autor) book.autor = latina.autor
+        if (contieneNoLatino(book.editorial) && latina.editorial) book.editorial = latina.editorial
+      }
+    }
+    const sinTraduccion = [book.titulo, book.autor, book.editorial].some((campo) =>
+      contieneNoLatino(campo),
+    )
+
     const registro = { ...book, isbn, consultadoEn: new Date() }
 
     await db
@@ -109,7 +130,7 @@ export async function GET(request: Request) {
       .values(registro)
       .onConflictDoUpdate({ target: bookMetadata.isbn, set: registro })
 
-    return ok({ libro: { ...registro, fuente: "openlibrary" as const } })
+    return ok({ libro: { ...registro, fuente: "openlibrary" as const, sinTraduccion } })
   } catch (error) {
     return fail(error)
   }

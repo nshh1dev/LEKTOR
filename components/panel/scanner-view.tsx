@@ -73,7 +73,14 @@ export function ScannerView() {
       setListados(propio.value.publicaciones)
       if (propio.value.metadata) setMetadata(propio.value.metadata)
     }
-    if (externo.status === "fulfilled" && externo.value.libro) setMetadata(externo.value.libro)
+    if (externo.status === "fulfilled" && externo.value.libro) {
+      setMetadata(externo.value.libro)
+      if (externo.value.libro.sinTraduccion) {
+        setNota(
+          "Parte de la ficha llega con escritura no latina y no encontramos una versión equivalente: revisa los datos.",
+        )
+      }
+    }
 
     if (propio.status === "rejected" && externo.status === "rejected") {
       setError("No pudimos consultar el ISBN. Intenta de nuevo en un momento.")

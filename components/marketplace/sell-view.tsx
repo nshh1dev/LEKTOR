@@ -188,6 +188,15 @@ export function PublicarView({
             .filter(Boolean)
           if (actuales.length === 0) setValue("fotos", data.libro.portadaUrl ?? "", { shouldValidate: true })
         }
+        if (data.libro.sinTraduccion) {
+          avisar.revisar({
+            titulo: "No hay versión en alfabeto latino",
+            descripcion:
+              "El título, autor o editorial llega con escritura no latina y no encontramos una versión equivalente: revisa y completa a mano.",
+            referencia: `ISBN ${limpio}`,
+            accion: { etiqueta: "Completar a mano", alPulsar: () => setModo("manual") },
+          })
+        }
         avisar.ok({
           titulo: "Datos encontrados en Open Library",
           descripcion: "Revisa y completa la condición física antes de publicar.",
