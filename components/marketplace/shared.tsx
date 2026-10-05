@@ -49,3 +49,18 @@ export function MensajeError({
     </p>
   )
 }
+
+/** Marca de campo cuya ficha llegó con escritura no latina y no se pudo
+ *  traer en versión latina. Aparece pegada al input, con entrada animada. */
+export function MensajeNoLatino({ campo, mostrar }: { campo: string; mostrar: boolean }) {
+  if (!mostrar) return null
+  return (
+    <p
+      id={`${campo}-nolatino`}
+      className="flex items-start gap-1.5 text-xs leading-snug text-aviso-revisar animate-in fade-in slide-in-from-top-1 duration-300"
+    >
+      <CircleAlert aria-hidden className="mt-px size-3.5 shrink-0" />
+      <span>No pudimos pasarlo al alfabeto latino: escríbelo a mano.</span>
+    </p>
+  )
+}

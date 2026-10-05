@@ -18,7 +18,7 @@ import { mensajeDeFallo, resumenFaltantes } from "@/lib/avisos"
 import { CATEGORIAS, CONDICIONES, listaFotosAUrls, publicarFormSchema, type Categoria, type Condicion, type LibroIsbn, type PublicarFormValues } from "@/lib/catalog"
 import { formatearPrecio, precioANumero } from "@/lib/entrada"
 import { formatIsbn, isValidIsbn, normalizeIsbn } from "@/lib/isbn"
-import { MensajeError } from "@/components/marketplace/shared"
+import { MensajeError, MensajeNoLatino } from "@/components/marketplace/shared"
 import { api } from "@/components/marketplace/api"
 
 type PublicarForm = Omit<PublicarFormValues, "precio"> & { precio: string }
@@ -342,17 +342,20 @@ export function PublicarView({
               <Label htmlFor="titulo">Titulo</Label>
               <Input aria-invalid={errors.titulo ? true : undefined} aria-describedby={errors.titulo ? "titulo-error" : undefined} id="titulo" placeholder="Chainsaw Man Vol. 1" {...register("titulo")} />
               <MensajeError campo="titulo" mensaje={errors.titulo?.message} />
+              <MensajeNoLatino campo="titulo" mostrar={!!libro?.sinTraducir?.includes("titulo")} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="autor">Autor</Label>
                 <Input aria-invalid={errors.autor ? true : undefined} aria-describedby={errors.autor ? "autor-error" : undefined} id="autor" placeholder="Tatsuki Fujimoto" {...register("autor")} />
                 <MensajeError campo="autor" mensaje={errors.autor?.message} />
+                <MensajeNoLatino campo="autor" mostrar={!!libro?.sinTraducir?.includes("autor")} />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="editorial">Editorial</Label>
                 <Input aria-invalid={errors.editorial ? true : undefined} aria-describedby={errors.editorial ? "editorial-error" : undefined} id="editorial" placeholder="Ivrea" {...register("editorial")} />
                 <MensajeError campo="editorial" mensaje={errors.editorial?.message} />
+                <MensajeNoLatino campo="editorial" mostrar={!!libro?.sinTraducir?.includes("editorial")} />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">

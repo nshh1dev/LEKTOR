@@ -929,6 +929,7 @@ export type LibroIsbn = {
   paginas: number | null
   portadaUrl: string | null
   fuente?: string
+  sinTraducir?: string[]
 }
 
 export type SesionUsuario = {

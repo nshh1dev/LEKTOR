@@ -73,7 +73,9 @@ export function ScannerView() {
       setListados(propio.value.publicaciones)
       if (propio.value.metadata) setMetadata(propio.value.metadata)
     }
-    if (externo.status === "fulfilled" && externo.value.libro) setMetadata(externo.value.libro)
+    if (externo.status === "fulfilled" && externo.value.libro) {
+      setMetadata(externo.value.libro)
+    }
 
     if (propio.status === "rejected" && externo.status === "rejected") {
       setError("No pudimos consultar el ISBN. Intenta de nuevo en un momento.")
@@ -167,9 +169,9 @@ export function ScannerView() {
                     />
                   )}
                   <dl className="grid gap-2 text-sm sm:grid-cols-2">
-                    <Dato etiqueta="Título" valor={metadata.titulo} />
-                    <Dato etiqueta="Autoría" valor={metadata.autor} />
-                    <Dato etiqueta="Editorial" valor={metadata.editorial} />
+                    <Dato etiqueta="Título" valor={metadata.titulo} sinTraducir={metadata.sinTraducir?.includes("titulo")} />
+                    <Dato etiqueta="Autoría" valor={metadata.autor} sinTraducir={metadata.sinTraducir?.includes("autor")} />
+                    <Dato etiqueta="Editorial" valor={metadata.editorial} sinTraducir={metadata.sinTraducir?.includes("editorial")} />
                     <Dato etiqueta="Año" valor={metadata.anio ? String(metadata.anio) : null} />
                     <Dato etiqueta="Páginas" valor={metadata.paginas ? String(metadata.paginas) : null} />
                     <Dato
@@ -290,11 +292,24 @@ export function ScannerView() {
   )
 }
 
-function Dato({ etiqueta, valor }: { etiqueta: string; valor: string | null | undefined }) {
+function Dato({
+  etiqueta,
+  valor,
+  sinTraducir,
+}: {
+  etiqueta: string
+  valor: string | null | undefined
+  sinTraducir?: boolean
+}) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-muted-foreground">{etiqueta}</dt>
       <dd className="font-medium">{valor ?? "—"}</dd>
+      {sinTraducir ? (
+        <p className="text-xs text-aviso-revisar animate-in fade-in slide-in-from-top-1 duration-300">
+          No pudimos pasarlo al alfabeto latino: revisa este dato.
+        </p>
+      ) : null}
     </div>
   )
 }
