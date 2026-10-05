@@ -718,9 +718,43 @@ export const pagoFormSchema = z.object({
 
 export type PagoFormValues = z.infer<typeof pagoFormSchema>
 
+/**
+ * Formulario de "Editar perfil": los mismos campos que acepta
+ * `PATCH /api/profile`, con el nombre obligatorio porque la sesión lo muestra.
+ */
 export const perfilFormSchema = profileUpdateSchema.extend({
   nombre: z.string().trim().min(2, "El nombre es demasiado corto").max(120),
 })
+
+export type PerfilFormValues = z.infer<typeof perfilFormSchema>
+
+export type CuerpoPerfil = z.infer<typeof profileUpdateSchema>
+
+/**
+ * Cuerpo que el diálogo de perfil manda a `PATCH /api/profile`. El tipo de retorno es el
+ * propio esquema que valida la API, así que si `profileUpdateSchema` exige un campo y esta
+ * función no lo manda, el compilador falla en vez de dejar la ficha rebotando.
+ */
+export function cuerpoDePerfil(values: PerfilFormValues): CuerpoPerfil {
+  return {
+    nombre: values.nombre,
+    bio: values.bio?.trim() || null,
+    telefono: values.telefono?.trim() || null,
+    comuna: values.comuna?.trim() || null,
+    region: values.region || null,
+  }
+}
+
+/** Ficha propia del lector, tal como la devuelve `GET /api/profile`. */
+export type PerfilUI = {
+  nombre: string
+  bio: string | null
+  telefono: string | null
+  comuna: string | null
+  region: string | null
+  avatarUrl: string | null
+  fechaCreacion: string
+}
 
 export type PublicacionListItem = {
   id: string
