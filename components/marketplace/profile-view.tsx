@@ -3,29 +3,25 @@
 import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { useForm, useWatch } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowLeft, ChevronLeft, ChevronRight, KeyRound, LayoutDashboard, LoaderCircle, MessageCircle, Tag, Trash2, UserPen } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, LayoutDashboard, MessageCircle, Tag, Trash2, UserPen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { avisar } from "@/components/notificacion/avisar"
 import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
 import { mensajeDeFallo } from "@/lib/avisos"
-import { REGIONES, esStaff, perfilFormSchema, type ConversacionUI, type EstadoOrden, type NotificacionUI, type OrdenUI, type Paginacion, type PublicacionListItem, type ReviewUI, type SesionUsuario } from "@/lib/catalog"
-import { formatearTelefono } from "@/lib/entrada"
+import { esStaff, type ConversacionUI, type EstadoOrden, type NotificacionUI, type OrdenUI, type Paginacion, type PerfilUI, type PublicacionListItem, type ReviewUI, type SesionUsuario } from "@/lib/catalog"
 import { ESTADO_ORDEN_LABEL, ESTADO_PUBLICACION_LABEL, formatCLP, formatDate, formatDateTime } from "@/lib/format"
-import { normalizarFila, MensajeError } from "@/components/marketplace/shared"
+import { normalizarFila } from "@/components/marketplace/shared"
 import { api } from "@/components/marketplace/api"
 import { Portada } from "@/components/marketplace/hero"
 import { TarjetaOrden } from "@/components/marketplace/order-card"
 import { Estrellas } from "@/components/marketplace/valoraciones"
 import { DialogoContacto } from "@/components/marketplace/dialogo-contacto"
+import { DialogoEditarPerfil } from "@/components/marketplace/dialogo-editar-perfil"
 
 export function PerfilView({
   usuario,
@@ -45,15 +41,7 @@ export function PerfilView({
   const [pestana, setPestana] = useState<
     "publicaciones" | "ventas" | "compras" | "notificaciones" | "resenas" | "mensajes"
   >("publicaciones")
-  const [perfil, setPerfil] = useState<{
-    nombre: string
-    bio: string | null
-    telefono: string | null
-    comuna: string | null
-    region: string | null
-    avatarUrl: string | null
-    fechaCreacion: string
-  } | null>(null)
+  const [perfil, setPerfil] = useState<PerfilUI | null>(null)
   const [misPublicaciones, setMisPublicaciones] = useState<PublicacionListItem[]>([])
   const [ventas, setVentas] = useState<OrdenUI[]>([])
   const [compras, setCompras] = useState<OrdenUI[]>([])
@@ -71,27 +59,13 @@ export function PerfilView({
   const [editando, setEditando] = useState<PublicacionListItem | null>(null)
   const [stockEdicion, setStockEdicion] = useState("0")
   const [eliminando, setEliminando] = useState<PublicacionListItem | null>(null)
-  const [guardando, setGuardando] = useState(false)
-  const [cambiandoClave, setCambiandoClave] = useState(false)
-  const [clave, setClave] = useState({ actual: "", nueva: "", confirmar: "" })
+  const [editandoPerfil, setEditandoPerfil] = useState(false)
   const [intento, setIntento] = useState(0)
-
-  const {
-    register,
-    handleSubmit,
-    control,
-    setValue,
-    reset,
-    formState: { errors },
-  } = useForm({
-    resolver: zodResolver(perfilFormSchema),
-    defaultValues: { nombre: usuario.nombre, bio: "", telefono: "", comuna: "", region: "" },
-  })
 
   const cargarTodo = useCallback(async () => {
     try {
       const [datos, propias, ordenesVendedor, ordenesComprador, avisos, misReseñas, hilos] = await Promise.all([
-        api<{ perfil: typeof perfil; esVendedor: boolean; publicaciones: number }>("/api/profile"),
+        api<{ perfil: PerfilUI; esVendedor: boolean; publicaciones: number }>("/api/profile"),
         api<{ publications: Record<string, unknown>[] }>(`/api/publications?vendedor=${usuario.id}&porPagina=48`),
         api<{ orders: OrdenUI[]; paginacion: Paginacion }>("/api/orders?rol=vendedor"),
         api<{ orders: OrdenUI[]; paginacion: Paginacion }>("/api/orders?rol=comprador"),
@@ -99,17 +73,7 @@ export function PerfilView({
         api<{ escritas: ReviewUI[]; recibidas: ReviewUI[] }>("/api/profile/reviews"),
         api<{ conversaciones: ConversacionUI[] }>("/api/conversaciones"),
       ])
-      const ficha = datos.perfil
-      setPerfil(ficha)
-      if (ficha) {
-        reset({
-          nombre: ficha.nombre,
-          bio: ficha.bio ?? "",
-          telefono: ficha.telefono ? formatearTelefono(ficha.telefono) : "",
-          comuna: ficha.comuna ?? "",
-          region: ficha.region ?? "",
-        })
-      }
+      setPerfil(datos.perfil)
       setMisPublicaciones(propias.publications.map(normalizarFila))
       setVentas(ordenesVendedor.orders)
       setCompras(ordenesComprador.orders)
@@ -124,7 +88,21 @@ export function PerfilView({
         accion: { etiqueta: "Reintentar", alPulsar: () => setIntento((n) => n + 1) },
       })
     }
-  }, [usuario.id, reset])
+  }, [usuario.id])
+
+  /** Solo la ficha: al guardar el perfil la cabecera y el diálogo se alimentan de acá. */
+  const recargarFicha = useCallback(async () => {
+    try {
+      const datos = await api<{ perfil: PerfilUI }>("/api/profile")
+      setPerfil(datos.perfil)
+    } catch (error) {
+      avisar.falla({
+        titulo: "No se pudo refrescar tu perfil",
+        descripcion: mensajeDeFallo(error, "Los cambios están guardados, pero la vista quedó desactualizada."),
+        accion: { etiqueta: "Reintentar", alPulsar: () => setIntento((n) => n + 1) },
+      })
+    }
+  }, [])
 
   const cambiarPaginaOrdenes = useCallback(
     async (rol: "ventas" | "compras", pagina: number) => {
@@ -149,78 +127,6 @@ export function PerfilView({
   useEffect(() => {
     void cargarTodo()
   }, [cargarTodo, intento])
-
-  const telefonoActual = useWatch({ control, name: "telefono" })
-
-  const guardarPerfil = handleSubmit(async (values) => {
-    setGuardando(true)
-    try {
-      await api("/api/profile", {
-        method: "PATCH",
-        body: JSON.stringify({
-          nombre: values.nombre,
-          bio: values.bio?.trim() || null,
-          telefono: values.telefono?.trim() || null,
-          comuna: values.comuna?.trim() || null,
-          region: values.region || null,
-        }),
-      })
-      avisar.ok({
-        titulo: "Perfil actualizado",
-        descripcion: "Los compradores ven este nombre cuando coordinan la entrega.",
-      })
-      onActualizarUsuario({ ...usuario, nombre: values.nombre })
-      await cargarTodo()
-    } catch (error) {
-      avisar.falla({
-        titulo: "No se pudo guardar el perfil",
-        descripcion: mensajeDeFallo(error, "Tus cambios siguen sin guardar."),
-      })
-    } finally {
-      setGuardando(false)
-    }
-  })
-
-  const cambiarClave = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (clave.nueva.length < 6) {
-      avisar.revisar({
-        titulo: "La nueva contraseña es muy corta",
-        descripcion: "Necesita al menos 6 caracteres.",
-        accion: { etiqueta: "Corregir", alPulsar: () => document.getElementById("clave-nueva")?.focus() },
-      })
-      return
-    }
-    if (clave.nueva !== clave.confirmar) {
-      avisar.revisar({
-        titulo: "Las contraseñas no coinciden",
-        descripcion: "Vuelve a escribir la nueva contraseña en ambos campos.",
-        accion: { etiqueta: "Corregir", alPulsar: () => document.getElementById("clave-confirmar")?.focus() },
-      })
-      return
-    }
-    setCambiandoClave(true)
-    try {
-      await api("/api/auth/password", {
-        method: "POST",
-        body: JSON.stringify({ currentPassword: clave.actual, newPassword: clave.nueva }),
-      })
-      avisar.ok({
-        titulo: "Contraseña actualizada",
-        descripcion: "Por seguridad tienes que volver a iniciar sesión.",
-      })
-      setClave({ actual: "", nueva: "", confirmar: "" })
-      onCerrarSesion()
-    } catch (error) {
-      avisar.falla({
-        titulo: "No se pudo cambiar la contraseña",
-        descripcion: mensajeDeFallo(error, "Revisa que la contraseña actual sea correcta."),
-        duracion: 8000,
-      })
-    } finally {
-      setCambiandoClave(false)
-    }
-  }
 
   const cambiarEstadoOrden = async (ordenId: string, estado: EstadoOrden) => {
     try {
@@ -382,111 +288,15 @@ export function PerfilView({
                 </Link>
               </Button>
             )}
+            <Button variant="secondary" size="sm" onClick={() => setEditandoPerfil(true)}>
+              <UserPen data-icon="inline-start" /> Editar perfil
+            </Button>
             <Button variant="secondary" size="sm" onClick={onNuevaPublicacion}>
               <Tag data-icon="inline-start" /> Publicar
             </Button>
           </div>
         </CardContent>
       </Card>
-
-      <form onSubmit={guardarPerfil} className="grid gap-4 rounded-2xl border p-5 md:grid-cols-2">
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <Label htmlFor="perfil-nombre">Nombre visible</Label>
-          <Input aria-invalid={errors.nombre ? true : undefined} aria-describedby={errors.nombre ? "nombre-error" : undefined} id="perfil-nombre" {...register("nombre")} />
-          <MensajeError campo="nombre" mensaje={errors.nombre?.message} />
-        </div>
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <Label htmlFor="perfil-bio">Bio</Label>
-          <Textarea aria-invalid={errors.bio ? true : undefined} aria-describedby={errors.bio ? "bio-error" : undefined} id="perfil-bio" rows={2} placeholder="Coleccionista de mangas, compro sellados y los intercambio" {...register("bio")} />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="perfil-telefono">Teléfono de contacto</Label>
-          <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" inputMode="tel" autoComplete="tel" placeholder="+56 9 1234 5678" className="font-mono" value={telefonoActual ?? ""} onChange={(event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: true })} />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="perfil-comuna">Comuna</Label>
-          <Input aria-invalid={errors.comuna ? true : undefined} aria-describedby={errors.comuna ? "comuna-error" : undefined} id="perfil-comuna" placeholder="Providencia" {...register("comuna")} />
-        </div>
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <Label htmlFor="perfil-region">Region</Label>
-          <Select onValueChange={(value) => setValue("region", value, { shouldValidate: true })}>
-            <SelectTrigger id="perfil-region" className="w-full">
-              <SelectValue placeholder="Selecciona tu region" />
-            </SelectTrigger>
-            <SelectContent>
-              {REGIONES.map((region) => (
-                <SelectItem key={region} value={region}>
-                  {region}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex justify-end md:col-span-2">
-          <Button type="submit" className="rounded-xl" disabled={guardando}>
-            {guardando ? <LoaderCircle className="size-4 animate-spin" /> : <UserPen />} Guardar cambios
-          </Button>
-        </div>
-      </form>
-
-      <form
-        onSubmit={cambiarClave}
-        className="grid gap-4 rounded-2xl border p-5 md:grid-cols-2"
-      >
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <KeyRound className="size-4" /> Seguridad
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Al cambiar la contraseña se cerrará tu sesión en este dispositivo.
-          </p>
-        </div>
-        <div className="flex flex-col gap-1 md:col-span-2">
-          <Label htmlFor="clave-actual">Contraseña actual</Label>
-          <Input
-            id="clave-actual"
-            type="password"
-            autoComplete="current-password"
-            value={clave.actual}
-            onChange={(event) => setClave((valor) => ({ ...valor, actual: event.target.value }))}
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="clave-nueva">Nueva contraseña</Label>
-          <Input
-            id="clave-nueva"
-            type="password"
-            autoComplete="new-password"
-            minLength={6}
-            value={clave.nueva}
-            onChange={(event) => setClave((valor) => ({ ...valor, nueva: event.target.value }))}
-            required
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="clave-confirmar">Repite la nueva contraseña</Label>
-          <Input
-            id="clave-confirmar"
-            type="password"
-            autoComplete="new-password"
-            minLength={6}
-            value={clave.confirmar}
-            onChange={(event) => setClave((valor) => ({ ...valor, confirmar: event.target.value }))}
-            required
-          />
-        </div>
-        <div className="flex justify-end md:col-span-2">
-          <Button
-            type="submit"
-            variant="outline"
-            className="rounded-xl"
-            disabled={cambiandoClave}
-          >
-            {cambiandoClave && <LoaderCircle className="size-4 animate-spin" />} Cambiar contraseña
-          </Button>
-        </div>
-      </form>
 
       <div className="flex flex-wrap items-center gap-1 rounded-xl bg-muted p-1">
         {(
@@ -792,6 +602,18 @@ export function PerfilView({
           )}
         </div>
       )}
+
+      <DialogoEditarPerfil
+        abierto={editandoPerfil}
+        onOpenChange={setEditandoPerfil}
+        perfil={perfil}
+        nombreActual={usuario.nombre}
+        onGuardado={(nombre) => {
+          onActualizarUsuario({ ...usuario, nombre })
+          void recargarFicha()
+        }}
+        onCerrarSesion={onCerrarSesion}
+      />
 
       <ConfirmarAccion
         abierto={eliminando !== null}

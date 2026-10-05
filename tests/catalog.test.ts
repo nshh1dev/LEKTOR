@@ -8,6 +8,7 @@ import {
   RESERVA_HORAS,
   chatMessageSchema,
   comisionPlataforma,
+  cuerpoDePerfil,
   cuerpoDeRegistro,
   datosDespachoSchema,
   listaFotosAUrls,
@@ -407,6 +408,32 @@ test("cuerpoDeRegistro es aceptado por el esquema que valida la API", () => {
 
   assert.equal(registroSchema.safeParse(cuerpo).success, true, "el cuerpo tendría que ser válido")
   assert.deepEqual(Object.keys(cuerpo).sort(), Object.keys(valores).sort(), "no debe viajar un campo de más o de menos")
+})
+
+test("cuerpoDePerfil es aceptado por el esquema que valida la API", () => {
+  // Mismo contrato que el registro: lo que el diálogo de "Editar perfil" manda tiene que
+  // pasar por `profileUpdateSchema`, que es el que corre en `PATCH /api/profile`.
+  const cuerpo = cuerpoDePerfil({
+    nombre: "Ana Pérez",
+    bio: "Coleccionista de mangas",
+    telefono: "+56 9 1234 5678",
+    comuna: "Providencia",
+    region: "Región Metropolitana",
+  })
+
+  assert.equal(profileUpdateSchema.safeParse(cuerpo).success, true, "el cuerpo tendría que ser válido")
+  assert.deepEqual(
+    Object.keys(cuerpo).sort(),
+    ["bio", "comuna", "nombre", "region", "telefono"],
+    "no debe viajar un campo de más o de menos",
+  )
+})
+
+test("cuerpoDePerfil manda null en vez de texto vacío para limpiar la ficha", () => {
+  const cuerpo = cuerpoDePerfil({ nombre: "Ana Pérez", bio: "", telefono: "", comuna: "", region: "" })
+
+  assert.deepEqual(cuerpo, { nombre: "Ana Pérez", bio: null, telefono: null, comuna: null, region: null })
+  assert.equal(profileUpdateSchema.safeParse(cuerpo).success, true, "el cuerpo tendría que ser válido")
 })
 
 test("estadoSegunStock mantiene la pausa y deriva agotada o activa", () => {
