@@ -25,6 +25,7 @@ import { DialogoEditarPerfil } from "@/components/marketplace/dialogo-editar-per
 
 export function PerfilView({
   usuario,
+  pestanaInicial = "publicaciones",
   onActualizarUsuario,
   onCerrarSesion,
   onVolver,
@@ -32,6 +33,7 @@ export function PerfilView({
   onAbrirPublicacion,
 }: {
   usuario: SesionUsuario
+  pestanaInicial?: "publicaciones" | "compras"
   onActualizarUsuario: (user: SesionUsuario) => void
   onCerrarSesion: () => void
   onVolver: () => void
@@ -40,7 +42,7 @@ export function PerfilView({
 }) {
   const [pestana, setPestana] = useState<
     "publicaciones" | "ventas" | "compras" | "notificaciones" | "resenas" | "mensajes"
-  >("publicaciones")
+  >(pestanaInicial)
   const [perfil, setPerfil] = useState<PerfilUI | null>(null)
   const [misPublicaciones, setMisPublicaciones] = useState<PublicacionListItem[]>([])
   const [ventas, setVentas] = useState<OrdenUI[]>([])

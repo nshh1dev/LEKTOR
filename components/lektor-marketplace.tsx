@@ -48,6 +48,7 @@ export function LektorMarketplace({
   const [mounted, setMounted] = useState(false)
   const [intentoCatalogo, setIntentoCatalogo] = useState(0)
   const [vista, setVista] = useState<Vista>("catalog")
+  const [pestanaInicialPerfil, setPestanaInicialPerfil] = useState<"publicaciones" | "compras">("publicaciones")
   const [usuario, setUsuario] = useState<SesionUsuario | null>(null)
   const [authPrompt, setAuthPrompt] = useState<"sell" | "buy" | "contact" | null>(null)
 
@@ -342,7 +343,10 @@ export function LektorMarketplace({
               <Button
                 variant="ghost"
                 className="rounded-full text-muted-foreground hover:text-foreground"
-                onClick={() => setVista(usuario ? "profile" : "auth")}
+                onClick={() => {
+                  setPestanaInicialPerfil("publicaciones")
+                  setVista(usuario ? "profile" : "auth")
+                }}
               >
                 <UserCircle data-icon="inline-start" /> Mi Perfil
               </Button>
@@ -452,7 +456,10 @@ export function LektorMarketplace({
               setVista("checkout")
             }}
             ordenConfirmada={ordenCreada}
-            onVerPerfil={() => setVista("profile")}
+            onVerPerfil={() => {
+              setPestanaInicialPerfil("compras")
+              setVista("profile")
+            }}
           />
         )}
 
@@ -460,6 +467,7 @@ export function LektorMarketplace({
           <AuthView
             onSuccess={(user) => {
               setUsuario(user)
+              setPestanaInicialPerfil("publicaciones")
               setVista(user ? "profile" : "catalog")
             }}
             onVolver={() => setVista("catalog")}
@@ -468,7 +476,9 @@ export function LektorMarketplace({
 
         {vista === "profile" && usuario && (
           <PerfilView
+            key={pestanaInicialPerfil}
             usuario={usuario}
+            pestanaInicial={pestanaInicialPerfil}
             onActualizarUsuario={setUsuario}
             onCerrarSesion={cerrarSesion}
             onVolver={() => setVista("catalog")}
