@@ -205,7 +205,7 @@ export function DialogoEditarPerfil({
                 <Label className={ETIQUETA} htmlFor="perfil-bio">Bio</Label>
                 <Textarea aria-invalid={errors.bio ? true : undefined} aria-describedby={errors.bio ? "bio-error" : undefined} id="perfil-bio" rows={2} placeholder="Coleccionista de mangas, compro sellados y los intercambio" {...register("bio")} />
               </div>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5 md:col-span-2">
                 <Label className={ETIQUETA} htmlFor="perfil-telefono">Teléfono de contacto</Label>
                 <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" inputMode="tel" autoComplete="tel" placeholder="+56 9 1234 5678" className="font-mono" value={telefonoActual ?? ""} onChange={(event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: true })} />
               </div>
@@ -213,13 +213,22 @@ export function DialogoEditarPerfil({
                 <Label className={ETIQUETA} htmlFor="perfil-comuna">Comuna</Label>
                 <Input aria-invalid={errors.comuna ? true : undefined} aria-describedby={errors.comuna ? "comuna-error" : undefined} id="perfil-comuna" placeholder="Providencia" {...register("comuna")} />
               </div>
-              <div className="flex flex-col gap-1.5 md:col-span-2">
+              <div className="flex flex-col gap-1.5">
                 <Label className={ETIQUETA} htmlFor="perfil-region">Región</Label>
                 <Select value={regionActual ?? ""} onValueChange={(value) => setValue("region", value, { shouldValidate: true })}>
                   <SelectTrigger id="perfil-region" className="w-full">
                     <SelectValue placeholder="Selecciona tu región" />
                   </SelectTrigger>
-                  <SelectContent>
+                  {/* El desplegable se portaliza al body: sin acotarlo se va más ancho que el
+                      modal con los nombres de región más largos y, como el campo es el último
+                      de la sección, se abría hacia abajo más allá del marco. Se ata al ancho
+                      del campo y se abre hacia arriba, dentro del diálogo. */}
+                  <SelectContent
+                    side="top"
+                    align="start"
+                    sideOffset={6}
+                    className="max-h-52 w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]"
+                  >
                     {REGIONES.map((region) => (
                       <SelectItem key={region} value={region}>
                         {region}
