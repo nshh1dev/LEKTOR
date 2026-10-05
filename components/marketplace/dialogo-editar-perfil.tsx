@@ -215,20 +215,6 @@ export function DialogoEditarPerfil({
                 <MensajeError campo="telefono" mensaje={errors.telefono?.message} />
               </div>
               <div className="flex flex-col gap-1.5 md:col-span-2">
-                <Label className={ETIQUETA} htmlFor="perfil-comuna">Comuna</Label>
-                <ComunaInput
-                  describedBy={errors.comuna ? "comuna-error" : undefined}
-                  id="perfil-comuna"
-                  invalid={errors.comuna ? true : undefined}
-                  onRegionSugerida={(value) => setValue("region", value, { shouldValidate: true })}
-                  onValueChange={(valor) => setValue("comuna", valor, { shouldValidate: true })}
-                  placeholder="Providencia"
-                  region={regionActual}
-                  value={comunaActual ?? ""}
-                />
-                <MensajeError campo="comuna" mensaje={errors.comuna?.message} />
-              </div>
-              <div className="flex flex-col gap-1.5 md:col-span-2">
                 <Label className={ETIQUETA} htmlFor="perfil-region">Región</Label>
                 <Select
                   value={regionActual ?? ""}
@@ -244,8 +230,8 @@ export function DialogoEditarPerfil({
                     <SelectValue placeholder="Selecciona tu región" />
                   </SelectTrigger>
                   {/* El desplegable se portaliza al body: se ata al ancho del campo para no
-                      ir más ancho que el modal y se abre hacia arriba, porque es el último
-                      de la sección. Sin tope propio de alto se abre lo que alcance la
+                      ir más ancho que el modal y se abre hacia arriba, porque la sección
+                      termina acá. Sin tope propio de alto se abre lo que alcance la
                       pantalla: las 16 regiones se ven enteras y no hay lista que "salte"
                       con la rueda, ya que Radix la acota al espacio disponible. */}
                   <SelectContent
@@ -261,6 +247,20 @@ export function DialogoEditarPerfil({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="flex flex-col gap-1.5 md:col-span-2">
+                <Label className={ETIQUETA} htmlFor="perfil-comuna">Comuna</Label>
+                <ComunaInput
+                  describedBy={errors.comuna ? "comuna-error" : undefined}
+                  id="perfil-comuna"
+                  invalid={errors.comuna ? true : undefined}
+                  onRegionSugerida={(value) => setValue("region", value, { shouldValidate: true })}
+                  onValueChange={(valor) => setValue("comuna", valor, { shouldValidate: true })}
+                  placeholder={regionActual ? "Providencia" : "Elige la región y busca tu comuna"}
+                  region={regionActual}
+                  value={comunaActual ?? ""}
+                />
+                <MensajeError campo="comuna" mensaje={errors.comuna?.message} />
               </div>
             </div>
           </form>

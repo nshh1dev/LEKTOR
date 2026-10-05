@@ -138,14 +138,22 @@ export function ComunaInput({
         value={value}
       />
       {abierto ? (
-        <div className="scrollbar-fina mt-2 max-h-72 overflow-y-auto rounded-md border bg-popover p-1">
+        /* `overscroll-contain` deja la rueda en la lista: al llegar al tope o al final no
+           sigue hacia el scroll del diálogo, que hacía que todo el formulario se moviera
+           mientras se leía el índice. */
+        <div className="scrollbar-fina mt-2 max-h-80 overscroll-contain overflow-y-auto rounded-md border bg-popover p-1">
           <ul id={listaId} role="listbox" aria-label="Comunas de Chile">
-            {bloques.map((bloque) => (
-              <li key={bloque.region} role="group" aria-labelledby={`${listaId}-${bloque.region}`}>
+            {bloques.map((bloque, indice) => (
+              <li
+                key={bloque.region}
+                role="group"
+                aria-labelledby={`${listaId}-${bloque.region}`}
+                className={cn(indice > 0 && "filete mt-2 pt-2")}
+              >
                 <p
                   id={`${listaId}-${bloque.region}`}
                   className={cn(
-                    "rotulo sticky top-0 z-10 bg-popover px-2 pt-2.5 pb-1.5",
+                    "rotulo px-2 pt-2 pb-1.5",
                     bloque.region === region && "text-oro",
                   )}
                 >
