@@ -88,13 +88,21 @@ export async function GET(request: Request) {
       .where(eq(bookMetadata.isbn, isbn))
       .limit(1)
 
+    // Cada campo que siga con escritura no latina se lista explícitamente.
+    const camposNoLatinos = (b: { titulo: string | null; autor: string | null; editorial: string | null }) => {
+      const faltantes: string[] = []
+      if (contieneNoLatino(b.titulo)) faltantes.push("titulo")
+      if (contieneNoLatino(b.autor)) faltantes.push("autor")
+      if (contieneNoLatino(b.editorial)) faltantes.push("editorial")
+      return faltantes
+    }
+
     const cacheVigente =
       cached && Date.now() - cached.consultadoEn.getTime() < CACHE_DIAS * 86_400_000
     if (cacheVigente && cached.titulo) {
-      const sinTraduccion = [cached.titulo, cached.autor, cached.editorial].some((campo) =>
-        contieneNoLatino(campo),
-      )
-      return ok({ libro: { ...cached, isbn, fuente: "cache" as const, sinTraduccion } })
+      return ok({
+        libro: { ...cached, isbn, fuente: "cache" as const, sinTraducir: camposNoLatinos(cached) },
+      })
     }
 
     const book = await consultarOpenLibrary(isbn)
@@ -119,9 +127,7 @@ export async function GET(request: Request) {
         if (contieneNoLatino(book.editorial) && latina.editorial) book.editorial = latina.editorial
       }
     }
-    const sinTraduccion = [book.titulo, book.autor, book.editorial].some((campo) =>
-      contieneNoLatino(campo),
-    )
+    const sinTraducir = camposNoLatinos(book)
 
     const registro = { ...book, isbn, consultadoEn: new Date() }
 
@@ -130,7 +136,7 @@ export async function GET(request: Request) {
       .values(registro)
       .onConflictDoUpdate({ target: bookMetadata.isbn, set: registro })
 
-    return ok({ libro: { ...registro, fuente: "openlibrary" as const, sinTraduccion } })
+    return ok({ libro: { ...registro, fuente: "openlibrary" as const, sinTraducir } })
   } catch (error) {
     return fail(error)
   }

@@ -75,10 +75,11 @@ export function ScannerView() {
     }
     if (externo.status === "fulfilled" && externo.value.libro) {
       setMetadata(externo.value.libro)
-      if (externo.value.libro.sinTraduccion) {
-        setNota(
-          "Parte de la ficha llega con escritura no latina y no encontramos una versión equivalente: revisa los datos.",
-        )
+      if (externo.value.libro.sinTraducir && externo.value.libro.sinTraducir.length > 0) {
+        const nombres = externo.value.libro.sinTraducir
+          .map((campo) => (campo === "titulo" ? "título" : campo === "autor" ? "autor" : "editorial"))
+          .join(", ")
+        setNota(`No pudimos pasar al alfabeto latino: ${nombres}. Revisa esos datos.`)
       }
     }
 

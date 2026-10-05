@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { avisar } from "@/components/notificacion/avisar"
-import { FaltanDatos } from "@/components/notificacion/avisos"
+import { Aviso, FaltanDatos } from "@/components/notificacion/avisos"
 import { mensajeDeFallo, resumenFaltantes } from "@/lib/avisos"
 import { CATEGORIAS, CONDICIONES, listaFotosAUrls, publicarFormSchema, type Categoria, type Condicion, type LibroIsbn, type PublicarFormValues } from "@/lib/catalog"
 import { formatearPrecio, precioANumero } from "@/lib/entrada"
@@ -187,15 +187,6 @@ export function PublicarView({
             .map((item) => item.trim())
             .filter(Boolean)
           if (actuales.length === 0) setValue("fotos", data.libro.portadaUrl ?? "", { shouldValidate: true })
-        }
-        if (data.libro.sinTraduccion) {
-          avisar.revisar({
-            titulo: "No hay versión en alfabeto latino",
-            descripcion:
-              "El título, autor o editorial llega con escritura no latina y no encontramos una versión equivalente: revisa y completa a mano.",
-            referencia: `ISBN ${limpio}`,
-            accion: { etiqueta: "Completar a mano", alPulsar: () => setModo("manual") },
-          })
         }
         avisar.ok({
           titulo: "Datos encontrados en Open Library",
@@ -473,6 +464,17 @@ export function PublicarView({
             </div>
           </CardContent>
           <CardFooter className="flex-col items-stretch gap-3">
+            {libro?.sinTraducir && libro.sinTraducir.length > 0 ? (
+              <Aviso tono="revisar" titulo="No pudimos pasar todo al alfabeto latino">
+                Revisa y completa a mano:{" "}
+                {libro.sinTraducir
+                  .map((campo) =>
+                    campo === "titulo" ? "título" : campo === "autor" ? "autor" : "editorial",
+                  )
+                  .join(", ")}
+                .
+              </Aviso>
+            ) : null}
             {faltan.length > 0 ? (
               <FaltanDatos
                 titulo="La ficha todavía no está lista"
