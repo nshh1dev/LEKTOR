@@ -176,7 +176,15 @@ export function ScannerView() {
                     <Dato etiqueta="Páginas" valor={metadata.paginas ? String(metadata.paginas) : null} />
                     <Dato
                       etiqueta="Fuente"
-                      valor={metadata.fuente === "cache" ? "Caché interna" : "Open Library"}
+                      valor={
+                        metadata.fuente === "cache"
+                          ? "Caché interna"
+                          : metadata.fuente === "google-books"
+                            ? "Google Books"
+                            : metadata.fuente === "openbd"
+                              ? "OpenBD"
+                              : "Open Library"
+                      }
                     />
                   </dl>
                 </div>
