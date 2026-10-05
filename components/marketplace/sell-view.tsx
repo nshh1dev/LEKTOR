@@ -189,7 +189,10 @@ export function PublicarView({
           if (actuales.length === 0) setValue("fotos", data.libro.portadaUrl ?? "", { shouldValidate: true })
         }
         avisar.ok({
-          titulo: "Datos encontrados en Open Library",
+          titulo:
+            data.libro.fuente === "google-books"
+              ? "Datos encontrados en Google Books"
+              : "Datos encontrados en Open Library",
           descripcion: "Revisa y completa la condición física antes de publicar.",
           referencia: `ISBN ${limpio}`,
         })

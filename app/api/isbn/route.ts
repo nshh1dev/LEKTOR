@@ -6,6 +6,7 @@ import { fail, jsonError, ok } from "@/lib/api"
 import { isValidIsbn, normalizeIsbn, toIsbn13 } from "@/lib/isbn"
 import { clientIp, limiteExcedido, rateLimit } from "@/lib/rate-limit"
 import { buscarVersionLatina, contieneNoLatino } from "@/lib/romanizar"
+import { consultarGoogleBooks } from "@/lib/google-books"
 
 const CACHE_DIAS = 30
 const OPEN_LIBRARY_URL = "https://openlibrary.org/search.json"
@@ -105,14 +106,16 @@ export async function GET(request: Request) {
       })
     }
 
-    const book = await consultarOpenLibrary(isbn)
+    const desdeOpenLibrary = await consultarOpenLibrary(isbn)
+    const book = desdeOpenLibrary ?? (await consultarGoogleBooks(isbn))
     if (!book) {
       throw new ApiError(
         404,
         "sin-datos",
-        "Open Library no tiene datos para este ISBN: completa la ficha a mano",
+        "Ni Open Library ni Google Books tienen datos para este ISBN: completa la ficha a mano",
       )
     }
+    const fuente: "openlibrary" | "google-books" = desdeOpenLibrary ? "openlibrary" : "google-books"
 
     // Si algún campo viene en una escritura no latina (japonés, chino, coreano,
     // cirílico, árabe...), se intenta traer la versión en alfabeto latino.
@@ -136,7 +139,7 @@ export async function GET(request: Request) {
       .values(registro)
       .onConflictDoUpdate({ target: bookMetadata.isbn, set: registro })
 
-    return ok({ libro: { ...registro, fuente: "openlibrary" as const, sinTraducir } })
+    return ok({ libro: { ...registro, fuente, sinTraducir } })
   } catch (error) {
     return fail(error)
   }

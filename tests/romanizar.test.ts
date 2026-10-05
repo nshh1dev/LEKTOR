@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { contieneNoLatino, urlGoogleBooks } from "../lib/romanizar"
+import { contieneNoLatino } from "../lib/romanizar"
+import { urlGoogleBooks } from "../lib/google-books"
 
 test("detecta escritura japonesa, coreana, china, cirílica y árabe", () => {
   assert.equal(contieneNoLatino("進撃の巨人"), true)
