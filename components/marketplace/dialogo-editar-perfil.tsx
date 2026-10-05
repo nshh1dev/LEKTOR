@@ -214,7 +214,7 @@ export function DialogoEditarPerfil({
                 <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" inputMode="tel" autoComplete="tel" placeholder="+56 9 1234 5678" className="font-mono" value={telefonoActual ?? ""} onChange={(event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: true })} />
                 <MensajeError campo="telefono" mensaje={errors.telefono?.message} />
               </div>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5 md:col-span-2">
                 <Label className={ETIQUETA} htmlFor="perfil-comuna">Comuna</Label>
                 <ComunaInput
                   describedBy={errors.comuna ? "comuna-error" : undefined}
@@ -228,7 +228,7 @@ export function DialogoEditarPerfil({
                 />
                 <MensajeError campo="comuna" mensaje={errors.comuna?.message} />
               </div>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5 md:col-span-2">
                 <Label className={ETIQUETA} htmlFor="perfil-region">Región</Label>
                 <Select
                   value={regionActual ?? ""}
@@ -243,15 +243,16 @@ export function DialogoEditarPerfil({
                   <SelectTrigger id="perfil-region" className="w-full">
                     <SelectValue placeholder="Selecciona tu región" />
                   </SelectTrigger>
-                  {/* El desplegable se portaliza al body: sin acotarlo se va más ancho que el
-                      modal con los nombres de región más largos y, como el campo es el último
-                      de la sección, se abría hacia abajo más allá del marco. Se ata al ancho
-                      del campo y se abre hacia arriba, dentro del diálogo. */}
+                  {/* El desplegable se portaliza al body: se ata al ancho del campo para no
+                      ir más ancho que el modal y se abre hacia arriba, porque es el último
+                      de la sección. Sin tope propio de alto se abre lo que alcance la
+                      pantalla: las 16 regiones se ven enteras y no hay lista que "salte"
+                      con la rueda, ya que Radix la acota al espacio disponible. */}
                   <SelectContent
                     side="top"
                     align="start"
                     sideOffset={6}
-                    className="max-h-72 w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]"
+                    className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]"
                   >
                     {REGIONES.map((region) => (
                       <SelectItem key={region} value={region}>
