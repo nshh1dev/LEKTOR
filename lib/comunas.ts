@@ -140,8 +140,9 @@ export type GrupoComunas = {
  * muestran todas separadas por región, porque todavía no se sabe dónde está.
  *
  * Escrito algo, se filtra por ese texto —sin tildes ni mayúsculas—, se recortan los bloques
- * que quedan sin coincidencias y se limita el total. Si en la región elegida no aparece nada,
- * se propone lo que hay en las demás: buscar una comuna es buscar en el país.
+ * que quedan sin coincidencias y se limita el total. Con región elegida no se propone nada
+ * de otras regiones: si lo escrito no está en la región que eligió, la lista queda vacía y
+ * quien decide es la persona, cambiando la región.
  */
 export function gruposComunas(
   texto: string,
@@ -152,15 +153,8 @@ export function gruposComunas(
   // Una región que no está en el catálogo no acota nada: se cae al país entero, que es mejor
   // que una lista vacía.
   const elegida = REGIONES.find((nombre) => nombre === region) ?? null
-
-  const propias = bloques(elegida ? [elegida] : REGIONES, busca)
-  if (!elegida || propias.length > 0) return busca === "" ? propias : recortar(propias, limite)
-
-  const otras = bloques(
-    REGIONES.filter((nombre) => nombre !== elegida),
-    busca,
-  )
-  return recortar(otras, limite)
+  const grupos = bloques(elegida ? [elegida] : REGIONES, busca)
+  return busca === "" ? grupos : recortar(grupos, limite)
 }
 
 /** Un bloque por región, con sus comunas ya filtradas por el texto escrito. */

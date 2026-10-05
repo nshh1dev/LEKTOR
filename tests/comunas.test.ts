@@ -55,13 +55,13 @@ test("los bloques que se quedan sin coincidencias no aparecen", () => {
   assert.deepEqual(gruposComunas("NoExiste", "Región de Tarapacá"), [])
 })
 
-test("con región elegida, escribir una comuna de otra región la propone igual", () => {
-  // Buscar una comuna es buscar en el país: si lo escrito no está en la región elegida, la
-  // lista ofrece las coincidencias de las demás en vez de quedarse vacía.
-  assert.deepEqual(gruposComunas("Valparaíso", "Región Metropolitana"), [
-    { region: "Región de Valparaíso", comunas: ["Valparaíso"] },
-  ])
-  // Y si sí está en la región elegida, solo aparecen las de esa región.
+test("con región elegida, el índice no propone comunas de otras regiones", () => {
+  // Con la región ya decidida la lista es una sola: si lo escrito no está en ella, la lista
+  // queda vacía en vez de llenarse de bloques de otras regiones, y quien decide el cambio es
+  // la persona, no el índice.
+  assert.deepEqual(gruposComunas("Valparaíso", "Región Metropolitana"), [])
+  assert.deepEqual(gruposComunas("lan", "Región del Libertador General Bernardo O'Higgins"), [])
+  // Y si sí está en la región elegida, aparece solo esa.
   assert.deepEqual(gruposComunas("Maipú", "Región Metropolitana"), [
     { region: "Región Metropolitana", comunas: ["Maipú"] },
   ])

@@ -180,8 +180,10 @@ export function ComunaInput({
             ))}
           </ul>
           {value.trim() !== "" && grupos.length === 0 ? (
-            <p className="px-2 py-1.5 text-sm text-muted-foreground">
-              No está en la lista: puedes dejarla escrita igual.
+            <p className="px-2 py-2 text-sm text-muted-foreground">
+              {region
+                ? "Ninguna comuna de la región. Puedes escribirla igual o cambiar la región."
+                : "No está en la lista: puedes dejarla escrita igual."}
             </p>
           ) : null}
         </div>
