@@ -5,6 +5,7 @@ import { Clock3, FileText, PackageCheck, Star } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
 import { ChatOrden } from "@/components/marketplace/chat-orden"
 import { DialogoComprobante } from "@/components/marketplace/comprobante"
 import { DialogoValoracion } from "@/components/marketplace/dialogo-valoracion"
@@ -40,10 +41,12 @@ export function TarjetaOrden({
   orden: OrdenUI
   rol: "comprador" | "vendedor"
   yoId: string
-  alCambiarEstado: (ordenId: string, estado: EstadoOrden) => void
+  alCambiarEstado: (ordenId: string, estado: EstadoOrden) => void | Promise<void>
 }) {
   const contraparte = rol === "comprador" ? orden.vendedor : orden.comprador
   const [comprobanteAbierto, setComprobanteAbierto] = useState(false)
+  const [cancelacionAbierta, setCancelacionAbierta] = useState(false)
+  const [cancelando, setCancelando] = useState(false)
   const [valorando, setValorando] = useState(false)
   const [valoradoLocal, setValoradoLocal] = useState(false)
   const yaValorada = orden.valorada || valoradoLocal
@@ -128,7 +131,8 @@ export function TarjetaOrden({
               size="sm"
               variant="outline"
               className="rounded-lg"
-              onClick={() => alCambiarEstado(orden.id, "cancelada")}
+              disabled={cancelando}
+              onClick={() => setCancelacionAbierta(true)}
             >
               {orden.estado === "reservada" ? "Liberar reserva" : "Cancelar orden"}
             </Button>
@@ -158,6 +162,28 @@ export function TarjetaOrden({
         </div>
       </CardContent>
 
+      <ConfirmarAccion
+        abierto={cancelacionAbierta}
+        tono="revisar"
+        titulo="¿Cancelar esta orden?"
+        descripcion={`La orden ${ordenCode(orden.id, orden.fechaCreacion)} por "${orden.tituloSnapshot}" se cancelará y el ejemplar reservado se devolverá al stock de la publicación.`}
+        confirmTexto="Confirmar cancelación"
+        cancelTexto="Volver"
+        cargando={cancelando}
+        onConfirmar={async () => {
+          if (cancelando) return
+          setCancelando(true)
+          try {
+            await alCambiarEstado(orden.id, "cancelada")
+          } finally {
+            setCancelando(false)
+            setCancelacionAbierta(false)
+          }
+        }}
+        onCerrar={() => {
+          if (!cancelando) setCancelacionAbierta(false)
+        }}
+      />
       <DialogoComprobante
         ordenId={comprobanteAbierto ? orden.id : null}
         alCerrar={() => setComprobanteAbierto(false)}
