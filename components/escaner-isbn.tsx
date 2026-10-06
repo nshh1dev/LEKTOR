@@ -38,6 +38,11 @@ export function EscanerIsbn({
     let stream: MediaStream | null = null
     let cancelado = false
     let timer: ReturnType<typeof setInterval> | null = null
+    let detectando = false
+    const detener = () => {
+      if (timer) clearInterval(timer)
+      stream?.getTracks().forEach((track) => track.stop())
+    }
     setError(null)
 
     const iniciar = async () => {
@@ -45,9 +50,17 @@ export function EscanerIsbn({
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
         })
+        if (cancelado) {
+          detener()
+          return
+        }
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           await videoRef.current.play()
+        }
+        if (cancelado) {
+          detener()
+          return
         }
         const Detector = (
           window as unknown as {
@@ -58,20 +71,28 @@ export function EscanerIsbn({
         ).BarcodeDetector
         const detector = new Detector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] })
         timer = setInterval(async () => {
-          if (!videoRef.current || cancelado) return
+          if (!videoRef.current || cancelado || detectando) return
+          detectando = true
           try {
             const codes = await detector.detect(videoRef.current)
+            if (cancelado) return
             const valor = codes[0]?.rawValue
             if (valor) {
               cancelado = true
+              detener()
               setActivo(false)
               detectarRef.current(normalizeIsbn(valor))
             }
           } catch {
-            setError("No se pudo leer el código. Acerca más el tomo o escribe el ISBN.")
+            if (!cancelado) setError("No se pudo leer el código. Acerca más el tomo o escribe el ISBN.")
+          } finally {
+            detectando = false
           }
         }, 700)
       } catch {
+        detener()
+        if (cancelado) return
+        setActivo(false)
         setError("No pudimos acceder a la cámara. Revisa los permisos del navegador.")
       }
     }
@@ -79,8 +100,7 @@ export function EscanerIsbn({
     void iniciar()
     return () => {
       cancelado = true
-      if (timer) clearInterval(timer)
-      stream?.getTracks().forEach((track) => track.stop())
+      detener()
     }
   }, [activo])
 
