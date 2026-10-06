@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState, type ChangeEvent } from "react"
+import { useCallback, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react"
 import { useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowLeft, Check, LoaderCircle, Search, X } from "lucide-react"
@@ -84,12 +84,13 @@ export function PublicarView({
   const valorFotos = useWatch({ control, name: "fotos" })
   const fotosActuales = useMemo(() => listaFotosAUrls(valorFotos ?? ""), [valorFotos])
   const [subiendo, setSubiendo] = useState(false)
+  const subiendoRef = useRef(false)
 
   const onSeleccionarArchivos = useCallback(
     async (evento: ChangeEvent<HTMLInputElement>) => {
       const archivos = Array.from(evento.target.files ?? [])
       evento.target.value = ""
-      if (archivos.length === 0 || subiendo) return
+      if (archivos.length === 0 || subiendoRef.current || enviando) return
 
       const restantes = 6 - fotosActuales.length
       if (restantes <= 0) {
@@ -112,6 +113,7 @@ export function PublicarView({
 
       const form = new FormData()
       eleccion.forEach((archivo) => form.append("archivos", archivo))
+      subiendoRef.current = true
       setSubiendo(true)
       try {
         const respuesta = await fetch("/api/uploads", { method: "POST", body: form })
@@ -131,10 +133,11 @@ export function PublicarView({
           descripcion: mensajeDeFallo(error, "Revisa que cada imagen sea JPG, PNG o WebP y que pese menos de 5 MB."),
         })
       } finally {
+        subiendoRef.current = false
         setSubiendo(false)
       }
     },
-    [fotosActuales.length, getValues, setValue, subiendo],
+    [fotosActuales.length, getValues, setValue, enviando],
   )
 
   const quitarFoto = useCallback(
@@ -213,43 +216,54 @@ export function PublicarView({
     [getValues, setValue],
   )
 
-  const onSubmit = handleSubmit(async (values) => {
-    setEnviando(true)
-    try {
-      const payload = {
-        titulo: values.titulo,
-        autor: values.autor,
-        editorial: values.editorial,
-        volumen: values.volumen ? Number(values.volumen) : null,
-        categoria: values.categoria,
-        condicion: values.condicion,
-        precio: precioANumero(values.precio),
-        stock: Number(values.stock),
-        isbn: values.isbn ? normalizeIsbn(values.isbn) : "",
-        descripcion: values.descripcion,
-        fotos: listaFotosAUrls(values.fotos),
-      }
-      await api("/api/publications", { method: "POST", body: JSON.stringify(payload) })
-      avisar.ok({
-        titulo: "Ejemplar publicado",
-        descripcion: "Ya aparece en el catálogo con tu nombre como vendedor.",
-        referencia: values.titulo,
+  const onSubmit = (evento: FormEvent<HTMLFormElement>) => {
+    evento.preventDefault()
+    if (subiendoRef.current) {
+      avisar.revisar({
+        titulo: "Las fotos todavía se están subiendo",
+        descripcion: "Espera a que terminen de subir antes de publicar el ejemplar.",
       })
-      reset()
-      setLibro(null)
-      setPortadaOpenLibrary(null)
-      onPublicado()
-    } catch (error) {
-      avisar.falla({
-        titulo: "No se pudo publicar el ejemplar",
-        descripcion: mensajeDeFallo(error, "Revisa la ficha e inténtalo otra vez."),
-        referencia: values.titulo || values.isbn || undefined,
-        duracion: 8000,
-      })
-    } finally {
-      setEnviando(false)
+      return
     }
-  })
+    if (enviando) return
+    return handleSubmit(async (values) => {
+      setEnviando(true)
+      try {
+        const payload = {
+          titulo: values.titulo,
+          autor: values.autor,
+          editorial: values.editorial,
+          volumen: values.volumen ? Number(values.volumen) : null,
+          categoria: values.categoria,
+          condicion: values.condicion,
+          precio: precioANumero(values.precio),
+          stock: Number(values.stock),
+          isbn: values.isbn ? normalizeIsbn(values.isbn) : "",
+          descripcion: values.descripcion,
+          fotos: listaFotosAUrls(values.fotos),
+        }
+        await api("/api/publications", { method: "POST", body: JSON.stringify(payload) })
+        avisar.ok({
+          titulo: "Ejemplar publicado",
+          descripcion: "Ya aparece en el catálogo con tu nombre como vendedor.",
+          referencia: values.titulo,
+        })
+        reset()
+        setLibro(null)
+        setPortadaOpenLibrary(null)
+        onPublicado()
+      } catch (error) {
+        avisar.falla({
+          titulo: "No se pudo publicar el ejemplar",
+          descripcion: mensajeDeFallo(error, "Revisa la ficha e inténtalo otra vez."),
+          referencia: values.titulo || values.isbn || undefined,
+          duracion: 8000,
+        })
+      } finally {
+        setEnviando(false)
+      }
+    })(evento)
+  }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -440,7 +454,7 @@ export function PublicarView({
                 multiple
                 className="cursor-pointer"
                 onChange={onSeleccionarArchivos}
-                disabled={subiendo}
+                disabled={subiendo || enviando}
               />
               <p className="text-xs text-muted-foreground">
                 {subiendo
@@ -482,9 +496,9 @@ export function PublicarView({
               <Button type="button" variant="outline" className="rounded-xl" onClick={onVolver}>
                 Cancelar
               </Button>
-              <Button type="submit" className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90" disabled={enviando}>
-                {enviando ? <LoaderCircle className="size-4 animate-spin" /> : <Check />}
-                Publicar
+              <Button type="submit" className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90" disabled={enviando || subiendo}>
+                {enviando || subiendo ? <LoaderCircle className="size-4 animate-spin" /> : <Check />}
+                {subiendo ? "Subiendo fotos..." : "Publicar"}
               </Button>
             </div>
           </CardFooter>

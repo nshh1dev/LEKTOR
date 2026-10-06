@@ -285,7 +285,7 @@ export function LektorMarketplace({
         Saltar al catálogo
       </a>
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-xl">
-        <div className="mx-auto grid h-[4.5rem] max-w-[92rem] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 md:gap-8 md:px-8">
+        <div className="mx-auto grid max-w-[92rem] grid-cols-[1fr_auto] items-center gap-x-2 gap-y-3 px-4 py-3 sm:gap-x-4 md:h-[4.5rem] md:grid-cols-[auto_1fr_auto] md:gap-8 md:px-8 md:py-0">
           <button
             type="button"
             onClick={() => {
@@ -303,7 +303,7 @@ export function LektorMarketplace({
             </span>
           </button>
 
-          <div className="relative justify-self-center md:w-full md:max-w-xl">
+          <div className="relative col-span-2 row-start-2 w-full min-w-0 justify-self-center md:col-span-1 md:col-start-2 md:row-start-1 md:max-w-xl">
             <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               ref={buscadorRef}
@@ -318,7 +318,7 @@ export function LektorMarketplace({
             </kbd>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1 md:gap-2">
+          <div className="col-start-2 row-start-1 flex shrink-0 items-center gap-1 md:col-start-3 md:gap-2">
             <Button
               variant="ghost"
               size="icon"
@@ -328,29 +328,29 @@ export function LektorMarketplace({
             >
               {mounted && resolvedTheme === "dark" ? <Sun /> : <Moon />}
             </Button>
-            <div className="hidden items-center gap-2 md:flex">
-              {usuario && esStaff(usuario.rol) && (
-                <Button
-                  variant="ghost"
-                  className="rounded-full text-muted-foreground hover:text-foreground"
-                  asChild
-                >
-                  <Link href="/admin">
-                    <LayoutDashboard data-icon="inline-start" /> Panel
-                  </Link>
-                </Button>
-              )}
+            {usuario && esStaff(usuario.rol) && (
               <Button
                 variant="ghost"
-                className="rounded-full text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  setPestanaInicialPerfil("publicaciones")
-                  setVista(usuario ? "profile" : "auth")
-                }}
+                className="hidden rounded-full text-muted-foreground hover:text-foreground md:inline-flex"
+                asChild
               >
-                <UserCircle data-icon="inline-start" /> Mi Perfil
+                <Link href="/admin">
+                  <LayoutDashboard data-icon="inline-start" /> Panel
+                </Link>
               </Button>
-            </div>
+            )}
+            <Button
+              variant="ghost"
+              className="size-10 rounded-full p-0 text-muted-foreground hover:text-foreground md:h-9 md:w-auto md:px-3"
+              onClick={() => {
+                setPestanaInicialPerfil("publicaciones")
+                setVista(usuario ? "profile" : "auth")
+              }}
+              aria-label={usuario ? "Mi Perfil" : "Iniciar sesión o crear una cuenta"}
+            >
+              <UserCircle data-icon="inline-start" />
+              <span className="hidden md:inline">Mi Perfil</span>
+            </Button>
             <Button
               className="h-10 rounded-full bg-oro px-5 text-oro-foreground shadow-none hover:bg-oro/90"
               onClick={() => (usuario ? setVista("sell") : setAuthPrompt("sell"))}
