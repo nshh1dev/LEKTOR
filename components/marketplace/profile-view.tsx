@@ -63,8 +63,10 @@ export function PerfilView({
   const [eliminando, setEliminando] = useState<PublicacionListItem | null>(null)
   const [editandoPerfil, setEditandoPerfil] = useState(false)
   const [intento, setIntento] = useState(0)
+  const [cargandoFicha, setCargandoFicha] = useState(true)
 
   const cargarTodo = useCallback(async () => {
+    setCargandoFicha(true)
     try {
       const [datos, propias, ordenesVendedor, ordenesComprador, avisos, misReseñas, hilos] = await Promise.all([
         api<{ perfil: PerfilUI; esVendedor: boolean; publicaciones: number }>("/api/profile"),
@@ -89,6 +91,8 @@ export function PerfilView({
         descripcion: mensajeDeFallo(error, "Inténtalo otra vez en un momento."),
         accion: { etiqueta: "Reintentar", alPulsar: () => setIntento((n) => n + 1) },
       })
+    } finally {
+      setCargandoFicha(false)
     }
   }, [usuario.id])
 
@@ -294,9 +298,14 @@ export function PerfilView({
                 </Link>
               </Button>
             )}
-            <Button variant="secondary" size="sm" onClick={() => setEditandoPerfil(true)}>
-              <UserPen data-icon="inline-start" /> Editar perfil
+            <Button variant="secondary" size="sm" disabled={!perfil || cargandoFicha} onClick={() => setEditandoPerfil(true)}>
+              <UserPen data-icon="inline-start" /> {cargandoFicha ? "Cargando perfil…" : "Editar perfil"}
             </Button>
+            {!perfil && !cargandoFicha && (
+              <Button variant="outline" size="sm" onClick={() => setIntento((n) => n + 1)}>
+                Reintentar carga del perfil
+              </Button>
+            )}
             <Button variant="secondary" size="sm" onClick={onNuevaPublicacion}>
               <Tag data-icon="inline-start" /> Publicar
             </Button>
