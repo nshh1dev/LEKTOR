@@ -43,8 +43,11 @@ export function DialogoContacto({
   const finHilo = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (abierto) setConversacion(null)
-  }, [abierto, conversacionId])
+    if (abierto) {
+      setConversacion(null)
+      setTexto("")
+    }
+  }, [abierto, conversacionId, nueva?.publicacionId, yoId])
 
   const idActivo = abierto ? (conversacion?.id ?? conversacionId) : null
 

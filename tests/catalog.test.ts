@@ -10,6 +10,7 @@ import {
   comisionPlataforma,
   cuerpoDePerfil,
   cuerpoDeRegistro,
+  cuerpoDeStock,
   datosDespachoSchema,
   listaFotosAUrls,
   nivelDePublicaciones,
@@ -19,8 +20,10 @@ import {
   passwordChangeSchema,
   profileUpdateSchema,
   publicationInputSchema,
+  publicationUpdateSchema,
   rangoPrecioDesde,
   searchQuerySchema,
+  stockEdicionSchema,
   misOrdenesQuerySchema,
   envioSegunMetodo,
   estadoSegunStock,
@@ -28,6 +31,35 @@ import {
   loginFormSchema,
   transicionValida,
 } from "@/lib/catalog"
+
+test("editar stock rechaza el campo vacío en vez de convertirlo en cero", () => {
+  for (const valor of ["", "   ", "\t\n"]) {
+    const resultado = stockEdicionSchema.safeParse(valor)
+    assert.equal(resultado.success, false)
+    if (!resultado.success) {
+      assert.equal(resultado.error.issues[0].message, "Ingresa la cantidad de ejemplares disponibles.")
+    }
+  }
+})
+
+test("editar stock acepta cero explícito y cantidades válidas, no valores fuera de rango", () => {
+  for (const [entrada, esperado] of [["0", 0], ["3", 3], ["999", 999], [" 3 ", 3]] as const) {
+    assert.equal(stockEdicionSchema.parse(entrada), esperado)
+  }
+  for (const valor of ["-1", "1.5", "1000", "abc", "NaN", "Infinity"]) {
+    assert.equal(stockEdicionSchema.safeParse(valor).success, false, valor)
+  }
+})
+
+test("cuerpoDeStock cumple el contrato de actualización de publicaciones", () => {
+  for (const entrada of ["0", "3", "999"]) {
+    const cuerpo = cuerpoDeStock(stockEdicionSchema.parse(entrada))
+    assert.deepEqual(cuerpo, { stock: Number(entrada) })
+    const resultado = publicationUpdateSchema.safeParse(cuerpo)
+    assert.equal(resultado.success, true)
+    if (resultado.success) assert.deepEqual(resultado.data, cuerpo)
+  }
+})
 
 test("los tramos de precio cubren el catálogo sin huecos ni traslapes", () => {
   const tramos = RANGOS_PRECISO.filter((rango) => rango.id !== "todos")
