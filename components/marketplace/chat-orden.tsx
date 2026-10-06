@@ -61,6 +61,8 @@ export function ChatOrden({
             descripcion: mensajeDeFallo(error, "Intenta de nuevo en un momento."),
           })
         }
+      } finally {
+        if (vigente) setCargando(false)
       }
     }
     setCargando(true)
