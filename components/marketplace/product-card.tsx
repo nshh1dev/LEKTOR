@@ -39,7 +39,7 @@ export function ProductCard({
       <button
         type="button"
         onClick={onDetalle}
-        className="absolute inset-0 z-10 cursor-pointer rounded-2xl focus-visible:outline-none"
+        className="absolute inset-0 z-10 cursor-pointer rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
         aria-label={`Ver ${publicacion.titulo}, de ${publicacion.autor}, por ${formatCLP(publicacion.precio)}`}
       />
 
@@ -82,7 +82,7 @@ export function ProductCard({
                 event.stopPropagation()
                 onVendedor(publicacion.vendedorId)
               }}
-              className="pointer-events-auto relative z-20 truncate rounded-full font-medium text-foreground/80 transition-colors hover:text-oro focus-visible:outline-none"
+              className="pointer-events-auto relative z-20 truncate rounded-full font-medium text-foreground/80 transition-colors hover:text-oro focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               aria-label={`Ver el perfil de ${publicacion.vendedorNombre}`}
             >
               {publicacion.vendedorNombre}
