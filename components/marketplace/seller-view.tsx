@@ -1,11 +1,15 @@
 "use client"
 
 import { ArrowLeft, BookOpen, MapPin } from "lucide-react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ProductCard } from "@/components/marketplace/product-card"
 import { BarrasEstrellas, ResumenEstrellas } from "@/components/marketplace/valoraciones"
 import { formatDate } from "@/lib/format"
 import type { PerfilVendedorUI } from "@/lib/catalog"
+import { api } from "@/components/marketplace/api"
+import { avisar } from "@/components/notificacion/avisar"
+import { mensajeDeFallo } from "@/lib/avisos"
 
 export function SellerView({
   perfil,
@@ -16,8 +20,31 @@ export function SellerView({
   onVolver: () => void
   onAbrirPublicacion: (id: string) => void
 }) {
-  const { vendedor, reputacion, publicaciones } = perfil
+  const [datos, setDatos] = useState(perfil)
+  const [cargando, setCargando] = useState(false)
+  const consultando = useRef(false)
+  const encabezado = useRef<HTMLHeadingElement>(null)
+  const { vendedor, reputacion, publicaciones, paginacion } = datos
   const ubicacion = [vendedor.comuna, vendedor.region].filter(Boolean).join(", ")
+
+  const cambiarPagina = async (pagina: number) => {
+    if (consultando.current) return
+    consultando.current = true
+    setCargando(true)
+    try {
+      const siguiente = await api<PerfilVendedorUI>(`/api/sellers/${vendedor.id}?pagina=${pagina}`)
+      setDatos(siguiente)
+      encabezado.current?.focus()
+    } catch (error) {
+      avisar.falla({
+        titulo: "No se pudieron cargar los ejemplares",
+        descripcion: mensajeDeFallo(error, "Intenta cambiar de página otra vez."),
+      })
+    } finally {
+      consultando.current = false
+      setCargando(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-10">
@@ -95,13 +122,13 @@ export function SellerView({
         </section>
       )}
 
-      <section className="flex flex-col gap-5">
+      <section className="flex flex-col gap-5" aria-busy={cargando}>
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="font-serif text-2xl font-semibold tracking-tight">
+          <h2 ref={encabezado} tabIndex={-1} className="font-serif text-2xl font-semibold tracking-tight">
             Sus ejemplares en venta
           </h2>
           <span className="text-xs tabular-nums text-muted-foreground">
-            {publicaciones.length} {publicaciones.length === 1 ? "título" : "títulos"}
+            {paginacion.total} {paginacion.total === 1 ? "título" : "títulos"}
           </span>
         </div>
 
@@ -122,6 +149,19 @@ export function SellerView({
               Vuelve pronto: su estantería se va completando con cada lectura terminada.
             </p>
           </div>
+        )}
+        {paginacion.paginas > 1 && (
+          <nav aria-label="Páginas de ejemplares del vendedor" className="flex flex-wrap items-center justify-center gap-3">
+            <Button variant="outline" disabled={cargando || paginacion.pagina <= 1} onClick={() => void cambiarPagina(paginacion.pagina - 1)}>
+              Anterior
+            </Button>
+            <span role="status" className="text-sm text-muted-foreground">
+              {cargando ? "Cargando ejemplares…" : `Página ${paginacion.pagina} de ${paginacion.paginas}`}
+            </span>
+            <Button variant="outline" disabled={cargando || paginacion.pagina >= paginacion.paginas} onClick={() => void cambiarPagina(paginacion.pagina + 1)}>
+              Siguiente
+            </Button>
+          </nav>
         )}
       </section>
     </div>

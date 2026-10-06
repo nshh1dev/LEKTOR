@@ -1,6 +1,6 @@
 import "server-only"
 
-import { and, desc, eq } from "drizzle-orm"
+import { and, count, desc, eq } from "drizzle-orm"
 import { db } from "@/db"
 import { publications, users } from "@/db/schema"
 import { ApiError } from "@/lib/auth"
@@ -18,7 +18,7 @@ import { reputacionDeVendedor } from "@/lib/reviews"
  * reputación sobre todas sus reseñas visibles y sus ejemplares activos. Si la
  * persona no existe, la ruta cae en 404.
  */
-export async function perfilVendedor(vendedorId: string): Promise<PerfilVendedorUI> {
+export async function perfilVendedor(vendedorId: string, paginaSolicitada = 1): Promise<PerfilVendedorUI> {
   const [vendedor] = await db
     .select({
       id: users.id,
@@ -35,6 +35,13 @@ export async function perfilVendedor(vendedorId: string): Promise<PerfilVendedor
   if (!vendedor) {
     throw new ApiError(404, "not-found", "Este vendedor ya no está en LEKTOR")
   }
+
+  const where = and(eq(publications.vendedorId, vendedorId), eq(publications.estado, "activa"))
+  const [conteo] = await db.select({ total: count() }).from(publications).where(where)
+  const total = conteo.total
+  const porPagina = 24
+  const paginas = Math.max(1, Math.ceil(total / porPagina))
+  const pagina = Math.min(paginaSolicitada, paginas)
 
   const [filasPublicaciones, reputacion] = await Promise.all([
     db
@@ -60,9 +67,10 @@ export async function perfilVendedor(vendedorId: string): Promise<PerfilVendedor
       })
       .from(publications)
       .innerJoin(users, eq(publications.vendedorId, users.id))
-      .where(and(eq(publications.vendedorId, vendedorId), eq(publications.estado, "activa")))
-      .orderBy(desc(publications.fechaPublicacion))
-      .limit(24),
+      .where(where)
+      .orderBy(desc(publications.fechaPublicacion), desc(publications.id))
+      .limit(porPagina)
+      .offset((pagina - 1) * porPagina),
     reputacionDeVendedor(vendedorId),
   ])
 
@@ -78,9 +86,10 @@ export async function perfilVendedor(vendedorId: string): Promise<PerfilVendedor
     vendedor: {
       ...vendedor,
       fechaCreacion: vendedor.fechaCreacion.toISOString(),
-      nivel: nivelDePublicaciones(publicaciones.length),
+      nivel: nivelDePublicaciones(total),
     },
     reputacion,
     publicaciones,
+    paginacion: { pagina, porPagina, total, paginas },
   }
 }

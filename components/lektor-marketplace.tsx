@@ -429,6 +429,7 @@ export function LektorMarketplace({
 
         {vista === "seller" && vendedorPerfil && (
           <SellerView
+            key={vendedorPerfil.vendedor.id}
             perfil={vendedorPerfil}
             onVolver={() => setVista("catalog")}
             onAbrirPublicacion={abrirDetalle}
