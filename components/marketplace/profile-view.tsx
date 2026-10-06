@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 import { avisar } from "@/components/notificacion/avisar"
 import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
 import { mensajeDeFallo } from "@/lib/avisos"
-import { esStaff, type ConversacionUI, type EstadoOrden, type NotificacionUI, type OrdenUI, type Paginacion, type PerfilUI, type PublicacionListItem, type ReviewUI, type SesionUsuario } from "@/lib/catalog"
+import { cuerpoDeStock, esStaff, stockEdicionSchema, type ConversacionUI, type EstadoOrden, type NotificacionUI, type OrdenUI, type Paginacion, type PerfilUI, type PublicacionListItem, type ReviewUI, type SesionUsuario } from "@/lib/catalog"
 import { ESTADO_ORDEN_LABEL, ESTADO_PUBLICACION_LABEL, formatCLP, formatDate, formatDateTime } from "@/lib/format"
 import { normalizarFila } from "@/components/marketplace/shared"
 import { api } from "@/components/marketplace/api"
@@ -25,6 +25,7 @@ import { DialogoEditarPerfil } from "@/components/marketplace/dialogo-editar-per
 
 export function PerfilView({
   usuario,
+  pestanaInicial = "publicaciones",
   onActualizarUsuario,
   onCerrarSesion,
   onVolver,
@@ -32,6 +33,7 @@ export function PerfilView({
   onAbrirPublicacion,
 }: {
   usuario: SesionUsuario
+  pestanaInicial?: "publicaciones" | "compras"
   onActualizarUsuario: (user: SesionUsuario) => void
   onCerrarSesion: () => void
   onVolver: () => void
@@ -40,7 +42,7 @@ export function PerfilView({
 }) {
   const [pestana, setPestana] = useState<
     "publicaciones" | "ventas" | "compras" | "notificaciones" | "resenas" | "mensajes"
-  >("publicaciones")
+  >(pestanaInicial)
   const [perfil, setPerfil] = useState<PerfilUI | null>(null)
   const [misPublicaciones, setMisPublicaciones] = useState<PublicacionListItem[]>([])
   const [ventas, setVentas] = useState<OrdenUI[]>([])
@@ -210,19 +212,23 @@ export function PerfilView({
 
   const guardarStock = async () => {
     if (!editando) return
-    const nuevo = Number(stockEdicion)
-    if (!Number.isInteger(nuevo) || nuevo < 0 || nuevo > 999) {
+    const resultado = stockEdicionSchema.safeParse(stockEdicion)
+    if (!resultado.success) {
+      document.getElementById("stock-actual")?.focus()
       avisar.revisar({
         titulo: "Ese número de ejemplares no sirve",
-        descripcion: "Ingresa un número entre 0 y 999.",
+        descripcion: stockEdicion.trim() === ""
+          ? "Ingresa la cantidad de ejemplares disponibles."
+          : "Ingresa un número entre 0 y 999.",
         accion: { etiqueta: "Corregir", alPulsar: () => document.getElementById("stock-actual")?.focus() },
       })
       return
     }
+    const nuevo = resultado.data
     try {
       const respuesta = await api<{ publication: PublicacionListItem }>(
         `/api/publications/${editando.id}`,
-        { method: "PATCH", body: JSON.stringify({ stock: nuevo }) },
+        { method: "PATCH", body: JSON.stringify(cuerpoDeStock(nuevo)) },
       )
       setMisPublicaciones((current) =>
         current.map((item) => (item.id === editando.id ? { ...item, ...respuesta.publication } : item)),

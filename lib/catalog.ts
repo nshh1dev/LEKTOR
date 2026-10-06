@@ -168,6 +168,15 @@ export const publicationUpdateSchema = publicationInputSchema
     estado: z.enum(["activa", "pausada"]).optional(),
   })
 
+export const stockEdicionSchema = z.string()
+  .trim()
+  .min(1, "Ingresa la cantidad de ejemplares disponibles.")
+  .pipe(publicationUpdateSchema.shape.stock.unwrap())
+
+export function cuerpoDeStock(stock: number): z.infer<typeof publicationUpdateSchema> {
+  return { stock }
+}
+
 export const searchQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   categoria: z.array(z.enum(CATEGORIAS)).max(3).optional(),
