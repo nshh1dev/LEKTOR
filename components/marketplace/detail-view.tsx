@@ -53,6 +53,7 @@ export function DetalleView({
   }
 
   const sinStock = publicacion.stock <= 0
+  const esPropia = publicacion.vendedorId === yoId
   const fotos = publicacion.fotos.length > 0 ? publicacion.fotos : [undefined]
 
   return (
@@ -201,10 +202,10 @@ export function DetalleView({
           </Card>
 
           <div className="flex flex-col gap-2">
-            <Button size="lg" className="rounded-xl" disabled={sinStock} onClick={onComprar}>
-              {sinStock ? "Sin stock por ahora" : "Comprar con reserva inmediata"}
+            <Button size="lg" className="rounded-xl" disabled={sinStock || esPropia} onClick={onComprar}>
+              {esPropia ? "Esta es tu publicación" : sinStock ? "Sin stock por ahora" : "Comprar con reserva inmediata"}
             </Button>
-            {publicacion.vendedorId !== yoId && (
+            {!esPropia && (
               <Button
                 size="lg"
                 variant="outline"
@@ -214,12 +215,14 @@ export function DetalleView({
                 <MessageCircle data-icon="inline-start" /> Preguntar al vendedor
               </Button>
             )}
-            <p className="text-center text-xs text-muted-foreground">
+            {!esPropia && (
+              <p className="text-center text-xs text-muted-foreground">
                 Pagas directo al vendedor · el ejemplar queda reservado {RESERVA_HORAS} horas
-            </p>
+              </p>
+            )}
           </div>
 
-          {yoId && publicacion.vendedorId !== yoId && (
+          {yoId && !esPropia && (
             <DialogoContacto
               abierto={contactoAbierto}
               onOpenChange={setContactoAbierto}
