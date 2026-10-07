@@ -831,6 +831,7 @@ export type PerfilVendedorUI = {
   }
   reputacion: ReputacionUI
   publicaciones: PublicacionListItem[]
+  paginacion: Paginacion
 }
 
 /** Un mensaje del contacto previo, tal como lo devuelve la API. */
