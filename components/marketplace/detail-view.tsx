@@ -4,7 +4,6 @@ import { useState } from "react"
 import { ArrowLeft, ChevronLeft, ChevronRight, LoaderCircle, MessageCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { RESERVA_HORAS, type PublicacionListItem, type ReputacionUI, type ReviewUI } from "@/lib/catalog"
 import { formatCLP } from "@/lib/format"
@@ -173,26 +172,28 @@ export function DetalleView({
             )}
           </div>
 
-          <Card className="gap-0 rounded-xl bg-muted/50 py-0 shadow-none">
-            <button
-              type="button"
-              onClick={() => onVendedor(publicacion.vendedorId)}
-               className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              aria-label={`Ver perfil de ${publicacion.vendedorNombre}`}
-            >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
+          <Separator />
+          <div className="flex items-center gap-3">
+              <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-foreground">
                 {publicacion.vendedorNombre.slice(0, 1)}
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-xs text-muted-foreground">Vendido por</span>
-                <span className="block break-words font-semibold">{publicacion.vendedorNombre}</span>
-                <span className="block text-sm text-muted-foreground">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Vendido por</p>
+                <p className="break-words font-semibold">{publicacion.vendedorNombre}</p>
+                <p className="text-sm text-muted-foreground">
                   {publicacion.vendedorComuna || "Lector de LEKTOR"}
-                </span>
-              </span>
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-            </button>
-          </Card>
+                </p>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto min-h-9 cursor-pointer justify-start px-0 underline underline-offset-4"
+                  onClick={() => onVendedor(publicacion.vendedorId)}
+                  aria-label={`Ver perfil de ${publicacion.vendedorNombre}`}
+                >
+                  Ver perfil <ChevronRight data-icon="inline-end" />
+                </Button>
+              </div>
+          </div>
           {publicacion.descripcion && (
             <section aria-labelledby="titulo-descripcion" className="flex flex-col gap-2">
               <h2 id="titulo-descripcion" className="font-serif text-lg tracking-tight">Sobre este ejemplar</h2>
