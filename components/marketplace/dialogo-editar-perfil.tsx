@@ -92,6 +92,13 @@ export function DialogoEditarPerfil({
   }, [abierto, perfil, nombreActual, reset])
 
   const guardarPerfil = handleSubmit(async (values) => {
+    if (!perfil) {
+      avisar.revisar({
+        titulo: "El perfil todavía no está cargado",
+        descripcion: "Cierra este diálogo y reintenta cargar tu perfil antes de editarlo.",
+      })
+      return
+    }
     setGuardando(true)
     try {
       await api("/api/profile", { method: "PATCH", body: JSON.stringify(cuerpoDePerfil(values)) })
@@ -342,7 +349,7 @@ export function DialogoEditarPerfil({
             type="submit"
             form="perfil-datos"
             className="rounded-lg bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
-            disabled={guardando}
+            disabled={guardando || !perfil}
           >
             {guardando ? (
               <LoaderCircle data-icon="inline-start" className="animate-spin" />
