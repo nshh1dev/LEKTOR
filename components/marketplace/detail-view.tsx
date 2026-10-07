@@ -66,8 +66,17 @@ export function DetalleView({
         <ArrowLeft className="size-4" /> Volver al catálogo
       </button>
 
-      <div className="grid gap-10 md:grid-cols-[minmax(280px,420px)_1fr] md:items-start">
-        <div className="flex flex-col gap-3">
+      <header>
+        <Badge className="mb-4 rounded-full">{publicacion.categoria}</Badge>
+        <h1 className="text-balance font-serif text-3xl font-semibold tracking-tight md:text-5xl">{publicacion.titulo}</h1>
+        <p className="mt-3 text-muted-foreground md:text-lg">
+          {publicacion.autor} · {publicacion.editorial}
+          {publicacion.volumen ? ` · Vol. ${publicacion.volumen}` : ""}
+        </p>
+      </header>
+
+      <div className="grid gap-6 md:grid-cols-[minmax(280px,420px)_minmax(0,1fr)] md:items-start md:gap-10">
+        <div className="mx-auto flex w-full max-w-60 flex-col gap-3 md:max-w-none">
           <Portada publicacion={publicacion} foto={fotos[fotoActiva]} grande />
           {fotos.length > 1 && (
             <div className="grid grid-cols-4 gap-3">
@@ -91,18 +100,7 @@ export function DetalleView({
           )}
         </div>
 
-        <div className="flex flex-col gap-6 pt-2">
-          <div>
-            <Badge className="mb-4 rounded-full">{publicacion.categoria}</Badge>
-            <h1 className="text-balance text-4xl font-bold tracking-tight md:text-5xl">{publicacion.titulo}</h1>
-            <p className="mt-3 text-lg text-muted-foreground">
-                {publicacion.autor} · {publicacion.editorial}
-                {publicacion.volumen ? ` · Vol. ${publicacion.volumen}` : ""}
-            </p>
-          </div>
-
-          <Separator />
-
+        <div className="flex min-w-0 flex-col gap-6">
           <div>
             <p className="text-4xl font-bold text-primary">{formatCLP(publicacion.precio)}</p>
             <p className="mt-1 text-sm text-muted-foreground">Ejemplar físico de segunda mano</p>
@@ -114,11 +112,59 @@ export function DetalleView({
             </div>
           </div>
 
-          {publicacion.descripcion && (
-            <p className="max-w-xl text-pretty leading-7 text-muted-foreground">{publicacion.descripcion}</p>
-          )}
+          <div className="flex flex-col gap-2">
+            <Button size="lg" className="h-auto min-h-11 whitespace-normal rounded-xl py-3" disabled={sinStock || esPropia} onClick={onComprar}>
+              {esPropia ? "Esta es tu publicación" : sinStock ? "Sin stock por ahora" : "Comprar con reserva inmediata"}
+            </Button>
+            {!esPropia && (
+              <Button
+                size="lg"
+                variant="outline"
+                className="rounded-xl"
+                onClick={yoId ? () => setContactoAbierto(true) : onNecesitaSesion}
+              >
+                <MessageCircle data-icon="inline-start" /> Preguntar al vendedor
+              </Button>
+            )}
+            {!esPropia && (
+              <p className="text-center text-xs text-muted-foreground">
+                Pagas directo al vendedor · el ejemplar queda reservado {RESERVA_HORAS} horas
+              </p>
+            )}
+          </div>
 
-          <Separator />
+          <Card className="rounded-xl bg-muted/50 shadow-none">
+            <button
+              type="button"
+              onClick={() => onVendedor(publicacion.vendedorId)}
+              className="flex w-full items-center gap-3 rounded-xl p-4 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              aria-label={`Ver perfil de ${publicacion.vendedorNombre}`}
+            >
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
+                {publicacion.vendedorNombre.slice(0, 1)}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs text-muted-foreground">Vendido por</span>
+                <span className="block break-words font-semibold">{publicacion.vendedorNombre}</span>
+                <span className="block text-sm text-muted-foreground">
+                  {publicacion.vendedorComuna || "Lector de LEKTOR"}
+                </span>
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+            </button>
+          </Card>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="flex flex-col gap-6">
+          {publicacion.descripcion && (
+            <section aria-labelledby="titulo-descripcion" className="flex flex-col gap-3">
+              <h2 id="titulo-descripcion" className="font-serif text-xl tracking-tight">Sobre este ejemplar</h2>
+            <p className="max-w-xl text-pretty leading-7 text-muted-foreground">{publicacion.descripcion}</p>
+            </section>
+          )}
 
           <section aria-labelledby="titulo-valoraciones" className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -176,52 +222,6 @@ export function DetalleView({
             )}
           </section>
 
-          <Card className="rounded-xl bg-muted/50 shadow-none">
-            <button
-              type="button"
-              onClick={() => onVendedor(publicacion.vendedorId)}
-              className="flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-muted focus-visible:outline-none"
-              aria-label={`Ver perfil de ${publicacion.vendedorNombre}`}
-            >
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-                {publicacion.vendedorNombre.slice(0, 1)}
-              </span>
-              <span className="flex-1">
-                <span className="block font-semibold">{publicacion.vendedorNombre}</span>
-                <span className="block text-sm text-muted-foreground">
-                  {[publicacion.vendedorComuna].filter(Boolean).join(" · ") || "Lector de LEKTOR"}
-                </span>
-              </span>
-              {reputacion.total > 0 ? (
-                <ResumenEstrellas reputacion={reputacion} className="shrink-0" />
-              ) : (
-                <span className="text-[11px] text-muted-foreground">Sin valoraciones aún</span>
-              )}
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-            </button>
-          </Card>
-
-          <div className="flex flex-col gap-2">
-            <Button size="lg" className="rounded-xl" disabled={sinStock || esPropia} onClick={onComprar}>
-              {esPropia ? "Esta es tu publicación" : sinStock ? "Sin stock por ahora" : "Comprar con reserva inmediata"}
-            </Button>
-            {!esPropia && (
-              <Button
-                size="lg"
-                variant="outline"
-                className="rounded-xl"
-                onClick={yoId ? () => setContactoAbierto(true) : onNecesitaSesion}
-              >
-                <MessageCircle data-icon="inline-start" /> Preguntar al vendedor
-              </Button>
-            )}
-            {!esPropia && (
-              <p className="text-center text-xs text-muted-foreground">
-                Pagas directo al vendedor · el ejemplar queda reservado {RESERVA_HORAS} horas
-              </p>
-            )}
-          </div>
-
           {yoId && !esPropia && (
             <DialogoContacto
               abierto={contactoAbierto}
@@ -234,7 +234,6 @@ export function DetalleView({
               }}
             />
           )}
-        </div>
       </div>
     </div>
   )
