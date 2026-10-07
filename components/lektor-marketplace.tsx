@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
-import { LayoutDashboard, LogIn, Moon, Search, Sun, Tag, UserCircle } from "lucide-react"
+import { ArrowLeft, LayoutDashboard, LoaderCircle, LogIn, Moon, Search, Sun, Tag, UserCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -48,6 +48,10 @@ export function LektorMarketplace({
   const [mounted, setMounted] = useState(false)
   const [intentoCatalogo, setIntentoCatalogo] = useState(0)
   const [vista, setVista] = useState<Vista>("catalog")
+  const vistaRef = useRef<Vista>("catalog")
+  const navegacionRef = useRef(0)
+  const solicitudCatalogoRef = useRef<AbortController | null>(null)
+  const solicitudNavegacionRef = useRef<AbortController | null>(null)
   const [pestanaInicialPerfil, setPestanaInicialPerfil] = useState<"publicaciones" | "compras">("publicaciones")
   const [usuario, setUsuario] = useState<SesionUsuario | null>(null)
   const [authPrompt, setAuthPrompt] = useState<"sell" | "buy" | "contact" | null>(null)
@@ -56,7 +60,9 @@ export function LektorMarketplace({
   const [facetas, setFacetas] = useState(initialFacetas)
   const [paginacion, setPaginacion] = useState(initialPaginacion)
   const [cargandoCatalogo, setCargandoCatalogo] = useState(false)
+  const [claveErrorCatalogo, setClaveErrorCatalogo] = useState<string | null>(null)
   const [busqueda, setBusqueda] = useState("")
+  const [busquedaAplicada, setBusquedaAplicada] = useState("")
   const [filtros, setFiltros] = useState<{
     categoria: Categoria[]
     condicion: Condicion[]
@@ -76,10 +82,33 @@ export function LektorMarketplace({
   })
   const [orden, setOrden] = useState<OrdenCatalogo>("recientes")
   const [pagina, setPagina] = useState(1)
+  const [claveResultados, setClaveResultados] = useState(
+    () => new URLSearchParams({ orden: "recientes", pagina: "1", porPagina: String(initialPaginacion.porPagina) }).toString(),
+  )
+
+  const parametrosCatalogo = new URLSearchParams()
+  if (busquedaAplicada) parametrosCatalogo.set("q", busquedaAplicada)
+  if (filtros.categoria.length) parametrosCatalogo.set("categoria", filtros.categoria.join(","))
+  if (filtros.condicion.length) parametrosCatalogo.set("condicion", filtros.condicion.join(","))
+  if (filtros.comuna.length) parametrosCatalogo.set("comuna", filtros.comuna.join(","))
+  if (filtros.autor) parametrosCatalogo.set("autor", filtros.autor)
+  if (filtros.editorial) parametrosCatalogo.set("editorial", filtros.editorial)
+  if (filtros.precioMin !== null) parametrosCatalogo.set("precioMin", String(filtros.precioMin))
+  if (filtros.precioMax !== null) parametrosCatalogo.set("precioMax", String(filtros.precioMax))
+  parametrosCatalogo.set("orden", orden)
+  parametrosCatalogo.set("pagina", String(pagina))
+  parametrosCatalogo.set("porPagina", String(initialPaginacion.porPagina))
+  const claveConsultaCatalogo = parametrosCatalogo.toString()
+  const consultaCatalogoVigente = claveResultados === claveConsultaCatalogo && busqueda.trim() === busquedaAplicada
 
   const [detalle, setDetalle] = useState<PublicacionListItem | null>(null)
+  const [detalleSolicitadoId, setDetalleSolicitadoId] = useState<string | null>(null)
+  const [detalleFallido, setDetalleFallido] = useState(false)
   const [ordenCreada, setOrdenCreada] = useState<OrdenUI | null>(null)
   const [vendedorPerfil, setVendedorPerfil] = useState<PerfilVendedorUI | null>(null)
+  const [vendedorSolicitadoId, setVendedorSolicitadoId] = useState<string | null>(null)
+  const [cargandoVendedor, setCargandoVendedor] = useState(false)
+  const [vendedorFallido, setVendedorFallido] = useState(false)
   const [valoraciones, setValoraciones] = useState<DatosValoraciones>({
     reviews: [],
     reputacion: REPUTACION_VACIA,
@@ -88,35 +117,43 @@ export function LektorMarketplace({
 
   useEffect(() => setMounted(true), [])
 
-  const cargarCatalogo = useCallback(
-    async (opciones?: { pagina?: number; busqueda?: string }) => {
-      const paginaActual = opciones?.pagina ?? pagina
-      const termino = (opciones?.busqueda ?? busqueda).trim()
-      const params = new URLSearchParams()
-      if (termino) params.set("q", termino)
-      if (filtros.categoria.length) params.set("categoria", filtros.categoria.join(","))
-      if (filtros.condicion.length) params.set("condicion", filtros.condicion.join(","))
-      if (filtros.comuna.length) params.set("comuna", filtros.comuna.join(","))
-      if (filtros.autor) params.set("autor", filtros.autor)
-      if (filtros.editorial) params.set("editorial", filtros.editorial)
-      if (filtros.precioMin !== null) params.set("precioMin", String(filtros.precioMin))
-      if (filtros.precioMax !== null) params.set("precioMax", String(filtros.precioMax))
-      params.set("orden", orden)
-      params.set("pagina", String(paginaActual))
-      params.set("porPagina", String(initialPaginacion.porPagina))
+  const irAVista = (siguiente: Vista) => {
+    navegacionRef.current += 1
+    solicitudNavegacionRef.current?.abort()
+    solicitudNavegacionRef.current = null
+    if (siguiente !== "catalog") solicitudCatalogoRef.current?.abort()
+    vistaRef.current = siguiente
+    setVista(siguiente)
+  }
 
-      setCargandoCatalogo(true)
+  useEffect(() => {
+    const timer = setTimeout(() => setBusquedaAplicada(busqueda.trim()), 320)
+    return () => clearTimeout(timer)
+  }, [busqueda])
+
+  useEffect(() => {
+    if (vista !== "catalog") return
+    const controller = new AbortController()
+    solicitudCatalogoRef.current?.abort()
+    solicitudCatalogoRef.current = controller
+    setCargandoCatalogo(true)
+    setClaveErrorCatalogo(null)
+    const cargar = async () => {
       try {
         const data = await api<{
           publications: Record<string, unknown>[]
           facetas: Facetas
           paginacion: Paginacion
-        }>(`/api/publications?${params.toString()}`)
+        }>(`/api/publications?${claveConsultaCatalogo}`, { signal: controller.signal })
+        if (controller.signal.aborted) return
         setPublicaciones(data.publications.map(normalizarFila))
+        setClaveResultados(claveConsultaCatalogo)
         setFacetas(data.facetas)
         setPaginacion(data.paginacion)
         setPagina(data.paginacion.pagina)
       } catch (error) {
+        if (controller.signal.aborted) return
+        setClaveErrorCatalogo(claveConsultaCatalogo)
         avisar.falla({
           titulo: "No se pudo cargar el catálogo",
           descripcion: mensajeDeFallo(error, "Revisa tu conexión e inténtalo otra vez."),
@@ -126,28 +163,24 @@ export function LektorMarketplace({
           },
         })
       } finally {
-        setCargandoCatalogo(false)
+        if (!controller.signal.aborted) setCargandoCatalogo(false)
       }
-    },
-    [busqueda, filtros, orden, pagina, initialPaginacion.porPagina],
-  )
+    }
+    void cargar()
+    return () => controller.abort()
+  }, [vista, claveConsultaCatalogo, intentoCatalogo])
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const buscadorRef = useRef<HTMLInputElement>(null)
   const onBusquedaChange = (value: string) => {
     setBusqueda(value)
-    setVista("catalog")
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      void cargarCatalogo({ pagina: 1, busqueda: value })
-    }, 320)
+    setPagina(1)
+    if (vistaRef.current !== "catalog") irAVista("catalog")
   }
 
-  useEffect(() => {
-    if (vista !== "catalog") return
-    void cargarCatalogo()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtros, orden, intentoCatalogo])
+  useEffect(() => () => {
+    solicitudCatalogoRef.current?.abort()
+    solicitudNavegacionRef.current?.abort()
+  }, [])
 
   useEffect(() => {
     const alPulsar = (event: KeyboardEvent) => {
@@ -172,17 +205,26 @@ export function LektorMarketplace({
   }, [])
 
   const abrirDetalle = async (id: string) => {
+    const solicitud = ++navegacionRef.current
+    solicitudNavegacionRef.current?.abort()
+    solicitudCatalogoRef.current?.abort()
+    const controller = new AbortController()
+    solicitudNavegacionRef.current = controller
+    vistaRef.current = "detail"
     setVista("detail")
     setDetalle(null)
+    setDetalleSolicitadoId(id)
+    setDetalleFallido(false)
     setValoraciones({ reviews: [], reputacion: REPUTACION_VACIA, puedeValorar: false })
     try {
       const [data, datosReviews] = await Promise.all([
         api<{
           publication: PublicacionListItem
           vendedor: { nombre: string; comuna?: string | null } | null
-        }>(`/api/publications/${id}`),
-        api<DatosValoraciones>(`/api/publications/${id}/reviews`),
+        }>(`/api/publications/${id}`, { signal: controller.signal }),
+        api<DatosValoraciones>(`/api/publications/${id}/reviews`, { signal: controller.signal }),
       ])
+      if (solicitud !== navegacionRef.current || controller.signal.aborted) return
       const publication = normalizarFila(data.publication as unknown as Record<string, unknown>)
       setDetalle({
         ...publication,
@@ -191,28 +233,43 @@ export function LektorMarketplace({
       })
       setValoraciones({ ...datosReviews, puedeValorar: datosReviews.puedeValorar === true })
     } catch (error) {
-      setVista("catalog")
+      if (solicitud !== navegacionRef.current || controller.signal.aborted) return
+      setDetalleFallido(true)
       avisar.falla({
         titulo: "Esta publicación ya no está disponible",
         descripcion: mensajeDeFallo(error, "Puede que otro lector la haya reservado."),
-        accion: { etiqueta: "Volver al catálogo", alPulsar: () => setVista("catalog") },
+        accion: { etiqueta: "Reintentar", alPulsar: () => void abrirDetalle(id) },
       })
     }
   }
 
   const abrirVendedor = async (vendedorId: string) => {
+    const solicitud = ++navegacionRef.current
+    solicitudNavegacionRef.current?.abort()
+    solicitudCatalogoRef.current?.abort()
+    const controller = new AbortController()
+    solicitudNavegacionRef.current = controller
+    vistaRef.current = "seller"
     setVista("seller")
     setVendedorPerfil(null)
+    setVendedorSolicitadoId(vendedorId)
+    setCargandoVendedor(true)
+    setVendedorFallido(false)
     try {
-      const perfil = await api<PerfilVendedorUI>(`/api/sellers/${vendedorId}`)
+      const perfil = await api<PerfilVendedorUI>(`/api/sellers/${vendedorId}`, { signal: controller.signal })
+      if (solicitud !== navegacionRef.current || controller.signal.aborted) return
       setVendedorPerfil(perfil)
       window.scrollTo({ top: 0, behavior: "smooth" })
     } catch (error) {
-      setVista("catalog")
+      if (solicitud !== navegacionRef.current || controller.signal.aborted) return
+      setVendedorFallido(true)
       avisar.falla({
         titulo: "Este vendedor no está disponible",
         descripcion: mensajeDeFallo(error, "Puede que haya cerrado su cuenta."),
+        accion: { etiqueta: "Reintentar", alPulsar: () => void abrirVendedor(vendedorId) },
       })
+    } finally {
+      if (solicitud === navegacionRef.current) setCargandoVendedor(false)
     }
   }
 
@@ -240,7 +297,7 @@ export function LektorMarketplace({
   const cerrarSesion = async () => {
     await api("/api/auth/logout", { method: "POST" }).catch(() => undefined)
     setUsuario(null)
-    setVista("catalog")
+    irAVista("catalog")
     avisar.ok({
       titulo: "Sesión cerrada",
       descripcion: "Vuelve cuando quieras.",
@@ -289,7 +346,7 @@ export function LektorMarketplace({
           <button
             type="button"
             onClick={() => {
-              setVista("catalog")
+              irAVista("catalog")
               setPagina(1)
             }}
             className="flex shrink-0 cursor-pointer flex-col items-start text-left"
@@ -344,7 +401,7 @@ export function LektorMarketplace({
               className="size-10 rounded-full p-0 text-muted-foreground hover:text-foreground md:h-9 md:w-auto md:px-3"
               onClick={() => {
                 setPestanaInicialPerfil("publicaciones")
-                setVista(usuario ? "profile" : "auth")
+                irAVista(usuario ? "profile" : "auth")
               }}
               aria-label={usuario ? "Mi Perfil" : "Iniciar sesión o crear una cuenta"}
             >
@@ -353,7 +410,7 @@ export function LektorMarketplace({
             </Button>
             <Button
               className="h-10 rounded-full bg-oro px-5 text-oro-foreground shadow-none hover:bg-oro/90"
-              onClick={() => (usuario ? setVista("sell") : setAuthPrompt("sell"))}
+              onClick={() => (usuario ? irAVista("sell") : setAuthPrompt("sell"))}
             >
               <Tag data-icon="inline-start" />
               <span className="hidden sm:inline">Vender un tomo</span>
@@ -366,10 +423,12 @@ export function LektorMarketplace({
       <main id="catalogo" tabIndex={-1} className="mx-auto max-w-[92rem] px-4 py-10 md:px-8 md:py-14">
         {vista === "catalog" && (
           <CatalogView
-            publicaciones={publicaciones}
+            publicaciones={consultaCatalogoVigente ? publicaciones : []}
             facetas={facetas}
-            paginacion={paginacion}
-            cargando={cargandoCatalogo}
+            paginacion={consultaCatalogoVigente ? paginacion : { ...paginacion, pagina: 1, paginas: 1, total: 0 }}
+            cargando={cargandoCatalogo || !consultaCatalogoVigente}
+            errorCarga={consultaCatalogoVigente && claveErrorCatalogo === claveConsultaCatalogo}
+            onReintentar={() => setIntentoCatalogo((n) => n + 1)}
             orden={orden}
             setOrden={(value) => {
               setOrden(value)
@@ -399,27 +458,35 @@ export function LektorMarketplace({
             onVendedor={abrirVendedor}
             onPagina={(value) => {
               setPagina(value)
-              void cargarCatalogo({ pagina: value })
               window.scrollTo({ top: 0, behavior: "smooth" })
             }}
           />
         )}
 
-        {vista === "detail" && (
+        {vista === "detail" && detalleFallido ? (
+          <div className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-4 text-center">
+            <p className="font-serif text-2xl">No pudimos cargar esta publicación</p>
+            <p className="text-sm text-muted-foreground">Revisa tu conexión y vuelve a intentarlo.</p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => irAVista("catalog")}><ArrowLeft data-icon="inline-start" /> Catálogo</Button>
+              <Button onClick={() => detalleSolicitadoId && void abrirDetalle(detalleSolicitadoId)}>Reintentar</Button>
+            </div>
+          </div>
+        ) : vista === "detail" && (
           <DetalleView
             publicacion={detalle}
             reviews={valoraciones.reviews}
             reputacion={valoraciones.reputacion}
             puedeValorar={valoraciones.puedeValorar}
             yoId={usuario?.id ?? null}
-            onVolver={() => setVista("catalog")}
+            onVolver={() => irAVista("catalog")}
             onComprar={() => {
               if (!usuario) {
                 setAuthPrompt("buy")
                 return
               }
               setOrdenCreada(null)
-              setVista("checkout")
+              irAVista("checkout")
             }}
             onValoraciones={actualizarValoraciones}
             onVendedor={abrirVendedor}
@@ -427,22 +494,35 @@ export function LektorMarketplace({
           />
         )}
 
-        {vista === "seller" && vendedorPerfil && (
+        {vista === "seller" && (vendedorPerfil ? (
           <SellerView
             key={vendedorPerfil.vendedor.id}
             perfil={vendedorPerfil}
-            onVolver={() => setVista("catalog")}
+            onVolver={() => irAVista("catalog")}
             onAbrirPublicacion={abrirDetalle}
           />
-        )}
+        ) : (
+          <div className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-4 text-center" role={cargandoVendedor ? "status" : undefined}>
+            {cargandoVendedor ? (
+              <><LoaderCircle className="size-6 animate-spin text-oro" /><p className="text-sm text-muted-foreground">Cargando perfil del vendedor…</p></>
+            ) : (
+              <><p className="font-serif text-2xl">{vendedorFallido ? "No pudimos cargar este perfil" : "Perfil no disponible"}</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => irAVista("catalog")}><ArrowLeft data-icon="inline-start" /> Catálogo</Button>
+                  {vendedorFallido && vendedorSolicitadoId && <Button onClick={() => void abrirVendedor(vendedorSolicitadoId)}>Reintentar</Button>}
+                </div>
+              </>
+            )}
+          </div>
+        ))}
 
         {vista === "sell" && usuario && (
           <PublicarView
-            onVolver={() => setVista("catalog")}
+            onVolver={() => irAVista("catalog")}
             onPublicado={() => {
-              setVista("catalog")
+              irAVista("catalog")
               setPagina(1)
-              void cargarCatalogo({ pagina: 1 })
+              setIntentoCatalogo((n) => n + 1)
             }}
           />
         )}
@@ -451,15 +531,15 @@ export function LektorMarketplace({
           <CheckoutView
             publicacion={detalle}
             usuario={usuario}
-            onVolver={() => setVista("detail")}
+            onVolver={() => irAVista("detail")}
             onConfirmada={(orden) => {
               setOrdenCreada(orden)
-              setVista("checkout")
+              irAVista("checkout")
             }}
             ordenConfirmada={ordenCreada}
             onVerPerfil={() => {
               setPestanaInicialPerfil("compras")
-              setVista("profile")
+              irAVista("profile")
             }}
           />
         )}
@@ -469,9 +549,9 @@ export function LektorMarketplace({
             onSuccess={(user) => {
               setUsuario(user)
               setPestanaInicialPerfil("publicaciones")
-              setVista(user ? "profile" : "catalog")
+              irAVista(user ? "profile" : "catalog")
             }}
-            onVolver={() => setVista("catalog")}
+            onVolver={() => irAVista("catalog")}
           />
         )}
 
@@ -482,8 +562,8 @@ export function LektorMarketplace({
             pestanaInicial={pestanaInicialPerfil}
             onActualizarUsuario={setUsuario}
             onCerrarSesion={cerrarSesion}
-            onVolver={() => setVista("catalog")}
-            onNuevaPublicacion={() => setVista("sell")}
+            onVolver={() => irAVista("catalog")}
+            onNuevaPublicacion={() => irAVista("sell")}
             onAbrirPublicacion={abrirDetalle}
           />
         )}
@@ -514,7 +594,7 @@ export function LektorMarketplace({
               className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
               onClick={() => {
                 setAuthPrompt(null)
-                setVista("auth")
+                irAVista("auth")
               }}
             >
               <LogIn data-icon="inline-start" /> Iniciar Sesión
