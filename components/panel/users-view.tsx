@@ -380,7 +380,7 @@ export function UsersView() {
         tono="falla"
         rotulo="Cerrar el acceso"
         titulo="¿Desactivar esta cuenta?"
-        descripcion={`${porDesactivar?.nombre} no podrá iniciar sesión y se cerrarán sus sesiones abiertas. Sus publicaciones siguen visibles y puedes reactivarla cuando quieras.`}
+        descripcion={`${porDesactivar?.nombre} no podrá iniciar sesión y se cerrarán sus sesiones abiertas. Sus publicaciones dejarán de mostrarse en el catálogo y no admitirán nuevas reservas. Las órdenes existentes se conservarán. Puedes reactivar la cuenta cuando quieras.`}
         confirmTexto="Desactivar"
         cargando={Boolean(porDesactivar) && ocupado === porDesactivar?.id}
         onConfirmar={() => void confirmarDesactivacion()}
