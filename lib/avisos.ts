@@ -80,6 +80,7 @@ export const TONO_AVISO: Record<
  */
 export const MOTIVO_FALLO: Record<string, string> = {
   "stock-insuficiente": "Ya no quedan ejemplares de esta publicación",
+  "vendedor-inactivo": "Esta publicación no está disponible por el momento",
   "ultimo-admin": "Debe quedar al menos una administración activa",
   "mismo-usuario": "No puedes modificar tu propia cuenta",
   "orden-activa": "No se puede eliminar con reservas activas",

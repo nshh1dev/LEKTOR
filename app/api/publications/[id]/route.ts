@@ -38,6 +38,7 @@ export async function GET(_request: Request, { params }: Params) {
     const [row] = await db
       .select({
         ...detalleSelect,
+        vendedorActivo: users.activo,
         vendedor: {
           id: users.id,
           nombre: users.nombre,
@@ -56,7 +57,8 @@ export async function GET(_request: Request, { params }: Params) {
       .limit(1)
 
     if (!row) throw new ApiError(404, "not-found", "Publicación no encontrada")
-    if (row.estado !== "activa" && row.vendedorId !== session?.id && session?.rol !== "admin") {
+    const { vendedor, vendedorActivo, ...publication } = row
+    if ((!vendedorActivo || row.estado !== "activa") && row.vendedorId !== session?.id && session?.rol !== "admin") {
       throw new ApiError(404, "not-found", "Publicación no disponible")
     }
 
@@ -76,6 +78,7 @@ export async function GET(_request: Request, { params }: Params) {
         .where(
           and(
             eq(publications.estado, "activa"),
+            eq(users.activo, true),
             eq(publications.categoria, row.categoria),
             ne(publications.id, row.id),
           ),
@@ -84,7 +87,6 @@ export async function GET(_request: Request, { params }: Params) {
         .limit(4),
     ])
 
-    const { vendedor, ...publication } = row
     return ok({
       publication,
       vendedor: { ...vendedor, email: undefined, telefono: undefined, ...vendedorStats[0] },
