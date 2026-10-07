@@ -39,25 +39,34 @@ export function panelEnviar<T>(url: string, method: "POST" | "PATCH" | "DELETE",
 }
 
 export function usePanelQuery<T>(url: string) {
-  const [data, setData] = useState<T | null>(null)
-  const [cargando, setCargando] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [resultado, setResultado] = useState<{ url: string; data: T } | null>(null)
+  const [consulta, setConsulta] = useState<{
+    url: string
+    version: number
+    cargando: boolean
+    error: string | null
+  } | null>(null)
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
     let vivo = true
-    setCargando(true)
+    setConsulta({ url, version, cargando: true, error: null })
     panelGet<T>(url)
       .then((respuesta) => {
         if (!vivo) return
-        setData(respuesta)
-        setError(null)
+        setResultado({ url, data: respuesta })
       })
       .catch((fallo: Error) => {
-        if (vivo) setError(fallo.message)
+        if (vivo) setConsulta({ url, version, cargando: false, error: fallo.message })
       })
       .finally(() => {
-        if (vivo) setCargando(false)
+        if (vivo) {
+          setConsulta((actual) =>
+            actual?.url === url && actual.version === version
+              ? { ...actual, cargando: false }
+              : actual,
+          )
+        }
       })
     return () => {
       vivo = false
@@ -65,8 +74,14 @@ export function usePanelQuery<T>(url: string) {
   }, [url, version])
 
   const recargar = useCallback(() => setVersion((valor) => valor + 1), [])
+  const consultaActual = consulta?.url === url && consulta.version === version
 
-  return { data, cargando, error, recargar }
+  return {
+    data: resultado?.url === url ? resultado.data : null,
+    cargando: !consultaActual || consulta.cargando,
+    error: consultaActual ? consulta.error : null,
+    recargar,
+  }
 }
 
 export type MovimientoPanel = {
