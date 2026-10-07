@@ -13,6 +13,8 @@ import { normalizeIsbn } from "@/lib/isbn"
 import { programarBarrido } from "@/lib/orders"
 
 const estadoActivo = eq(publications.estado, "activa")
+const vendedorActivo = eq(users.activo, true)
+const estadoVisible = and(estadoActivo, vendedorActivo)
 
 const facetsQuery = db
   .select({
@@ -20,19 +22,22 @@ const facetsQuery = db
     precioMax: sql<number>`coalesce(max(${publications.precio}), 0)::int`,
   })
   .from(publications)
-  .where(estadoActivo)
+  .innerJoin(users, eq(publications.vendedorId, users.id))
+  .where(estadoVisible)
 
 const categoriasQuery = db
   .select({ value: publications.categoria, total: count() })
   .from(publications)
-  .where(estadoActivo)
+  .innerJoin(users, eq(publications.vendedorId, users.id))
+  .where(estadoVisible)
   .groupBy(publications.categoria)
   .orderBy(desc(count()))
 
 const condicionesQuery = db
   .select({ value: publications.condicion, total: count() })
   .from(publications)
-  .where(estadoActivo)
+  .innerJoin(users, eq(publications.vendedorId, users.id))
+  .where(estadoVisible)
   .groupBy(publications.condicion)
   .orderBy(desc(count()))
 
@@ -42,7 +47,8 @@ const condicionesQuery = db
 const autoresQuery = db
   .select({ value: publications.autor, total: count() })
   .from(publications)
-  .where(estadoActivo)
+  .innerJoin(users, eq(publications.vendedorId, users.id))
+  .where(estadoVisible)
   .groupBy(publications.autor)
   .orderBy(asc(publications.autor))
   .limit(200)
@@ -50,12 +56,13 @@ const autoresQuery = db
 const editorialesQuery = db
   .select({ value: publications.editorial, total: count() })
   .from(publications)
-  .where(estadoActivo)
+  .innerJoin(users, eq(publications.vendedorId, users.id))
+  .where(estadoVisible)
   .groupBy(publications.editorial)
   .orderBy(desc(count()), asc(publications.editorial))
   .limit(200)
 
-const comunaActiva = and(estadoActivo, sql`${users.comuna} is not null`, sql`${users.comuna} <> ''`)
+const comunaActiva = and(estadoVisible, sql`${users.comuna} is not null`, sql`${users.comuna} <> ''`)
 
 const comunasQuery = db
   .select({ value: users.comuna, total: count() })
@@ -70,10 +77,10 @@ function buildFilters(query: SearchQuery, sessionUserId?: string) {
   const filters = []
 
   if (query.vendedor) {
-    filters.push(eq(publications.vendedorId, query.vendedor))
-    if (!sessionUserId || sessionUserId !== query.vendedor) filters.push(estadoActivo)
+    filters.push(eq(publications.vendedorId, query.vendedor), vendedorActivo)
+    if (sessionUserId !== query.vendedor) filters.push(estadoActivo)
   } else {
-    filters.push(estadoActivo)
+    filters.push(estadoVisible)
   }
 
   if (query.q) {
@@ -154,7 +161,11 @@ export async function GET(request: NextRequest) {
       comunasQuery,
       autoresQuery,
       editorialesQuery,
-      db.select({ total: count() }).from(publications).where(estadoActivo),
+        db
+          .select({ total: count() })
+          .from(publications)
+          .innerJoin(users, eq(publications.vendedorId, users.id))
+          .where(estadoVisible),
     ])
 
     return ok({

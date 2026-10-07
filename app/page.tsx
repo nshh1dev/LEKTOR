@@ -7,6 +7,7 @@ import type { Facetas, Paginacion, PublicacionListItem } from "@/lib/catalog"
 export const dynamic = "force-dynamic"
 
 const POR_PAGINA = 12
+const estadoVisible = and(eq(publications.estado, "activa"), eq(users.activo, true))
 
 export default async function HomePage() {
   const [filas, [facetasPrecios], [activos], categorias, condiciones, comunas, autores, editoriales] =
@@ -34,7 +35,7 @@ export default async function HomePage() {
         })
         .from(publications)
         .innerJoin(users, eq(publications.vendedorId, users.id))
-        .where(eq(publications.estado, "activa"))
+        .where(estadoVisible)
         .orderBy(desc(publications.fechaPublicacion))
         .limit(POR_PAGINA),
       db
@@ -43,18 +44,25 @@ export default async function HomePage() {
           precioMax: sql<number>`coalesce(max(${publications.precio}), 0)::int`,
         })
         .from(publications)
-        .where(eq(publications.estado, "activa")),
-      db.select({ total: count() }).from(publications).where(eq(publications.estado, "activa")),
+        .innerJoin(users, eq(publications.vendedorId, users.id))
+        .where(estadoVisible),
+      db
+        .select({ total: count() })
+        .from(publications)
+        .innerJoin(users, eq(publications.vendedorId, users.id))
+        .where(estadoVisible),
       db
         .select({ value: publications.categoria, total: count() })
         .from(publications)
-        .where(eq(publications.estado, "activa"))
+        .innerJoin(users, eq(publications.vendedorId, users.id))
+        .where(estadoVisible)
         .groupBy(publications.categoria)
         .orderBy(desc(count())),
       db
         .select({ value: publications.condicion, total: count() })
         .from(publications)
-        .where(eq(publications.estado, "activa"))
+        .innerJoin(users, eq(publications.vendedorId, users.id))
+        .where(estadoVisible)
         .groupBy(publications.condicion)
         .orderBy(desc(count())),
       db
@@ -63,7 +71,7 @@ export default async function HomePage() {
         .innerJoin(users, eq(publications.vendedorId, users.id))
         .where(
           and(
-            eq(publications.estado, "activa"),
+            estadoVisible,
             sql`${users.comuna} is not null`,
             sql`${users.comuna} <> ''`,
           ),
@@ -74,14 +82,16 @@ export default async function HomePage() {
       db
         .select({ value: publications.autor, total: count() })
         .from(publications)
-        .where(eq(publications.estado, "activa"))
+        .innerJoin(users, eq(publications.vendedorId, users.id))
+        .where(estadoVisible)
         .groupBy(publications.autor)
         .orderBy(publications.autor)
         .limit(200),
       db
         .select({ value: publications.editorial, total: count() })
         .from(publications)
-        .where(eq(publications.estado, "activa"))
+        .innerJoin(users, eq(publications.vendedorId, users.id))
+        .where(estadoVisible)
         .groupBy(publications.editorial)
         .orderBy(desc(count()), publications.editorial)
         .limit(200),

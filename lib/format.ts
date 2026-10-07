@@ -17,6 +17,14 @@ const DATE_TIME = new Intl.DateTimeFormat("es-CL", {
 
 export const ZONA_HORARIA = "America/Santiago"
 
+export function escaparCampoCSV(valor: string | number): string {
+  return `"${String(valor).replace(/"/g, '""')}"`
+}
+
+export function generarCSV(filas: (string | number)[][]): string {
+  return filas.map((fila) => fila.map(escaparCampoCSV).join(",")).join("\r\n")
+}
+
 const DIA_SANTIAGO = new Intl.DateTimeFormat("en-CA", {
   timeZone: ZONA_HORARIA,
   year: "numeric",

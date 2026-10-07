@@ -24,6 +24,7 @@ import { avisar } from "@/components/notificacion/avisar"
 import { Aviso, FaltanDatos } from "@/components/notificacion/avisos"
 import { mensajeDeFallo } from "@/lib/avisos"
 import { panelEnviar } from "@/lib/panel-client"
+import { cantidadMovimientoCampoSchema, cuerpoDeMovimiento } from "@/lib/catalog"
 
 export type PublicacionMovible = {
   id: string
@@ -41,7 +42,7 @@ export function StockMovementDialog({
   onGuardado: () => void
 }) {
   const [tipo, setTipo] = useState<"entrada" | "salida" | "ajuste">("entrada")
-  const [cantidad, setCantidad] = useState(1)
+  const [cantidad, setCantidad] = useState("1")
   const [motivo, setMotivo] = useState("")
   const [enviando, setEnviando] = useState(false)
   const [fallo, setFallo] = useState<string | null>(null)
@@ -49,23 +50,32 @@ export function StockMovementDialog({
   useEffect(() => {
     if (!publicacion) return
     setTipo("entrada")
-    setCantidad(1)
+    setCantidad("1")
     setMotivo("")
     setFallo(null)
   }, [publicacion])
 
   const guardar = async () => {
     if (!publicacion) return
+    const cantidadParseada = cantidadMovimientoCampoSchema.safeParse(cantidad)
+    if (!cantidadParseada.success) {
+      setFallo(cantidadParseada.error.issues[0]?.message ?? "Revisa la cantidad")
+      return
+    }
+    if (tipo !== "ajuste" && cantidadParseada.data < 1) {
+      setFallo("Ingresa al menos un ejemplar")
+      return
+    }
     setEnviando(true)
     setFallo(null)
     try {
       const titulo = publicacion.titulo
-      await panelEnviar("/api/panel/movimientos", "POST", {
+      await panelEnviar("/api/panel/movimientos", "POST", cuerpoDeMovimiento({
         publicacionId: publicacion.id,
         tipo,
-        cantidad,
+        cantidad: cantidadParseada.data,
         motivo: motivo.trim() || undefined,
-      })
+      }))
       avisar.ok({
         titulo: "Movimiento registrado",
         descripcion:
@@ -85,11 +95,13 @@ export function StockMovementDialog({
   }
 
   const base = publicacion?.stock ?? 0
+  const cantidadParseada = cantidadMovimientoCampoSchema.safeParse(cantidad)
+  const cantidadNumero = cantidadParseada.success ? cantidadParseada.data : 0
   const resultante =
-    tipo === "entrada" ? base + cantidad : tipo === "salida" ? base - cantidad : cantidad
+    tipo === "entrada" ? base + cantidadNumero : tipo === "salida" ? base - cantidadNumero : cantidadNumero
   const minimo = tipo === "ajuste" ? 0 : 1
-  const esNumeroValido = Number.isInteger(cantidad) && cantidad >= minimo && cantidad <= 999
-  const sinSalida = tipo === "salida" && cantidad > base
+  const esNumeroValido = cantidadParseada.success && cantidadNumero >= minimo
+  const sinSalida = tipo === "salida" && cantidadNumero > base
 
   return (
     <Dialog open={Boolean(publicacion)} onOpenChange={(abierto) => !abierto && onCerrar()}>
@@ -120,12 +132,16 @@ export function StockMovementDialog({
             <Label htmlFor="cantidad-movimiento">{tipo === "ajuste" ? "Stock real en bodega" : "Cantidad"}</Label>
             <Input
               id="cantidad-movimiento"
-              type="number"
+              type="text"
+              inputMode="numeric"
               min={minimo}
               max={999}
               step={1}
               value={cantidad}
-              onChange={(evento) => setCantidad(Number(evento.target.value))}
+              onChange={(evento) => {
+                setCantidad(evento.target.value)
+                setFallo(null)
+              }}
             />
             <p className="text-xs text-muted-foreground">
               Stock resultante:{" "}
@@ -155,9 +171,9 @@ export function StockMovementDialog({
                         etiqueta: "Cantidad",
                         ancla: "cantidad-movimiento",
                         mensaje:
-                          minimo === 0
+                          cantidadParseada.success
                             ? "El stock real debe ser un entero entre 0 y 999"
-                            : "La cantidad debe ser un entero entre 1 y 999",
+                            : cantidadParseada.error.issues[0]?.message ?? "Ingresa una cantidad válida",
                       },
                     ]
                   : []),
