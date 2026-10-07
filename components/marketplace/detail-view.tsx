@@ -57,7 +57,7 @@ export function DetalleView({
   const fotos = publicacion.fotos.length > 0 ? publicacion.fotos : [undefined]
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+    <div className="mx-auto flex max-w-4xl flex-col gap-4">
       <button
         type="button"
         onClick={onVolver}
@@ -78,7 +78,7 @@ export function DetalleView({
       <div className="grid gap-5 md:grid-cols-[minmax(240px,340px)_minmax(0,1fr)] md:items-start md:gap-8">
         <div className="mx-auto flex w-full max-w-60 flex-col gap-2 md:max-w-none">
           <div className="relative">
-            <Portada publicacion={publicacion} foto={fotos[fotoActiva]} grande className="aspect-auto h-[clamp(200px,32dvh,280px)] rounded-xl md:h-[clamp(240px,42dvh,400px)]" />
+            <Portada publicacion={publicacion} foto={fotos[fotoActiva]} grande presentacion="foto" className="aspect-auto h-[clamp(200px,32dvh,280px)] md:h-[clamp(240px,42dvh,400px)]" />
             {fotos.length > 1 && (
               <>
                 <Button
@@ -103,14 +103,11 @@ export function DetalleView({
                 >
                   <ChevronRight />
                 </Button>
-                <span role="status" className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background px-3 py-1 text-xs tabular-nums text-foreground shadow-sm">
-                  Foto {fotoActiva + 1} de {fotos.length}
-                </span>
               </>
             )}
           </div>
           {fotos.length > 1 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {fotos.map((foto, index) => (
                 <button
                   type="button"
@@ -120,9 +117,12 @@ export function DetalleView({
                   aria-label={`Ver foto ${index + 1}`}
                   aria-pressed={fotoActiva === index}
                 >
-                  <Portada publicacion={publicacion} foto={foto} />
+                  <Portada publicacion={publicacion} foto={foto} presentacion="foto" />
                 </button>
               ))}
+              <span role="status" className="px-2 text-xs tabular-nums text-muted-foreground">
+                Foto {fotoActiva + 1} de {fotos.length}
+              </span>
             </div>
           )}
           {publicacion.fotos.length === 0 && (
@@ -136,30 +136,38 @@ export function DetalleView({
           <div>
             <p className="text-3xl font-bold text-primary">{formatCLP(publicacion.precio)}</p>
             <p className="mt-1 text-sm text-muted-foreground">Ejemplar físico de segunda mano</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant={sinStock ? "destructive" : "secondary"}>
-                {sinStock ? "Sin stock" : `${publicacion.stock} disponible${publicacion.stock > 1 ? "s" : ""}`}
-              </Badge>
-              <Badge variant="outline">{publicacion.condicion}</Badge>
-            </div>
           </div>
 
+          <dl className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-muted/30 p-4">
+            <div className="flex flex-col gap-1">
+              <dt className="text-sm text-muted-foreground">Condición física</dt>
+              <dd className="text-base font-semibold leading-snug">{publicacion.condicion}</dd>
+            </div>
+            <div className="flex flex-col gap-1">
+              <dt className="text-sm text-muted-foreground">Disponibilidad</dt>
+              <dd className={`text-base font-semibold leading-snug ${sinStock ? "text-destructive" : "text-foreground"}`}>
+                {sinStock ? "Agotado" : `${publicacion.stock} ejemplar${publicacion.stock > 1 ? "es" : ""}`}
+              </dd>
+            </div>
+          </dl>
+
           <div className="flex flex-col gap-2">
-            <Button size="lg" className="h-auto min-h-11 whitespace-normal rounded-xl py-3" disabled={sinStock || esPropia} onClick={onComprar}>
-              {esPropia ? "Esta es tu publicación" : sinStock ? "Sin stock por ahora" : "Comprar con reserva inmediata"}
+            <div className="flex flex-wrap items-center gap-2">
+            <Button className="h-auto min-h-10 whitespace-normal rounded-lg px-5 py-2" disabled={sinStock || esPropia} onClick={onComprar}>
+              {esPropia ? "Esta es tu publicación" : sinStock ? "Sin stock por ahora" : "Comprar ejemplar"}
             </Button>
             {!esPropia && (
               <Button
-                size="lg"
-                variant="outline"
-                className="rounded-xl"
+                variant="ghost"
+                className="min-h-10 rounded-lg"
                 onClick={yoId ? () => setContactoAbierto(true) : onNecesitaSesion}
               >
-                <MessageCircle data-icon="inline-start" /> Preguntar al vendedor
+                <MessageCircle data-icon="inline-start" /> Preguntar
               </Button>
             )}
+            </div>
             {!esPropia && (
-              <p className="text-center text-xs text-muted-foreground">
+              <p className="text-xs leading-relaxed text-muted-foreground">
                 Pagas directo al vendedor · el ejemplar queda reservado {RESERVA_HORAS} horas
               </p>
             )}
