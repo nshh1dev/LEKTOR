@@ -15,6 +15,7 @@ import {
 } from "@/lib/catalog"
 import { ApiError, type SafeUser } from "@/lib/auth"
 import { ESTADO_ORDEN_LABEL } from "@/lib/format"
+import { destinatarioCambioOrden } from "@/lib/order-notifications"
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
@@ -372,7 +373,12 @@ export async function transitionOrder(
       )
     }
 
-    const receiverId = siguiente === "recibida" ? current.vendedorId : current.compradorId
+    const receiverId = destinatarioCambioOrden({
+      compradorId: current.compradorId,
+      vendedorId: current.vendedorId,
+      actorId: user.id,
+      siguiente,
+    })
     await tx.insert(notifications).values({
       userId: receiverId,
       tipo: intervencion ? "orden_intervenida" : "orden_actualizada",
