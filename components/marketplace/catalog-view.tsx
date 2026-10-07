@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, Search, SlidersHorizontal } from "lucide-react"
+import { ChevronLeft, ChevronRight, LoaderCircle, PanelLeftClose, PanelLeftOpen, Search, SlidersHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -38,6 +38,8 @@ export function CatalogView({
   facetas,
   paginacion,
   cargando,
+  errorCarga,
+  onReintentar,
   orden,
   setOrden,
   filtros,
@@ -54,6 +56,8 @@ export function CatalogView({
   facetas: Facetas
   paginacion: Paginacion
   cargando: boolean
+  errorCarga: boolean
+  onReintentar: () => void
   orden: OrdenCatalogo
   setOrden: (value: OrdenCatalogo) => void
   filtros: Filtros
@@ -188,7 +192,18 @@ export function CatalogView({
             </div>
           </div>
 
-          {publicaciones.length > 0 ? (
+          {errorCarga ? (
+            <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-center" role="alert">
+              <p className="font-serif text-2xl">No pudimos actualizar el catálogo</p>
+              <p className="text-sm text-muted-foreground">Comprueba tu conexión e inténtalo otra vez.</p>
+              <Button variant="outline" onClick={onReintentar}>Reintentar</Button>
+            </div>
+          ) : cargando && publicaciones.length === 0 ? (
+            <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-center" role="status">
+              <LoaderCircle className="size-6 animate-spin text-oro" />
+              <p className="text-sm text-muted-foreground">Buscando ejemplares…</p>
+            </div>
+          ) : publicaciones.length > 0 ? (
             <div
               className={`grid auto-rows-fr grid-cols-2 gap-x-5 gap-y-9 md:gap-x-7 lg:grid-cols-3 2xl:grid-cols-4 ${cargando ? "opacity-60" : ""}`}
             >
@@ -225,7 +240,7 @@ export function CatalogView({
                 variant="ghost"
                 size="sm"
                 className="rounded-full"
-                disabled={paginacion.pagina <= 1}
+                disabled={cargando || paginacion.pagina <= 1}
                 onClick={() => onPagina(paginacion.pagina - 1)}
               >
                 <ChevronLeft data-icon="inline-start" /> Anterior
@@ -237,7 +252,7 @@ export function CatalogView({
                 variant="ghost"
                 size="sm"
                 className="rounded-full"
-                disabled={paginacion.pagina >= paginacion.paginas}
+                disabled={cargando || paginacion.pagina >= paginacion.paginas}
                 onClick={() => onPagina(paginacion.pagina + 1)}
               >
                 Siguiente <ChevronRight data-icon="inline-end" />

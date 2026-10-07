@@ -146,3 +146,15 @@ test("sin cuerpo JSON la llamada igual falla con el respaldo", async (t) => {
     },
   )
 })
+
+test("api conserva la señal de cancelación de una consulta", async (t) => {
+  const controller = new AbortController()
+  t.mock.method(globalThis, "fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+    assert.equal(init?.signal, controller.signal)
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { "Content-Type": "application/json" },
+    })
+  })
+
+  await api("/api/publications", { signal: controller.signal })
+})
