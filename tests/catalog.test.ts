@@ -11,6 +11,9 @@ import {
   cuerpoDePerfil,
   cuerpoDeRegistro,
   cuerpoDeStock,
+  cantidadMovimientoSchema,
+  cantidadMovimientoCampoSchema,
+  cuerpoDeMovimiento,
   datosDespachoSchema,
   listaFotosAUrls,
   nivelDePublicaciones,
@@ -332,6 +335,32 @@ test("panelMovimientoSchema valida el tipo y la cantidad", () => {
   assert.equal(panelMovimientoSchema.safeParse({ publicacionId: id, tipo: "borrado", cantidad: 1 }).success, false)
   assert.equal(panelMovimientoSchema.safeParse({ publicacionId: id, tipo: "entrada", cantidad: 1000 }).success, false)
   assert.equal(panelMovimientoSchema.safeParse({ publicacionId: "x", tipo: "entrada", cantidad: 1 }).success, false)
+})
+
+test("cantidad de movimiento distingue vacío de cero explícito", () => {
+  assert.equal(cantidadMovimientoCampoSchema.safeParse("").success, false)
+  assert.equal(cantidadMovimientoCampoSchema.safeParse("   ").success, false)
+  assert.equal(cantidadMovimientoCampoSchema.parse("0"), 0)
+  assert.equal(cantidadMovimientoCampoSchema.parse("12"), 12)
+  for (const valor of ["-1", "1.5", "abc", "1000"]) {
+    assert.equal(cantidadMovimientoSchema.safeParse(valor).success, false, valor)
+  }
+})
+
+test("el contrato API de movimiento rechaza cantidad vacía y acepta números JSON", () => {
+  const base = { publicacionId: "11111111-1111-4111-8111-111111111111", tipo: "ajuste" as const }
+  assert.equal(panelMovimientoSchema.safeParse({ ...base, cantidad: "" }).success, false)
+  assert.equal(panelMovimientoSchema.safeParse({ ...base, cantidad: 0 }).success, true)
+})
+
+test("cuerpoDeMovimiento cumple el contrato que valida la API", () => {
+  const cuerpo = cuerpoDeMovimiento({
+    publicacionId: "11111111-1111-4111-8111-111111111111",
+    tipo: "ajuste",
+    cantidad: 0,
+    motivo: undefined,
+  })
+  assert.equal(panelMovimientoSchema.safeParse(cuerpo).success, true)
 })
 
 test("panelUsuarioUpdateSchema exige rol o estado", () => {

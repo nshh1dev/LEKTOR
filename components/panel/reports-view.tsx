@@ -42,6 +42,7 @@ import { type EstadoOrden, type MetodoEntrega } from "@/lib/catalog"
 import { ESTADO_ORDEN_LABEL, formatCLP, formatDateTime } from "@/lib/format"
 import { usePanelQuery } from "@/lib/panel-client"
 import { cn } from "@/lib/utils"
+import { generarCSV } from "@/lib/format"
 
 type Reporte = {
   dias: number
@@ -101,7 +102,7 @@ export function ReportsView() {
       orden.metodoEntrega,
       orden.total.toString(),
     ])
-    const csv = [cabeceras, ...filas].map((fila) => fila.map((valor) => `"${valor}"`).join(",")).join("\n")
+    const csv = generarCSV([cabeceras, ...filas])
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
     const url = URL.createObjectURL(blob)
     const enlace = document.createElement("a")
