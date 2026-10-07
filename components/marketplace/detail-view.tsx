@@ -57,7 +57,7 @@ export function DetalleView({
   const fotos = publicacion.fotos.length > 0 ? publicacion.fotos : [undefined]
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-4">
       <button
         type="button"
         onClick={onVolver}
@@ -67,26 +67,27 @@ export function DetalleView({
       </button>
 
       <header>
-        <Badge className="mb-4 rounded-full">{publicacion.categoria}</Badge>
-        <h1 className="text-balance font-serif text-3xl font-semibold tracking-tight md:text-5xl">{publicacion.titulo}</h1>
-        <p className="mt-3 text-muted-foreground md:text-lg">
+        <Badge className="mb-2 rounded-full">{publicacion.categoria}</Badge>
+        <h1 className="text-balance font-serif text-3xl font-semibold tracking-tight md:text-4xl">{publicacion.titulo}</h1>
+        <p className="mt-2 text-sm text-muted-foreground md:text-base">
           {publicacion.autor} · {publicacion.editorial}
           {publicacion.volumen ? ` · Vol. ${publicacion.volumen}` : ""}
         </p>
       </header>
 
-      <div className="grid gap-6 md:grid-cols-[minmax(280px,420px)_minmax(0,1fr)] md:items-start md:gap-10">
-        <div className="mx-auto flex w-full max-w-60 flex-col gap-3 md:max-w-none">
-          <Portada publicacion={publicacion} foto={fotos[fotoActiva]} grande />
+      <div className="grid gap-5 md:grid-cols-[minmax(240px,340px)_minmax(0,1fr)] md:items-start md:gap-8">
+        <div className="mx-auto flex w-full max-w-60 flex-col gap-2 md:max-w-none">
+          <Portada publicacion={publicacion} foto={fotos[fotoActiva]} grande className="aspect-auto h-[clamp(200px,32dvh,280px)] rounded-xl md:h-[clamp(240px,42dvh,400px)]" />
           {fotos.length > 1 && (
-            <div className="grid grid-cols-4 gap-3">
+            <div className="flex flex-wrap gap-2">
               {fotos.map((foto, index) => (
                 <button
                   type="button"
                   key={`${foto ?? "portada"}-${index}`}
                   onClick={() => setFotoActiva(index)}
-                  className={`cursor-pointer overflow-hidden rounded-xl border-2 p-1 ${fotoActiva === index ? "border-primary" : "border-transparent"}`}
+                  className={`w-11 shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 p-0.5 ${fotoActiva === index ? "border-primary" : "border-transparent"}`}
                   aria-label={`Ver foto ${index + 1}`}
+                  aria-pressed={fotoActiva === index}
                 >
                   <Portada publicacion={publicacion} foto={foto} />
                 </button>
@@ -100,11 +101,11 @@ export function DetalleView({
           )}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-4">
           <div>
-            <p className="text-4xl font-bold text-primary">{formatCLP(publicacion.precio)}</p>
+            <p className="text-3xl font-bold text-primary">{formatCLP(publicacion.precio)}</p>
             <p className="mt-1 text-sm text-muted-foreground">Ejemplar físico de segunda mano</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge variant={sinStock ? "destructive" : "secondary"}>
                 {sinStock ? "Sin stock" : `${publicacion.stock} disponible${publicacion.stock > 1 ? "s" : ""}`}
               </Badge>
@@ -133,14 +134,14 @@ export function DetalleView({
             )}
           </div>
 
-          <Card className="rounded-xl bg-muted/50 shadow-none">
+          <Card className="gap-0 rounded-xl bg-muted/50 py-0 shadow-none">
             <button
               type="button"
               onClick={() => onVendedor(publicacion.vendedorId)}
-              className="flex w-full items-center gap-3 rounded-xl p-4 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+               className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               aria-label={`Ver perfil de ${publicacion.vendedorNombre}`}
             >
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
                 {publicacion.vendedorNombre.slice(0, 1)}
               </span>
               <span className="min-w-0 flex-1">
@@ -153,19 +154,18 @@ export function DetalleView({
               <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
             </button>
           </Card>
+          {publicacion.descripcion && (
+            <section aria-labelledby="titulo-descripcion" className="flex flex-col gap-2">
+              <h2 id="titulo-descripcion" className="font-serif text-lg tracking-tight">Sobre este ejemplar</h2>
+              <p className="text-pretty text-sm leading-6 text-muted-foreground">{publicacion.descripcion}</p>
+            </section>
+          )}
         </div>
       </div>
 
       <Separator />
 
       <div className="flex flex-col gap-6">
-          {publicacion.descripcion && (
-            <section aria-labelledby="titulo-descripcion" className="flex flex-col gap-3">
-              <h2 id="titulo-descripcion" className="font-serif text-xl tracking-tight">Sobre este ejemplar</h2>
-            <p className="max-w-xl text-pretty leading-7 text-muted-foreground">{publicacion.descripcion}</p>
-            </section>
-          )}
-
           <section aria-labelledby="titulo-valoraciones" className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id="titulo-valoraciones" className="font-serif text-xl tracking-tight">
