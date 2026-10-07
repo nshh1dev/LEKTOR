@@ -570,15 +570,28 @@ export const panelValoracionesQuerySchema = z.object({
     .default("false"),
 })
 
+export const cantidadMovimientoCampoSchema = z
+  .string()
+  .trim()
+  .min(1, "Ingresa una cantidad")
+  .regex(/^\d+$/, "La cantidad debe ser un entero")
+  .transform(Number)
+  .pipe(z.number().int().min(0, "La cantidad no puede ser negativa").max(999, "La cantidad es demasiado alta"))
+
+export const cantidadMovimientoSchema = z.preprocess(
+  (valor) => (valor === "" || (typeof valor === "string" && valor.trim() === "") ? undefined : valor),
+  z.coerce
+    .number()
+    .int()
+    .min(0, "La cantidad no puede ser negativa")
+    .max(999, "La cantidad es demasiado alta"),
+)
+
 export const panelMovimientoSchema = z
   .object({
     publicacionId: z.string().uuid("Publicación inválida"),
     tipo: z.enum(TIPOS_MOVIMIENTO_UI, { message: "Elige el tipo de movimiento" }),
-    cantidad: z.coerce
-      .number()
-      .int()
-      .min(0, "La cantidad no puede ser negativa")
-      .max(999, "La cantidad es demasiado alta"),
+    cantidad: cantidadMovimientoSchema,
     motivo: z.string().trim().max(200).optional(),
   })
   .superRefine((data, ctx) => {
@@ -607,6 +620,15 @@ export type PanelOrdenesQuery = z.infer<typeof panelOrdenesQuerySchema>
 export type PanelMovimientosQuery = z.infer<typeof panelMovimientosQuerySchema>
 export type PanelReportesQuery = z.infer<typeof panelReportesQuerySchema>
 export type PanelMovimientoInput = z.infer<typeof panelMovimientoSchema>
+
+export function cuerpoDeMovimiento({
+  publicacionId,
+  tipo,
+  cantidad,
+  motivo,
+}: PanelMovimientoInput): PanelMovimientoInput {
+  return { publicacionId, tipo, cantidad, motivo }
+}
 
 export function envioSegunMetodo(metodo: MetodoEntrega): number {
   return metodo === "envio_domicilio" ? COSTO_ENVIO_DOMICILIO : 0

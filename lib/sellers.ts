@@ -30,7 +30,7 @@ export async function perfilVendedor(vendedorId: string, paginaSolicitada = 1): 
       fechaCreacion: users.fechaCreacion,
     })
     .from(users)
-    .where(eq(users.id, vendedorId))
+    .where(and(eq(users.id, vendedorId), eq(users.activo, true)))
 
   if (!vendedor) {
     throw new ApiError(404, "not-found", "Este vendedor ya no está en LEKTOR")
