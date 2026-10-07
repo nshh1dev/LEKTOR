@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowLeft, ChevronRight, LoaderCircle, MessageCircle } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, LoaderCircle, MessageCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -77,7 +77,38 @@ export function DetalleView({
 
       <div className="grid gap-5 md:grid-cols-[minmax(240px,340px)_minmax(0,1fr)] md:items-start md:gap-8">
         <div className="mx-auto flex w-full max-w-60 flex-col gap-2 md:max-w-none">
-          <Portada publicacion={publicacion} foto={fotos[fotoActiva]} grande className="aspect-auto h-[clamp(200px,32dvh,280px)] rounded-xl md:h-[clamp(240px,42dvh,400px)]" />
+          <div className="relative">
+            <Portada publicacion={publicacion} foto={fotos[fotoActiva]} grande className="aspect-auto h-[clamp(200px,32dvh,280px)] rounded-xl md:h-[clamp(240px,42dvh,400px)]" />
+            {fotos.length > 1 && (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute left-2 top-1/2 size-11 -translate-y-1/2 rounded-full shadow-md"
+                  aria-label="Foto anterior"
+                  disabled={fotoActiva === 0}
+                  onClick={() => setFotoActiva((actual) => Math.max(0, actual - 1))}
+                >
+                  <ChevronLeft />
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute right-2 top-1/2 size-11 -translate-y-1/2 rounded-full shadow-md"
+                  aria-label="Foto siguiente"
+                  disabled={fotoActiva === fotos.length - 1}
+                  onClick={() => setFotoActiva((actual) => Math.min(fotos.length - 1, actual + 1))}
+                >
+                  <ChevronRight />
+                </Button>
+                <span role="status" className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background px-3 py-1 text-xs tabular-nums text-foreground shadow-sm">
+                  Foto {fotoActiva + 1} de {fotos.length}
+                </span>
+              </>
+            )}
+          </div>
           {fotos.length > 1 && (
             <div className="flex flex-wrap gap-2">
               {fotos.map((foto, index) => (
