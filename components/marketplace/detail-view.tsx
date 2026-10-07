@@ -152,18 +152,22 @@ export function DetalleView({
 
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
-            <Button className="h-auto min-h-10 whitespace-normal rounded-lg px-5 py-2" disabled={sinStock || esPropia} onClick={onComprar}>
-              {esPropia ? "Esta es tu publicación" : sinStock ? "Sin stock por ahora" : "Comprar ejemplar"}
-            </Button>
-            {!esPropia && (
               <Button
-                variant="ghost"
-                className="min-h-10 rounded-lg"
-                onClick={yoId ? () => setContactoAbierto(true) : onNecesitaSesion}
+                className="h-auto min-h-10 whitespace-normal rounded-lg px-5 py-2"
+                disabled={sinStock || esPropia}
+                onClick={onComprar}
               >
-                <MessageCircle data-icon="inline-start" /> Preguntar
+                {esPropia ? "Esta es tu publicación" : sinStock ? "Sin stock por ahora" : "Comprar ejemplar"}
               </Button>
-            )}
+              {!esPropia && (
+                <Button
+                  variant="ghost"
+                  className="min-h-10 rounded-lg"
+                  onClick={yoId ? () => setContactoAbierto(true) : onNecesitaSesion}
+                >
+                  <MessageCircle data-icon="inline-start" /> Preguntar
+                </Button>
+              )}
             </div>
             {!esPropia && (
               <p className="text-xs leading-relaxed text-muted-foreground">
@@ -174,25 +178,28 @@ export function DetalleView({
 
           <Separator />
           <div className="flex items-center gap-3">
-              <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-foreground">
-                {publicacion.vendedorNombre.slice(0, 1)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground">Vendido por</p>
-                <p className="break-words font-semibold">{publicacion.vendedorNombre}</p>
-                <p className="text-sm text-muted-foreground">
-                  {publicacion.vendedorComuna || "Lector de LEKTOR"}
-                </p>
-                <Button
-                  type="button"
-                  variant="link"
-                  className="h-auto min-h-9 cursor-pointer justify-start px-0 underline underline-offset-4"
-                  onClick={() => onVendedor(publicacion.vendedorId)}
-                  aria-label={`Ver perfil de ${publicacion.vendedorNombre}`}
-                >
-                  Ver perfil <ChevronRight data-icon="inline-end" />
-                </Button>
-              </div>
+            <span
+              aria-hidden
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-foreground"
+            >
+              {publicacion.vendedorNombre.slice(0, 1)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-muted-foreground">Vendido por</p>
+              <p className="break-words font-semibold">{publicacion.vendedorNombre}</p>
+              <p className="text-sm text-muted-foreground">
+                {publicacion.vendedorComuna || "Lector de LEKTOR"}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto min-h-10 shrink-0 cursor-pointer px-0 underline underline-offset-4"
+              onClick={() => onVendedor(publicacion.vendedorId)}
+              aria-label={`Ver perfil de ${publicacion.vendedorNombre}`}
+            >
+              Ver perfil <ChevronRight data-icon="inline-end" />
+            </Button>
           </div>
           {publicacion.descripcion && (
             <section aria-labelledby="titulo-descripcion" className="flex flex-col gap-2">
@@ -200,12 +207,7 @@ export function DetalleView({
               <p className="text-pretty text-sm leading-6 text-muted-foreground">{publicacion.descripcion}</p>
             </section>
           )}
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="flex flex-col gap-6">
+          <Separator />
           <section aria-labelledby="titulo-valoraciones" className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id="titulo-valoraciones" className="font-serif text-xl tracking-tight">
@@ -261,20 +263,21 @@ export function DetalleView({
               />
             )}
           </section>
-
-          {yoId && !esPropia && (
-            <DialogoContacto
-              abierto={contactoAbierto}
-              onOpenChange={setContactoAbierto}
-              yoId={yoId}
-              nueva={{
-                publicacionId: publicacion.id,
-                publicacionTitulo: publicacion.titulo,
-                vendedorNombre: publicacion.vendedorNombre,
-              }}
-            />
-          )}
+        </div>
       </div>
+
+      {yoId && !esPropia && (
+        <DialogoContacto
+          abierto={contactoAbierto}
+          onOpenChange={setContactoAbierto}
+          yoId={yoId}
+          nueva={{
+            publicacionId: publicacion.id,
+            publicacionTitulo: publicacion.titulo,
+            vendedorNombre: publicacion.vendedorNombre,
+          }}
+        />
+      )}
     </div>
   )
 }
