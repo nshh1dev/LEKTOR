@@ -93,6 +93,12 @@ export async function createOrder(
 
     const publication = locked.rows[0]
     if (!publication) throw new ApiError(404, "not-found", "La publicación no existe")
+    const vendedorActivo = await tx.execute<{ activo: boolean }>(
+      sql`select activo from users where id = ${publication.vendedorId} for share`,
+    )
+    if (!vendedorActivo.rows[0]?.activo) {
+      throw new ApiError(409, "vendedor-inactivo", "Esta publicación no está disponible por el momento")
+    }
     if (publication.vendedorId === buyer.id) {
       throw new ApiError(400, "own-publication", "No puedes comprar tu propia publicación")
     }

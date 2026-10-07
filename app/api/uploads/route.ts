@@ -1,8 +1,6 @@
-import { randomUUID } from "node:crypto"
-import { mkdir, writeFile } from "node:fs/promises"
-import path from "node:path"
 import { fail, ok } from "@/lib/api"
 import { ApiError, requireSession } from "@/lib/auth"
+import { guardarImagenes, type ImagenParaGuardar } from "@/lib/uploads"
 
 const MAX_BYTES = 5 * 1024 * 1024
 const MAX_ARCHIVOS = 6
@@ -42,7 +40,7 @@ export async function POST(request: Request) {
       throw new ApiError(400, "demasiados-archivos", "Sube como máximo 6 imágenes por publicación")
     }
 
-    const urls: string[] = []
+    const imagenes: ImagenParaGuardar[] = []
     for (const archivo of archivos) {
       if (archivo.size === 0) throw new ApiError(400, "archivo-vacio", "Uno de los archivos está vacío")
       if (archivo.size > MAX_BYTES) throw new ApiError(400, "archivo-grande", "Cada imagen debe pesar 5 MB o menos")
@@ -52,14 +50,10 @@ export async function POST(request: Request) {
       if (!ext) {
         throw new ApiError(400, "formato-no-soportado", "Solo se aceptan imágenes JPG, PNG o WebP")
       }
-
-      const nombre = `${randomUUID()}.${ext}`
-      const directorio = path.join(process.cwd(), "public", "uploads")
-      await mkdir(directorio, { recursive: true })
-      await writeFile(path.join(directorio, nombre), buffer)
-      urls.push(`/uploads/${nombre}`)
+      imagenes.push({ ext, buffer })
     }
 
+    const urls = await guardarImagenes(imagenes)
     return ok({ urls })
   } catch (error) {
     return fail(error)
