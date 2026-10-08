@@ -1,10 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowLeft, ChevronRight, LoaderCircle, MessageCircle } from "lucide-react"
+import { ArrowLeft, ChevronLeft, ChevronRight, LoaderCircle, MessageCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { RESERVA_HORAS, type PublicacionListItem, type ReputacionUI, type ReviewUI } from "@/lib/catalog"
 import { formatCLP } from "@/lib/format"
@@ -57,7 +56,7 @@ export function DetalleView({
   const fotos = publicacion.fotos.length > 0 ? publicacion.fotos : [undefined]
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
+    <div className="mx-auto flex max-w-4xl flex-col gap-4">
       <button
         type="button"
         onClick={onVolver}
@@ -66,22 +65,63 @@ export function DetalleView({
         <ArrowLeft className="size-4" /> Volver al catálogo
       </button>
 
-      <div className="grid gap-10 md:grid-cols-[minmax(280px,420px)_1fr] md:items-start">
-        <div className="flex flex-col gap-3">
-          <Portada publicacion={publicacion} foto={fotos[fotoActiva]} grande />
+      <header>
+        <Badge className="mb-2 rounded-full">{publicacion.categoria}</Badge>
+        <h1 className="text-balance font-serif text-3xl font-semibold tracking-tight md:text-4xl">{publicacion.titulo}</h1>
+        <p className="mt-2 text-sm text-muted-foreground md:text-base">
+          {publicacion.autor} · {publicacion.editorial}
+          {publicacion.volumen ? ` · Vol. ${publicacion.volumen}` : ""}
+        </p>
+      </header>
+
+      <div className="grid gap-5 md:grid-cols-[minmax(240px,340px)_minmax(0,1fr)] md:items-start md:gap-8">
+        <div className="mx-auto flex w-full max-w-60 flex-col gap-2 md:max-w-none">
+          <div className="relative">
+            <Portada publicacion={publicacion} foto={fotos[fotoActiva]} grande presentacion="foto" className="aspect-auto h-[clamp(200px,32dvh,280px)] md:h-[clamp(240px,42dvh,400px)]" />
+            {fotos.length > 1 && (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute left-2 top-1/2 size-11 -translate-y-1/2 rounded-full shadow-md"
+                  aria-label="Foto anterior"
+                  disabled={fotoActiva === 0}
+                  onClick={() => setFotoActiva((actual) => Math.max(0, actual - 1))}
+                >
+                  <ChevronLeft />
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute right-2 top-1/2 size-11 -translate-y-1/2 rounded-full shadow-md"
+                  aria-label="Foto siguiente"
+                  disabled={fotoActiva === fotos.length - 1}
+                  onClick={() => setFotoActiva((actual) => Math.min(fotos.length - 1, actual + 1))}
+                >
+                  <ChevronRight />
+                </Button>
+              </>
+            )}
+          </div>
           {fotos.length > 1 && (
-            <div className="grid grid-cols-4 gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {fotos.map((foto, index) => (
                 <button
                   type="button"
                   key={`${foto ?? "portada"}-${index}`}
                   onClick={() => setFotoActiva(index)}
-                  className={`cursor-pointer overflow-hidden rounded-xl border-2 p-1 ${fotoActiva === index ? "border-primary" : "border-transparent"}`}
+                  className={`w-11 shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 p-0.5 ${fotoActiva === index ? "border-primary" : "border-transparent"}`}
                   aria-label={`Ver foto ${index + 1}`}
+                  aria-pressed={fotoActiva === index}
                 >
-                  <Portada publicacion={publicacion} foto={foto} />
+                  <Portada publicacion={publicacion} foto={foto} presentacion="foto" />
                 </button>
               ))}
+              <span role="status" className="px-2 text-xs tabular-nums text-muted-foreground">
+                Foto {fotoActiva + 1} de {fotos.length}
+              </span>
             </div>
           )}
           {publicacion.fotos.length === 0 && (
@@ -91,35 +131,83 @@ export function DetalleView({
           )}
         </div>
 
-        <div className="flex flex-col gap-6 pt-2">
+        <div className="flex min-w-0 flex-col gap-4">
           <div>
-            <Badge className="mb-4 rounded-full">{publicacion.categoria}</Badge>
-            <h1 className="text-balance text-4xl font-bold tracking-tight md:text-5xl">{publicacion.titulo}</h1>
-            <p className="mt-3 text-lg text-muted-foreground">
-                {publicacion.autor} · {publicacion.editorial}
-                {publicacion.volumen ? ` · Vol. ${publicacion.volumen}` : ""}
-            </p>
-          </div>
-
-          <Separator />
-
-          <div>
-            <p className="text-4xl font-bold text-primary">{formatCLP(publicacion.precio)}</p>
+            <p className="text-3xl font-bold text-primary">{formatCLP(publicacion.precio)}</p>
             <p className="mt-1 text-sm text-muted-foreground">Ejemplar físico de segunda mano</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Badge variant={sinStock ? "destructive" : "secondary"}>
-                {sinStock ? "Sin stock" : `${publicacion.stock} disponible${publicacion.stock > 1 ? "s" : ""}`}
-              </Badge>
-              <Badge variant="outline">{publicacion.condicion}</Badge>
-            </div>
           </div>
 
-          {publicacion.descripcion && (
-            <p className="max-w-xl text-pretty leading-7 text-muted-foreground">{publicacion.descripcion}</p>
-          )}
+          <dl className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-muted/30 p-4">
+            <div className="flex flex-col gap-1">
+              <dt className="text-sm text-muted-foreground">Condición física</dt>
+              <dd className="text-base font-semibold leading-snug">{publicacion.condicion}</dd>
+            </div>
+            <div className="flex flex-col gap-1">
+              <dt className="text-sm text-muted-foreground">Disponibilidad</dt>
+              <dd className={`text-base font-semibold leading-snug ${sinStock ? "text-destructive" : "text-foreground"}`}>
+                {sinStock ? "Agotado" : `${publicacion.stock} ejemplar${publicacion.stock > 1 ? "es" : ""}`}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                className="h-auto min-h-10 whitespace-normal rounded-lg px-5 py-2"
+                disabled={sinStock || esPropia}
+                onClick={onComprar}
+              >
+                {esPropia ? "Esta es tu publicación" : sinStock ? "Sin stock por ahora" : "Comprar ejemplar"}
+              </Button>
+              {!esPropia && (
+                <Button
+                  variant="ghost"
+                  className="min-h-10 rounded-lg"
+                  onClick={yoId ? () => setContactoAbierto(true) : onNecesitaSesion}
+                >
+                  <MessageCircle data-icon="inline-start" /> Preguntar
+                </Button>
+              )}
+            </div>
+            {!esPropia && (
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Pagas directo al vendedor · el ejemplar queda reservado {RESERVA_HORAS} horas
+              </p>
+            )}
+          </div>
 
           <Separator />
-
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted font-semibold text-foreground"
+            >
+              {publicacion.vendedorNombre.slice(0, 1)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-muted-foreground">Vendido por</p>
+              <p className="break-words font-semibold">{publicacion.vendedorNombre}</p>
+              <p className="text-sm text-muted-foreground">
+                {publicacion.vendedorComuna || "Lector de LEKTOR"}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto min-h-10 shrink-0 cursor-pointer px-0 underline underline-offset-4"
+              onClick={() => onVendedor(publicacion.vendedorId)}
+              aria-label={`Ver perfil de ${publicacion.vendedorNombre}`}
+            >
+              Ver perfil <ChevronRight data-icon="inline-end" />
+            </Button>
+          </div>
+          {publicacion.descripcion && (
+            <section aria-labelledby="titulo-descripcion" className="flex flex-col gap-2">
+              <h2 id="titulo-descripcion" className="font-serif text-lg tracking-tight">Sobre este ejemplar</h2>
+              <p className="text-pretty text-sm leading-6 text-muted-foreground">{publicacion.descripcion}</p>
+            </section>
+          )}
+          <Separator />
           <section aria-labelledby="titulo-valoraciones" className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 id="titulo-valoraciones" className="font-serif text-xl tracking-tight">
@@ -175,67 +263,21 @@ export function DetalleView({
               />
             )}
           </section>
-
-          <Card className="rounded-xl bg-muted/50 shadow-none">
-            <button
-              type="button"
-              onClick={() => onVendedor(publicacion.vendedorId)}
-              className="flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-muted focus-visible:outline-none"
-              aria-label={`Ver perfil de ${publicacion.vendedorNombre}`}
-            >
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-                {publicacion.vendedorNombre.slice(0, 1)}
-              </span>
-              <span className="flex-1">
-                <span className="block font-semibold">{publicacion.vendedorNombre}</span>
-                <span className="block text-sm text-muted-foreground">
-                  {[publicacion.vendedorComuna].filter(Boolean).join(" · ") || "Lector de LEKTOR"}
-                </span>
-              </span>
-              {reputacion.total > 0 ? (
-                <ResumenEstrellas reputacion={reputacion} className="shrink-0" />
-              ) : (
-                <span className="text-[11px] text-muted-foreground">Sin valoraciones aún</span>
-              )}
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-            </button>
-          </Card>
-
-          <div className="flex flex-col gap-2">
-            <Button size="lg" className="rounded-xl" disabled={sinStock || esPropia} onClick={onComprar}>
-              {esPropia ? "Esta es tu publicación" : sinStock ? "Sin stock por ahora" : "Comprar con reserva inmediata"}
-            </Button>
-            {!esPropia && (
-              <Button
-                size="lg"
-                variant="outline"
-                className="rounded-xl"
-                onClick={yoId ? () => setContactoAbierto(true) : onNecesitaSesion}
-              >
-                <MessageCircle data-icon="inline-start" /> Preguntar al vendedor
-              </Button>
-            )}
-            {!esPropia && (
-              <p className="text-center text-xs text-muted-foreground">
-                Pagas directo al vendedor · el ejemplar queda reservado {RESERVA_HORAS} horas
-              </p>
-            )}
-          </div>
-
-          {yoId && !esPropia && (
-            <DialogoContacto
-              abierto={contactoAbierto}
-              onOpenChange={setContactoAbierto}
-              yoId={yoId}
-              nueva={{
-                publicacionId: publicacion.id,
-                publicacionTitulo: publicacion.titulo,
-                vendedorNombre: publicacion.vendedorNombre,
-              }}
-            />
-          )}
         </div>
       </div>
+
+      {yoId && !esPropia && (
+        <DialogoContacto
+          abierto={contactoAbierto}
+          onOpenChange={setContactoAbierto}
+          yoId={yoId}
+          nueva={{
+            publicacionId: publicacion.id,
+            publicacionTitulo: publicacion.titulo,
+            vendedorNombre: publicacion.vendedorNombre,
+          }}
+        />
+      )}
     </div>
   )
 }

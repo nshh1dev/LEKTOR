@@ -420,7 +420,7 @@ export function LektorMarketplace({
         </div>
       </header>
 
-      <main id="catalogo" tabIndex={-1} className="mx-auto max-w-[92rem] px-4 py-10 md:px-8 md:py-14">
+      <main id="catalogo" tabIndex={-1} className={`mx-auto max-w-[92rem] px-4 md:px-8 ${vista === "detail" ? "py-4 md:py-5" : "py-10 md:py-14"}`}>
         {vista === "catalog" && (
           <CatalogView
             publicaciones={consultaCatalogoVigente ? publicaciones : []}

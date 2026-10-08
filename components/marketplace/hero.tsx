@@ -18,11 +18,13 @@ export function Portada({
   publicacion,
   foto,
   grande = false,
+  presentacion = "portada",
   className,
 }: {
   publicacion: DatosPortada
   foto?: string
   grande?: boolean
+  presentacion?: "portada" | "foto"
   className?: string
 }) {
   const [rota, setRota] = useState<string | null>(null)
@@ -39,14 +41,15 @@ export function Portada({
   return (
     <div
       className={cn(
-        "@container relative aspect-[2/3] w-full overflow-hidden bg-neutral-900 dark:bg-neutral-950",
+        "@container relative aspect-[2/3] w-full overflow-hidden",
+        presentacion === "portada" && "bg-neutral-900 dark:bg-neutral-950",
         className,
       )}
       aria-label={url ? undefined : `Portada de ${publicacion.titulo}`}
     >
       {url ? (
         <>
-          <Image
+          {presentacion === "portada" && <Image
             src={url}
             alt=""
             fill
@@ -59,7 +62,7 @@ export function Portada({
             )}
             onLoad={() => setCargada(url)}
             onError={() => setRota(url)}
-          />
+          />}
           <Image
             ref={referencia}
             src={url}
@@ -68,14 +71,14 @@ export function Portada({
             sizes={sizes}
             unoptimized
             className={cn(
-              "object-contain p-[2%] drop-shadow-[0_16px_34px_rgba(0,0,0,0.55)]",
-              "transition-[opacity,filter,transform] duration-300 ease-out group-hover:scale-[1.035]",
+              "object-contain transition-opacity duration-300 ease-out",
+              presentacion === "portada" && "p-[2%] drop-shadow-[0_16px_34px_rgba(0,0,0,0.55)] group-hover:scale-[1.035]",
               lista ? "opacity-100 blur-0" : "opacity-0 blur-md",
             )}
             onLoad={() => setCargada(url)}
             onError={() => setRota(url)}
           />
-          <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-black/25 via-transparent to-black/10" />
+          {presentacion === "portada" && <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-black/25 via-transparent to-black/10" />}
         </>
       ) : (
         <Placa publicacion={publicacion} />
