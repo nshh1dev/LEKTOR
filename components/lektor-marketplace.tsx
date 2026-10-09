@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
-import { ArrowLeft, LayoutDashboard, LoaderCircle, LogIn, Moon, Search, Sun, Tag, UserCircle } from "lucide-react"
+import { ArrowLeft, ChevronDown, LayoutDashboard, LoaderCircle, LogIn, LogOut, Moon, Search, Sun, Tag, UserCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { avisar } from "@/components/notificacion/avisar"
 import { Sello } from "@/components/notificacion/sello"
 import { mensajeDeFallo } from "@/lib/avisos"
@@ -396,9 +397,35 @@ export function LektorMarketplace({
                 </Link>
               </Button>
             )}
-            <Button
-              variant="ghost"
-              className="size-10 rounded-full p-0 text-muted-foreground hover:text-foreground md:h-9 md:w-auto md:px-3"
+            {usuario ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="size-10 rounded-full p-0 text-muted-foreground md:h-9 md:w-auto md:px-3" aria-label="Menú de mi perfil">
+                    <UserCircle data-icon="inline-start" />
+                    <span className="hidden md:inline">Mi Perfil</span>
+                    <ChevronDown className="hidden md:block" data-icon="inline-end" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onSelect={() => {
+                      setPestanaInicialPerfil("publicaciones")
+                      irAVista("profile")
+                    }}>
+                      <UserCircle /> Ver mi perfil
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onSelect={() => void cerrarSesion()}>
+                      <LogOut /> Cerrar sesión
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : <Button
+               variant="ghost"
+               className="size-10 rounded-full p-0 text-muted-foreground hover:text-foreground md:h-9 md:w-auto md:px-3"
               onClick={() => {
                 setPestanaInicialPerfil("publicaciones")
                 irAVista(usuario ? "profile" : "auth")
@@ -407,7 +434,7 @@ export function LektorMarketplace({
             >
               <UserCircle data-icon="inline-start" />
               <span className="hidden md:inline">Mi Perfil</span>
-            </Button>
+            </Button>}
             <Button
               className="h-10 rounded-full bg-oro px-5 text-oro-foreground shadow-none hover:bg-oro/90"
               onClick={() => (usuario ? irAVista("sell") : setAuthPrompt("sell"))}

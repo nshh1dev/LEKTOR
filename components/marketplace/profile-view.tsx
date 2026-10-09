@@ -6,7 +6,7 @@ import Link from "next/link"
 import { ArrowLeft, ChevronLeft, ChevronRight, LayoutDashboard, MessageCircle, Tag, Trash2, UserPen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
+import { Card, CardDescription, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -265,32 +265,28 @@ export function PerfilView({
         >
           <ArrowLeft className="size-4" /> Volver al catálogo
         </button>
-        <Button variant="outline" size="sm" onClick={onCerrarSesion}>
-          Cerrar sesión
-        </Button>
       </div>
 
-      <Card className="rounded-2xl border-0 bg-primary text-primary-foreground shadow-lg">
-        <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center">
-          <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-foreground/15 text-2xl font-bold ring-4 ring-primary-foreground/10">
+      <header className="flex flex-col gap-6 border-b border-border/60 pb-8 md:flex-row md:items-center">
+          <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted font-serif text-2xl font-semibold text-foreground">
             {perfil?.avatarUrl ? (
               <Image src={perfil.avatarUrl} alt="Avatar" width={80} height={80} className="size-full object-cover" unoptimized />
             ) : (
               iniciales
             )}
           </div>
-          <div className="flex-1">
-            <p className="text-sm text-primary-foreground/70">Mi perfil</p>
-            <h1 className="text-3xl font-bold">{perfil?.nombre ?? usuario.nombre}</h1>
-            <p className="mt-1 text-sm text-primary-foreground/75">
+          <div className="min-w-0 flex-1">
+            <p className="rotulo text-oro">Mi perfil</p>
+            <h1 className="mt-2 break-words font-serif text-3xl font-semibold">{perfil?.nombre ?? usuario.nombre}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
               {[perfil?.comuna, perfil?.region].filter(Boolean).join(", ") || "Completa tu ubicación"}
             </p>
-            {perfil?.bio && <p className="mt-2 max-w-lg text-sm text-primary-foreground/80">{perfil.bio}</p>}
-            <p className="mt-2 text-xs text-primary-foreground/60">
+            {perfil?.bio && <p className="mt-3 max-w-lg whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground">{perfil.bio}</p>}
+            <p className="mt-3 text-xs text-muted-foreground">
               Miembro desde {perfil ? formatDate(perfil.fechaCreacion) : ""}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 md:max-w-52 md:justify-end">
             {esStaff(usuario.rol) && (
               <Button variant="secondary" size="sm" asChild>
                 <Link href="/admin">
@@ -298,7 +294,7 @@ export function PerfilView({
                 </Link>
               </Button>
             )}
-            <Button variant="secondary" size="sm" disabled={!perfil || cargandoFicha} onClick={() => setEditandoPerfil(true)}>
+            <Button variant="ghost" size="sm" disabled={!perfil || cargandoFicha} onClick={() => setEditandoPerfil(true)}>
               <UserPen data-icon="inline-start" /> {cargandoFicha ? "Cargando perfil…" : "Editar perfil"}
             </Button>
             {!perfil && !cargandoFicha && (
@@ -306,43 +302,54 @@ export function PerfilView({
                 Reintentar carga del perfil
               </Button>
             )}
-            <Button variant="secondary" size="sm" onClick={onNuevaPublicacion}>
-              <Tag data-icon="inline-start" /> Publicar
-            </Button>
           </div>
-        </CardContent>
-      </Card>
+      </header>
 
-      <div className="flex flex-wrap items-center gap-1 rounded-xl bg-muted p-1">
-        {(
-          [
-            ["publicaciones", "Mis publicaciones", misPublicaciones.length],
-            ["ventas", "Ventas", ventas.length],
-            ["compras", "Compras", compras.length],
-            ["resenas", "Reseñas", reseñas.escritas.length + reseñas.recibidas.length],
+      <nav aria-label="Secciones de mi perfil" className="grid gap-6 border-b border-border/60 pb-6 lg:grid-cols-2">
+        {([
+          { titulo: "Actividad", secciones: [
+            ["publicaciones", "Publicaciones", misPublicaciones.length],
+            ["compras", "Compras", paginas.compras.total],
+            ["ventas", "Ventas", paginas.ventas.total],
+          ] },
+          { titulo: "Comunidad", secciones: [
             ["mensajes", "Mensajes", conversaciones.length],
-            ["notificaciones", "Notificaciones", notificaciones.length],
-          ] as const
-        ).map(([clave, etiqueta, total]) => (
-          <Button
-            key={clave}
-            variant={pestana === clave ? "default" : "ghost"}
-            className="flex-1"
-            onClick={() => setPestana(clave)}
-          >
-            {etiqueta}
-            <Badge variant="secondary" className="ml-2">
-              {total}
-            </Badge>
-          </Button>
+            ["resenas", "Reseñas", reseñas.escritas.length + reseñas.recibidas.length],
+            ["notificaciones", "Avisos", notificaciones.length],
+          ] },
+        ] as const).map((grupo) => (
+          <div key={grupo.titulo} className="flex min-w-0 flex-col gap-3">
+            <div className="grid grid-cols-3 gap-2">
+              {grupo.secciones.map(([clave, etiqueta, total]) => (
+                <div key={clave} className="flex min-w-0 flex-col gap-2">
+                <Button
+                  variant="ghost"
+                  className={`h-auto min-h-14 min-w-0 flex-col gap-1 rounded-none border-b-2 px-2 py-2 hover:bg-transparent sm:min-h-11 sm:flex-row ${pestana === clave ? "border-oro text-oro" : "border-transparent text-muted-foreground"}`}
+                  aria-current={pestana === clave ? "page" : undefined}
+                  onClick={() => setPestana(clave)}
+                >
+                  <span className="text-xs sm:text-sm">{etiqueta}</span>
+                  <span className="text-xs tabular-nums opacity-70">
+                    {cargandoFicha ? "…" : total}
+                  </span>
+                  {clave === "notificaciones" && sinLeer > 0 && (
+                    <span className="sr-only">{sinLeer} sin leer</span>
+                  )}
+                </Button>
+                {clave === "notificaciones" && sinLeer > 0 && (
+                  <p className="text-center text-xs text-muted-foreground">{sinLeer} sin leer</p>
+                )}
+                </div>
+              ))}
+            </div>
+          </div>
         ))}
-        {sinLeer > 0 && <Badge className="ml-auto">{sinLeer} sin leer</Badge>}
-      </div>
+      </nav>
 
       {pestana === "publicaciones" && (
         <div className="flex flex-col gap-4">
           {misPublicaciones.length === 0 ? (
-            <Card className="flex flex-col items-center gap-3 py-12 text-center">
+            <Card className="flex flex-col items-center gap-3 rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <Tag className="size-8 text-muted-foreground" />
               <CardTitle>Aun no publicas nada</CardTitle>
               <CardDescription>Escanea un ISBN y tu primer ejemplar queda listo en minutos.</CardDescription>
@@ -352,8 +359,7 @@ export function PerfilView({
             </Card>
           ) : (
             misPublicaciones.map((publicacion) => (
-              <Card key={publicacion.id} className="rounded-xl">
-                <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+              <article key={publicacion.id} className="flex flex-col gap-4 border-b border-border/60 py-5 sm:flex-row sm:items-center">
                   <div className="w-20 shrink-0">
                     <Portada publicacion={publicacion} foto={publicacion.fotos[0]} />
                   </div>
@@ -367,12 +373,12 @@ export function PerfilView({
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" className="rounded-lg" onClick={() => onAbrirPublicacion(publicacion.id)}>
+                    <Button size="sm" variant="ghost" className="rounded-lg" onClick={() => onAbrirPublicacion(publicacion.id)}>
                       Ver
                     </Button>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       className="rounded-lg"
                       onClick={() => {
                         setStockEdicion(String(publicacion.stock))
@@ -381,7 +387,7 @@ export function PerfilView({
                     >
                       Stock
                     </Button>
-                    <Button size="sm" variant="outline" className="rounded-lg" onClick={() => void alternarEstadoPublicacion(publicacion)}>
+                    <Button size="sm" variant="ghost" className="rounded-lg" onClick={() => void alternarEstadoPublicacion(publicacion)}>
                       {publicacion.estado === "pausada" ? "Reactivar" : "Pausar"}
                     </Button>
                     <Button
@@ -394,8 +400,7 @@ export function PerfilView({
                       <Trash2 />
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+              </article>
             ))
           )}
         </div>
@@ -404,7 +409,7 @@ export function PerfilView({
       {pestana === "ventas" && (
         <div className="flex flex-col gap-4">
           {ventas.length === 0 ? (
-            <Card className="py-12 text-center">
+            <Card className="rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <CardTitle>Sin ventas por ahora</CardTitle>
               <CardDescription>Cuando alguien reserve uno de tus ejemplares aparecerá aquí.</CardDescription>
             </Card>
@@ -432,7 +437,7 @@ export function PerfilView({
       {pestana === "compras" && (
         <div className="flex flex-col gap-4">
           {compras.length === 0 ? (
-            <Card className="py-12 text-center">
+            <Card className="rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <CardTitle>Todavia no has comprado</CardTitle>
               <CardDescription>Tu primera reserva aparecerá aquí con su estado y contacto del vendedor.</CardDescription>
             </Card>
@@ -460,7 +465,7 @@ export function PerfilView({
       {pestana === "resenas" && (
         <div className="flex flex-col gap-8">
           {reseñas.escritas.length === 0 && reseñas.recibidas.length === 0 ? (
-            <Card className="py-12 text-center">
+            <Card className="rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <CardTitle>Todavía sin reseñas</CardTitle>
               <CardDescription>
                 Cuando recibas un ejemplar y lo valores, tu reseña quedará guardada acá.
@@ -476,8 +481,7 @@ export function PerfilView({
                   </p>
                 ) : (
                   reseñas.escritas.map((reseña) => (
-                    <Card key={reseña.id} className="rounded-xl">
-                      <CardContent className="flex flex-col gap-2 p-4">
+                    <article key={reseña.id} className="flex flex-col gap-3 border-b border-border/60 py-5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="font-semibold">{reseña.publicacionTitulo}</p>
                           <span className="text-xs text-muted-foreground">
@@ -487,14 +491,13 @@ export function PerfilView({
                         <Estrellas nota={reseña.puntaje} />
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           className="w-fit rounded-lg"
                           onClick={() => onAbrirPublicacion(reseña.publicacionId)}
                         >
                           Ver publicación
                         </Button>
-                      </CardContent>
-                    </Card>
+                    </article>
                   ))
                 )}
               </section>
@@ -513,8 +516,7 @@ export function PerfilView({
                   </p>
                 ) : (
                   reseñas.recibidas.map((reseña) => (
-                    <Card key={reseña.id} className="rounded-xl">
-                      <CardContent className="flex flex-col gap-2 p-4">
+                    <article key={reseña.id} className="flex flex-col gap-3 border-b border-border/60 py-5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="font-semibold">{reseña.autor.nombre}</p>
                           <div className="flex items-center gap-2">
@@ -530,8 +532,7 @@ export function PerfilView({
                         <p className="text-xs text-muted-foreground">
                           Sobre <span className="font-medium text-foreground">{reseña.publicacionTitulo}</span>
                         </p>
-                      </CardContent>
-                    </Card>
+                    </article>
                   ))
                 )}
               </section>
@@ -543,7 +544,7 @@ export function PerfilView({
       {pestana === "mensajes" && (
         <div className="flex flex-col gap-4">
           {conversaciones.length === 0 ? (
-            <Card className="py-12 text-center">
+            <Card className="rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <CardTitle>Sin mensajes por ahora</CardTitle>
               <CardDescription>
                 Cuando preguntes por un ejemplar o te pregunten por uno tuyo, el hilo aparecerá
@@ -552,8 +553,7 @@ export function PerfilView({
             </Card>
           ) : (
             conversaciones.map((conversacion) => (
-              <Card key={conversacion.id} className="rounded-xl">
-                <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-4">
+              <article key={conversacion.id} className="flex flex-col gap-3 border-b border-border/60 py-5 sm:flex-row sm:items-center sm:gap-4">
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{conversacion.publicacionTitulo}</p>
                     <p className="text-sm text-muted-foreground">
@@ -573,15 +573,14 @@ export function PerfilView({
                     </span>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       className="rounded-lg"
                       onClick={() => setConversacionAbierta(conversacion)}
                     >
                       <MessageCircle data-icon="inline-start" /> Abrir
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+              </article>
             ))
           )}
         </div>
@@ -592,27 +591,28 @@ export function PerfilView({
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Avisos</h2>
             {sinLeer > 0 && (
-              <Button size="sm" variant="outline" className="rounded-lg" onClick={marcarLeidas}>
+              <Button size="sm" variant="ghost" className="rounded-lg" onClick={marcarLeidas}>
                 Marcar todo como leido
               </Button>
             )}
           </div>
           {notificaciones.length === 0 ? (
-            <Card className="py-12 text-center">
+            <Card className="rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <CardTitle>Sin avisos</CardTitle>
               <CardDescription>Te avisaremos cuando alguien reserve o cancele un ejemplar tuyo.</CardDescription>
             </Card>
           ) : (
             notificaciones.map((aviso) => (
-              <Card key={aviso.id} className={`rounded-xl ${aviso.leida ? "opacity-70" : "border-primary/40"}`}>
-                <CardContent className="flex flex-col gap-1 p-4">
-                  <div className="flex items-center justify-between gap-2">
+              <article key={aviso.id} className={`flex flex-col gap-2 border-b border-border/60 py-5 ${aviso.leida ? "opacity-70" : "border-l-2 border-l-oro pl-4"}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
                     <p className="font-semibold">{aviso.titulo}</p>
+                    {!aviso.leida && <span className="text-xs text-oro">Sin leer</span>}
+                    </div>
                     <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(aviso.fechaCreacion)}</span>
                   </div>
                   {aviso.cuerpo && <p className="text-sm text-muted-foreground">{aviso.cuerpo}</p>}
-                </CardContent>
-              </Card>
+              </article>
             ))
           )}
         </div>
