@@ -180,7 +180,7 @@ export function CatalogView({
 
         <section aria-label="Resultados del catálogo" className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-4 border-b border-border/60 pb-5">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
               <div className="flex flex-col items-start gap-2">
                 {!filtrosAbiertos && (
                   <Button
