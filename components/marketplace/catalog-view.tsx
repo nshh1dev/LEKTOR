@@ -190,6 +190,20 @@ export function CatalogView({
                 )}
               </p>
               <div className="flex flex-wrap items-center gap-2">
+                {!filtrosAbiertos && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="hidden cursor-pointer rounded-full text-muted-foreground lg:inline-flex"
+                    aria-label="Mostrar filtros"
+                    title="Mostrar filtros"
+                    aria-expanded={false}
+                    aria-controls="indice-filtros"
+                    onClick={alternarFiltros}
+                  >
+                    <PanelLeftOpen />
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   className="min-h-10 cursor-pointer rounded-full lg:hidden"
@@ -219,18 +233,6 @@ export function CatalogView({
                 </Select>
               </div>
             </div>
-            {!filtrosAbiertos && (
-              <Button
-                variant="outline"
-                className="hidden w-fit min-h-9 cursor-pointer rounded-full lg:inline-flex"
-                aria-expanded={false}
-                aria-controls="indice-filtros"
-                onClick={alternarFiltros}
-              >
-                <PanelLeftOpen data-icon="inline-start" /> Mostrar filtros
-                {filtrosActivos > 0 && <span>({filtrosActivos})</span>}
-              </Button>
-            )}
             {etiquetas.length > 0 && (
               <div aria-label="Filtros activos" className="flex flex-wrap items-center gap-2">
                 {etiquetas.map((etiqueta) => (
