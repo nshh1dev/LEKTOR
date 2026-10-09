@@ -85,8 +85,9 @@ ni la base ni el dev server; `pnpm simular` necesita ambos.
   con `unstyled` y el color del botón de cerrar seCorrige con `--normal-bg`/`--normal-border`.
 - El sello (`animate-sello`) y la ficha usan tokens propios: `--aviso-ok`, `--aviso-falla`,
   `--aviso-revisar`, `--aviso-dato` y sus variantes `-tenue`, más las utilidades `papel`,
-  `filete`, `filete-vertical` y `sombra-tomo` de `app/globals.css`. El éxito es el oro de la marca,
-  nunca un verde genérico.
+  `filete`, `filete-vertical` y `sombra-tomo` de `app/globals.css`. La paleta es tiza y tinta
+  (blanco `--background`, tinta `--foreground`) con un único acento de acción, el índigo de
+  `--acento`. El éxito sigue siendo el dorado del sello (`--aviso-ok`), nunca un verde genérico.
 - APIs de lectura del panel bajo `app/api/panel/*`; el cliente usa `lib/panel-client.ts` (`panelGet`, `panelEnviar`, `usePanelQuery`).
 - En SQL con Drizzle, calificar las columnas dentro de subconsultas (`users.id`, `publications.id`); interpolar `${tabla.columna}` puede quedar sin calificar y resolverse contra la tabla interna.
 - La condición `where` es compartida por la consulta de filas y la de conteo: si menciona columnas de
