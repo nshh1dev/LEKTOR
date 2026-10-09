@@ -193,7 +193,7 @@ export function CatalogView({
                     aria-controls="indice-filtros"
                     onClick={alternarFiltros}
                   >
-                    <PanelLeftOpen />
+                    <PanelLeftOpen data-icon="inline-start" /> Mostrar
                   </Button>
                 )}
                 <p role="status" className="text-sm">
