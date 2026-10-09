@@ -186,7 +186,7 @@ export function CatalogView({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="hidden h-8 w-fit cursor-pointer justify-start rounded-md px-0 text-xs text-muted-foreground hover:bg-transparent hover:underline has-[>svg]:px-0 lg:inline-flex"
+                    className="hidden h-8 w-fit cursor-pointer justify-start rounded-md px-0 text-xs text-muted-foreground hover:bg-transparent has-[>svg]:px-0 lg:inline-flex"
                     aria-label="Mostrar filtros"
                     title="Mostrar filtros"
                     aria-expanded={false}
