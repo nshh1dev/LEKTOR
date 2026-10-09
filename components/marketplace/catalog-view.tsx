@@ -192,16 +192,14 @@ export function CatalogView({
               <div className="flex flex-wrap items-center gap-2">
                 {!filtrosAbiertos && (
                   <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="hidden cursor-pointer rounded-full text-muted-foreground lg:inline-flex"
-                    aria-label="Mostrar filtros"
-                    title="Mostrar filtros"
+                    variant="outline"
+                    className="hidden min-h-9 cursor-pointer rounded-full px-3 text-sm lg:inline-flex"
                     aria-expanded={false}
                     aria-controls="indice-filtros"
                     onClick={alternarFiltros}
                   >
-                    <PanelLeftOpen />
+                    <PanelLeftOpen data-icon="inline-start" /> Mostrar filtros
+                    {filtrosActivos > 0 && <span>({filtrosActivos})</span>}
                   </Button>
                 )}
                 <Button
