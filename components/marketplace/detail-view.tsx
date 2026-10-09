@@ -56,7 +56,7 @@ export function DetalleView({
   const fotos = publicacion.fotos.length > 0 ? publicacion.fotos : [undefined]
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6">
       <button
         type="button"
         onClick={onVolver}
@@ -74,17 +74,23 @@ export function DetalleView({
         </p>
       </header>
 
-      <div className="grid gap-5 md:grid-cols-[minmax(240px,340px)_minmax(0,1fr)] md:items-start md:gap-8">
-        <div className="mx-auto flex w-full max-w-60 flex-col gap-2 md:max-w-none">
-          <div className="relative">
-            <Portada publicacion={publicacion} foto={fotos[fotoActiva]} grande presentacion="foto" className="aspect-auto h-[clamp(200px,32dvh,280px)] md:h-[clamp(240px,42dvh,400px)]" />
+      <div className="grid gap-8 md:grid-cols-[minmax(320px,440px)_minmax(0,1fr)] md:items-start md:gap-10 xl:gap-16">
+        <div className="mx-auto flex w-full max-w-md flex-col gap-3">
+          <div className="relative flex h-[clamp(320px,48dvh,520px)] items-center justify-center overflow-hidden rounded-2xl border border-border/70 bg-card/50 p-4">
+            <Portada
+              publicacion={publicacion}
+              foto={fotos[fotoActiva]}
+              grande
+              presentacion="foto"
+              className="aspect-auto h-full w-full max-w-[340px] rounded-xl"
+            />
             {fotos.length > 1 && (
               <>
                 <Button
                   type="button"
                   variant="secondary"
                   size="icon"
-                  className="absolute left-2 top-1/2 size-11 -translate-y-1/2 rounded-full shadow-md"
+                  className="absolute left-2 top-1/2 size-10 -translate-y-1/2 rounded-full shadow-md"
                   aria-label="Foto anterior"
                   disabled={fotoActiva === 0}
                   onClick={() => setFotoActiva((actual) => Math.max(0, actual - 1))}
@@ -95,7 +101,7 @@ export function DetalleView({
                   type="button"
                   variant="secondary"
                   size="icon"
-                  className="absolute right-2 top-1/2 size-11 -translate-y-1/2 rounded-full shadow-md"
+                  className="absolute right-2 top-1/2 size-10 -translate-y-1/2 rounded-full shadow-md"
                   aria-label="Foto siguiente"
                   disabled={fotoActiva === fotos.length - 1}
                   onClick={() => setFotoActiva((actual) => Math.min(fotos.length - 1, actual + 1))}
@@ -106,7 +112,7 @@ export function DetalleView({
             )}
           </div>
           {fotos.length > 1 && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-3 px-2">
               {fotos.map((foto, index) => (
                 <button
                   type="button"
@@ -131,29 +137,29 @@ export function DetalleView({
           )}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-6 pt-1">
           <div>
             <p className="text-3xl font-bold text-primary">{formatCLP(publicacion.precio)}</p>
             <p className="mt-1 text-sm text-muted-foreground">Ejemplar físico de segunda mano</p>
           </div>
 
-          <dl className="grid grid-cols-2 gap-4 rounded-xl border border-border bg-muted/30 p-4">
+          <dl className="grid grid-cols-2 gap-6 rounded-xl border border-border bg-muted/30 p-5 sm:gap-10">
             <div className="flex flex-col gap-1">
               <dt className="text-sm text-muted-foreground">Condición física</dt>
-              <dd className="text-base font-semibold leading-snug">{publicacion.condicion}</dd>
+              <dd className="text-lg font-semibold leading-snug">{publicacion.condicion}</dd>
             </div>
             <div className="flex flex-col gap-1">
               <dt className="text-sm text-muted-foreground">Disponibilidad</dt>
-              <dd className={`text-base font-semibold leading-snug ${sinStock ? "text-destructive" : "text-foreground"}`}>
+              <dd className={`text-lg font-semibold leading-snug ${sinStock ? "text-destructive" : "text-foreground"}`}>
                 {sinStock ? "Agotado" : `${publicacion.stock} ejemplar${publicacion.stock > 1 ? "es" : ""}`}
               </dd>
             </div>
           </dl>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <Button
-                className="h-auto min-h-10 whitespace-normal rounded-lg px-5 py-2"
+                className="h-auto min-h-11 whitespace-normal rounded-lg px-6 py-2.5"
                 disabled={sinStock || esPropia}
                 onClick={onComprar}
               >
@@ -162,7 +168,7 @@ export function DetalleView({
               {!esPropia && (
                 <Button
                   variant="ghost"
-                  className="min-h-10 rounded-lg"
+                  className="min-h-11 rounded-lg px-4"
                   onClick={yoId ? () => setContactoAbierto(true) : onNecesitaSesion}
                 >
                   <MessageCircle data-icon="inline-start" /> Preguntar
@@ -170,7 +176,7 @@ export function DetalleView({
               )}
             </div>
             {!esPropia && (
-              <p className="text-xs leading-relaxed text-muted-foreground">
+              <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
                 Pagas directo al vendedor · el ejemplar queda reservado {RESERVA_HORAS} horas
               </p>
             )}
@@ -204,7 +210,7 @@ export function DetalleView({
           {publicacion.descripcion && (
             <section aria-labelledby="titulo-descripcion" className="flex flex-col gap-2">
               <h2 id="titulo-descripcion" className="font-serif text-lg tracking-tight">Sobre este ejemplar</h2>
-              <p className="text-pretty text-sm leading-6 text-muted-foreground">{publicacion.descripcion}</p>
+              <p className="max-w-3xl text-pretty leading-7 text-muted-foreground">{publicacion.descripcion}</p>
             </section>
           )}
           <Separator />
@@ -234,7 +240,7 @@ export function DetalleView({
             )}
 
             {reputacion.total === 0 && (
-              <p className="text-sm text-muted-foreground">
+              <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
                 Todavía no hay valoraciones. Solo puede valorar quien recibió el ejemplar, así que
                 cada nota viene de una compra terminada.
               </p>
