@@ -27,12 +27,12 @@
   --acento-foreground: oklch(0.99 0.002 285);
   /* Avisos: el color solo vive acá. El acento de acción es el índigo; el éxito
      sigue siendo el dorado del sello y el fallo, un rojo editorial. */
-  --aviso-ok: oklch(0.655 0.105 72);
+  --aviso-ok: oklch(0.56 0.11 72);
   --aviso-ok-tenue: oklch(0.965 0.028 80);
   --aviso-falla: oklch(0.55 0.19 27);
   --aviso-falla-tenue: oklch(0.968 0.018 28);
   --aviso-falla-foreground: oklch(0.99 0.002 27);
-  --aviso-revisar: oklch(0.62 0.12 62);
+  --aviso-revisar: oklch(0.55 0.12 62);
   --aviso-revisar-tenue: oklch(0.968 0.028 75);
   --aviso-dato: oklch(0.51 0.17 277);
   --aviso-dato-tenue: oklch(0.965 0.02 277);
