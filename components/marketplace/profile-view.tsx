@@ -6,7 +6,7 @@ import Link from "next/link"
 import { ArrowLeft, ChevronLeft, ChevronRight, LayoutDashboard, MessageCircle, Tag, Trash2, UserPen } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card"
+import { Card, CardDescription, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -348,7 +348,7 @@ export function PerfilView({
       {pestana === "publicaciones" && (
         <div className="flex flex-col gap-4">
           {misPublicaciones.length === 0 ? (
-            <Card className="flex flex-col items-center gap-3 py-12 text-center">
+            <Card className="flex flex-col items-center gap-3 rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <Tag className="size-8 text-muted-foreground" />
               <CardTitle>Aun no publicas nada</CardTitle>
               <CardDescription>Escanea un ISBN y tu primer ejemplar queda listo en minutos.</CardDescription>
@@ -408,7 +408,7 @@ export function PerfilView({
       {pestana === "ventas" && (
         <div className="flex flex-col gap-4">
           {ventas.length === 0 ? (
-            <Card className="py-12 text-center">
+            <Card className="rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <CardTitle>Sin ventas por ahora</CardTitle>
               <CardDescription>Cuando alguien reserve uno de tus ejemplares aparecerá aquí.</CardDescription>
             </Card>
@@ -436,7 +436,7 @@ export function PerfilView({
       {pestana === "compras" && (
         <div className="flex flex-col gap-4">
           {compras.length === 0 ? (
-            <Card className="py-12 text-center">
+            <Card className="rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <CardTitle>Todavia no has comprado</CardTitle>
               <CardDescription>Tu primera reserva aparecerá aquí con su estado y contacto del vendedor.</CardDescription>
             </Card>
@@ -464,7 +464,7 @@ export function PerfilView({
       {pestana === "resenas" && (
         <div className="flex flex-col gap-8">
           {reseñas.escritas.length === 0 && reseñas.recibidas.length === 0 ? (
-            <Card className="py-12 text-center">
+            <Card className="rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <CardTitle>Todavía sin reseñas</CardTitle>
               <CardDescription>
                 Cuando recibas un ejemplar y lo valores, tu reseña quedará guardada acá.
@@ -480,8 +480,7 @@ export function PerfilView({
                   </p>
                 ) : (
                   reseñas.escritas.map((reseña) => (
-                    <Card key={reseña.id} className="rounded-xl">
-                      <CardContent className="flex flex-col gap-2 p-4">
+                    <article key={reseña.id} className="flex flex-col gap-3 border-b border-border/60 py-5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="font-semibold">{reseña.publicacionTitulo}</p>
                           <span className="text-xs text-muted-foreground">
@@ -491,14 +490,13 @@ export function PerfilView({
                         <Estrellas nota={reseña.puntaje} />
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           className="w-fit rounded-lg"
                           onClick={() => onAbrirPublicacion(reseña.publicacionId)}
                         >
                           Ver publicación
                         </Button>
-                      </CardContent>
-                    </Card>
+                    </article>
                   ))
                 )}
               </section>
@@ -517,8 +515,7 @@ export function PerfilView({
                   </p>
                 ) : (
                   reseñas.recibidas.map((reseña) => (
-                    <Card key={reseña.id} className="rounded-xl">
-                      <CardContent className="flex flex-col gap-2 p-4">
+                    <article key={reseña.id} className="flex flex-col gap-3 border-b border-border/60 py-5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="font-semibold">{reseña.autor.nombre}</p>
                           <div className="flex items-center gap-2">
@@ -534,8 +531,7 @@ export function PerfilView({
                         <p className="text-xs text-muted-foreground">
                           Sobre <span className="font-medium text-foreground">{reseña.publicacionTitulo}</span>
                         </p>
-                      </CardContent>
-                    </Card>
+                    </article>
                   ))
                 )}
               </section>
@@ -547,7 +543,7 @@ export function PerfilView({
       {pestana === "mensajes" && (
         <div className="flex flex-col gap-4">
           {conversaciones.length === 0 ? (
-            <Card className="py-12 text-center">
+            <Card className="rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <CardTitle>Sin mensajes por ahora</CardTitle>
               <CardDescription>
                 Cuando preguntes por un ejemplar o te pregunten por uno tuyo, el hilo aparecerá
@@ -556,8 +552,7 @@ export function PerfilView({
             </Card>
           ) : (
             conversaciones.map((conversacion) => (
-              <Card key={conversacion.id} className="rounded-xl">
-                <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-4">
+              <article key={conversacion.id} className="flex flex-col gap-3 border-b border-border/60 py-5 sm:flex-row sm:items-center sm:gap-4">
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{conversacion.publicacionTitulo}</p>
                     <p className="text-sm text-muted-foreground">
@@ -577,15 +572,14 @@ export function PerfilView({
                     </span>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       className="rounded-lg"
                       onClick={() => setConversacionAbierta(conversacion)}
                     >
                       <MessageCircle data-icon="inline-start" /> Abrir
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+              </article>
             ))
           )}
         </div>
@@ -596,27 +590,26 @@ export function PerfilView({
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Avisos</h2>
             {sinLeer > 0 && (
-              <Button size="sm" variant="outline" className="rounded-lg" onClick={marcarLeidas}>
+              <Button size="sm" variant="ghost" className="rounded-lg" onClick={marcarLeidas}>
                 Marcar todo como leido
               </Button>
             )}
           </div>
           {notificaciones.length === 0 ? (
-            <Card className="py-12 text-center">
+            <Card className="rounded-none border-0 bg-transparent py-12 text-center shadow-none">
               <CardTitle>Sin avisos</CardTitle>
               <CardDescription>Te avisaremos cuando alguien reserve o cancele un ejemplar tuyo.</CardDescription>
             </Card>
           ) : (
             notificaciones.map((aviso) => (
-              <Card key={aviso.id} className={`rounded-xl ${aviso.leida ? "opacity-70" : "border-primary/40"}`}>
-                <CardContent className="flex flex-col gap-1 p-4">
-                  <div className="flex items-center justify-between gap-2">
+              <article key={aviso.id} className={`flex flex-col gap-2 border-b border-border/60 py-5 ${aviso.leida ? "opacity-70" : "border-l-2 border-l-oro pl-4"}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-semibold">{aviso.titulo}</p>
+                    {!aviso.leida && <span className="text-xs text-oro">Sin leer</span>}
                     <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(aviso.fechaCreacion)}</span>
                   </div>
                   {aviso.cuerpo && <p className="text-sm text-muted-foreground">{aviso.cuerpo}</p>}
-                </CardContent>
-              </Card>
+              </article>
             ))
           )}
         </div>

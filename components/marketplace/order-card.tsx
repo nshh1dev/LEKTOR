@@ -22,7 +22,7 @@ function PasoOrden({ estado }: { estado: EstadoOrden }) {
     <div className="flex items-center gap-1">
       {ESTADO_ORDEN_PASOS.map((paso, index) => (
         <div key={paso} className="flex flex-1 flex-col gap-1">
-          <div className={`h-1.5 rounded-full ${index <= pasoActual ? "bg-primary" : "bg-muted"}`} />
+          <div className={`h-1 ${index <= pasoActual ? "bg-oro" : "bg-muted"}`} />
           <span className={`text-[10px] font-medium uppercase tracking-wide ${index <= pasoActual ? "text-foreground" : "text-muted-foreground/60"}`}>
             {ESTADO_ORDEN_LABEL[paso]}
           </span>
@@ -68,11 +68,11 @@ export function TarjetaOrden({
   }
 
   return (
-    <Card className="rounded-xl">
-      <CardHeader className="gap-2 pb-3">
+    <Card className="rounded-none border-0 border-b border-border/60 bg-transparent py-6 shadow-none">
+      <CardHeader className="gap-2 px-0 pb-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-base">
-            <PackageCheck className="size-4 text-primary" />
+            <PackageCheck className="size-4 text-oro" />
             {orden.tituloSnapshot}
           </CardTitle>
           <Badge className={ESTADO_ORDEN_BADGE[orden.estado]}>{ESTADO_ORDEN_LABEL[orden.estado]}</Badge>
@@ -86,9 +86,9 @@ export function TarjetaOrden({
           </span>
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-5 px-0">
         <PasoOrden estado={orden.estado} />
-        <div className="grid gap-2 rounded-lg bg-muted/40 p-3 text-sm sm:grid-cols-3">
+        <div className="grid gap-4 border-b border-border/60 py-4 text-sm sm:grid-cols-3">
           <div>
             <p className="text-xs text-muted-foreground">Entrega</p>
             <p className="font-medium">{METODO_ENTREGA_LABEL[orden.datosDespacho.metodoEntrega as keyof typeof METODO_ENTREGA_LABEL] ?? orden.datosDespacho.metodoEntrega}</p>
@@ -111,7 +111,7 @@ export function TarjetaOrden({
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             className="rounded-lg"
             onClick={() => setComprobanteAbierto(true)}
           >
