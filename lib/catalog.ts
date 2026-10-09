@@ -105,15 +105,15 @@ export function estadoSegunStock(stock: number, estadoActual: EstadoPublicacion)
 }
 
 const COVER_PALETTES: Record<string, string> = {
-  Mangas: "from-indigo-200 via-violet-100 to-slate-100",
-  "Cómics": "from-amber-200 via-rose-100 to-slate-100",
-  Libros: "from-emerald-200 via-teal-100 to-slate-100",
+  Mangas: "from-slate-200 via-slate-100 to-white",
+  "Cómics": "from-amber-100 via-amber-50 to-white",
+  Libros: "from-indigo-100 via-indigo-50 to-white",
 }
 
 const COVER_PALETTES_DARK: Record<string, string> = {
-  Mangas: "from-indigo-500/30 via-violet-500/20 to-slate-900",
-  "Cómics": "from-amber-500/30 via-rose-500/20 to-slate-900",
-  Libros: "from-emerald-500/30 via-teal-500/20 to-slate-900",
+  Mangas: "from-slate-700/35 via-slate-800/20 to-slate-950",
+  "Cómics": "from-amber-600/25 via-amber-900/15 to-slate-950",
+  Libros: "from-indigo-600/30 via-indigo-900/15 to-slate-950",
 }
 
 export function coverTone(categoria: string, dark = false): string {
