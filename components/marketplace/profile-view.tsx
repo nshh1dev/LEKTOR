@@ -321,10 +321,10 @@ export function PerfilView({
           <div key={grupo.titulo} className="flex min-w-0 flex-col gap-3">
             <div className="grid grid-cols-3 gap-2">
               {grupo.secciones.map(([clave, etiqueta, total]) => (
+                <div key={clave} className="flex min-w-0 flex-col gap-2">
                 <Button
-                  key={clave}
                   variant="ghost"
-                  className={`h-auto min-h-14 min-w-0 flex-col gap-1 rounded-none border-b-2 px-2 py-2 sm:min-h-11 sm:flex-row ${pestana === clave ? "border-oro text-oro" : "border-transparent text-muted-foreground"}`}
+                  className={`h-auto min-h-14 min-w-0 flex-col gap-1 rounded-none border-b-2 px-2 py-2 hover:bg-transparent sm:min-h-11 sm:flex-row ${pestana === clave ? "border-oro text-oro" : "border-transparent text-muted-foreground"}`}
                   aria-current={pestana === clave ? "page" : undefined}
                   onClick={() => setPestana(clave)}
                 >
@@ -336,11 +336,12 @@ export function PerfilView({
                     <span className="sr-only">{sinLeer} sin leer</span>
                   )}
                 </Button>
+                {clave === "notificaciones" && sinLeer > 0 && (
+                  <p className="text-center text-xs text-muted-foreground">{sinLeer} sin leer</p>
+                )}
+                </div>
               ))}
             </div>
-            {grupo.titulo === "Comunidad" && sinLeer > 0 && (
-              <p className="text-xs text-muted-foreground">{sinLeer} aviso{sinLeer > 1 ? "s" : ""} sin leer</p>
-            )}
           </div>
         ))}
       </nav>
@@ -604,8 +605,10 @@ export function PerfilView({
             notificaciones.map((aviso) => (
               <article key={aviso.id} className={`flex flex-col gap-2 border-b border-border/60 py-5 ${aviso.leida ? "opacity-70" : "border-l-2 border-l-oro pl-4"}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
                     <p className="font-semibold">{aviso.titulo}</p>
                     {!aviso.leida && <span className="text-xs text-oro">Sin leer</span>}
+                    </div>
                     <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(aviso.fechaCreacion)}</span>
                   </div>
                   {aviso.cuerpo && <p className="text-sm text-muted-foreground">{aviso.cuerpo}</p>}

@@ -104,7 +104,7 @@ export function ChatOrden({
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="rounded-lg">
+        <Button size="sm" variant="ghost" className="rounded-none hover:bg-transparent">
           <MessageCircle data-icon="inline-start" /> Chat de la compra
         </Button>
       </DialogTrigger>

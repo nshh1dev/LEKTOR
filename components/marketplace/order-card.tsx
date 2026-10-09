@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { Clock3, FileText, PackageCheck, Star } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
 import { ChatOrden } from "@/components/marketplace/chat-orden"
@@ -10,7 +9,7 @@ import { DialogoComprobante } from "@/components/marketplace/comprobante"
 import { DialogoValoracion } from "@/components/marketplace/dialogo-valoracion"
 import { type EstadoOrden, type OrdenUI } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
-import { ESTADO_ORDEN_BADGE, ESTADO_ORDEN_LABEL, ESTADO_ORDEN_PASOS, METODO_ENTREGA_LABEL, formatCLP, formatDateTime, ordenCode, tiempoRestante } from "@/lib/format"
+import { ESTADO_ORDEN_LABEL, ESTADO_ORDEN_PASOS, METODO_ENTREGA_LABEL, formatCLP, formatDateTime, ordenCode, tiempoRestante } from "@/lib/format"
 
 function PasoOrden({ estado }: { estado: EstadoOrden }) {
   if (estado === "cancelada") {
@@ -83,7 +82,7 @@ export function TarjetaOrden({
               <PackageCheck className="mt-1 size-4 shrink-0 text-oro" />
               <span className="break-words">{orden.tituloSnapshot}</span>
             </h3>
-            <Badge className={ESTADO_ORDEN_BADGE[orden.estado]}>{ESTADO_ORDEN_LABEL[orden.estado]}</Badge>
+            <span className={`text-xs font-medium ${orden.estado === "cancelada" ? "text-muted-foreground" : "text-oro"}`}>{ESTADO_ORDEN_LABEL[orden.estado]}</span>
           </div>
           <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="font-mono">{ordenCode(orden.id, orden.fechaCreacion)}</span>
@@ -125,7 +124,8 @@ export function TarjetaOrden({
           {puedeAvanzar && siguiente && (
             <Button
               size="sm"
-              className="rounded-lg"
+              variant="ghost"
+              className="rounded-none text-oro hover:bg-transparent"
               onClick={() => alCambiarEstado(orden.id, siguiente)}
             >
               {etiquetaAvance[siguiente] ?? "Avanzar"}
@@ -134,7 +134,7 @@ export function TarjetaOrden({
           <Button
             size="sm"
             variant="ghost"
-            className="rounded-lg"
+            className="rounded-none hover:bg-transparent"
             onClick={() => setComprobanteAbierto(true)}
           >
             <FileText data-icon="inline-start" /> Ver comprobante
@@ -142,8 +142,8 @@ export function TarjetaOrden({
           {(orden.estado === "reservada" || orden.estado === "en_preparacion") && (
             <Button
               size="sm"
-              variant="outline"
-              className="rounded-lg"
+              variant="ghost"
+              className="rounded-none hover:bg-transparent"
               disabled={cancelando}
               onClick={() => setCancelacionAbierta(true)}
             >
@@ -160,8 +160,8 @@ export function TarjetaOrden({
           {rol === "comprador" && orden.estado === "recibida" && orden.publicacionId && !yaValorada && (
             <Button
               size="sm"
-              variant="outline"
-              className="rounded-lg"
+              variant="ghost"
+              className="rounded-none text-oro hover:bg-transparent"
               onClick={() => setValorando(true)}
             >
               <Star data-icon="inline-start" /> Valorar compra
