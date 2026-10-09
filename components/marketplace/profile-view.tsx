@@ -276,7 +276,7 @@ export function PerfilView({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="rotulo text-oro">Mi perfil</p>
+            <p className="rotulo text-acento">Mi perfil</p>
             <h1 className="mt-2 break-words font-serif text-3xl font-semibold">{perfil?.nombre ?? usuario.nombre}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               {[perfil?.comuna, perfil?.region].filter(Boolean).join(", ") || "Completa tu ubicación"}
@@ -324,7 +324,7 @@ export function PerfilView({
                 <div key={clave} className="flex min-w-0 flex-col gap-2">
                 <Button
                   variant="ghost"
-                  className={`h-auto min-h-14 min-w-0 flex-col gap-1 rounded-none border-b-2 px-2 py-2 hover:bg-transparent sm:min-h-11 sm:flex-row ${pestana === clave ? "border-oro text-oro" : "border-transparent text-muted-foreground"}`}
+                  className={`h-auto min-h-14 min-w-0 flex-col gap-1 rounded-none border-b-2 px-2 py-2 hover:bg-transparent sm:min-h-11 sm:flex-row ${pestana === clave ? "border-acento text-acento" : "border-transparent text-muted-foreground"}`}
                   aria-current={pestana === clave ? "page" : undefined}
                   onClick={() => setPestana(clave)}
                 >
@@ -603,11 +603,11 @@ export function PerfilView({
             </Card>
           ) : (
             notificaciones.map((aviso) => (
-              <article key={aviso.id} className={`flex flex-col gap-2 border-b border-border/60 py-5 ${aviso.leida ? "opacity-70" : "border-l-2 border-l-oro pl-4"}`}>
+              <article key={aviso.id} className={`flex flex-col gap-2 border-b border-border/60 py-5 ${aviso.leida ? "opacity-70" : "border-l-2 border-l-acento pl-4"}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
                     <p className="font-semibold">{aviso.titulo}</p>
-                    {!aviso.leida && <span className="text-xs text-oro">Sin leer</span>}
+                    {!aviso.leida && <span className="text-xs text-acento">Sin leer</span>}
                     </div>
                     <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(aviso.fechaCreacion)}</span>
                   </div>
@@ -684,7 +684,7 @@ export function PerfilView({
               Cancelar
             </Button>
             <Button
-              className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+              className="rounded-xl bg-acento text-acento-foreground shadow-none hover:bg-acento/90"
               onClick={() => void guardarStock()}
             >
               Guardar

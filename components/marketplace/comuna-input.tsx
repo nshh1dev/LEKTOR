@@ -160,7 +160,7 @@ export function ComunaInput({
                   id={`${listaId}-${bloque.region}`}
                   className={cn(
                     "rotulo px-2 pt-2 pb-1.5",
-                    bloque.region === region && "text-oro",
+                    bloque.region === region && "text-acento",
                   )}
                 >
                   {bloque.region}
@@ -179,7 +179,7 @@ export function ComunaInput({
                     role="option"
                   >
                     <span className="min-w-0 flex-1 truncate">{comuna}</span>
-                    {comuna === value ? <Check className="size-3.5 shrink-0 text-oro" /> : null}
+                    {comuna === value ? <Check className="size-3.5 shrink-0 text-acento" /> : null}
                   </div>
                 ))}
               </li>

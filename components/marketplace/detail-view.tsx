@@ -225,7 +225,7 @@ export function DetalleView({
             {reputacion.total > 0 && (
               <div className="flex flex-col gap-4 rounded-xl bg-muted/40 p-4 sm:flex-row sm:items-center sm:gap-8">
                 <div className="flex items-center gap-3">
-                  <span className="font-serif text-4xl font-semibold leading-none tabular-nums text-oro">
+                  <span className="font-serif text-4xl font-semibold leading-none tabular-nums text-acento">
                     {reputacion.promedio?.toFixed(1)}
                   </span>
                   <div className="flex flex-col gap-1">
@@ -247,7 +247,7 @@ export function DetalleView({
             )}
 
             {puedeValorar && (
-              <div className="flex flex-col gap-3 rounded-xl border border-oro/25 bg-oro/[0.04] p-4">
+              <div className="flex flex-col gap-3 rounded-xl border border-acento/25 bg-acento/[0.04] p-4">
                 <div>
                   <h3 className="font-medium">¿Ya recibiste este ejemplar?</h3>
                   <p className="mt-1 text-sm text-muted-foreground">

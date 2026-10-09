@@ -23,8 +23,8 @@
   --border: oklch(0.912 0.003 285);
   --input: oklch(0.912 0.003 285);
   --ring: oklch(0.47 0.19 277);
-  --oro: oklch(0.47 0.19 277);
-  --oro-foreground: oklch(0.99 0.002 285);
+  --acento: oklch(0.47 0.19 277);
+  --acento-foreground: oklch(0.99 0.002 285);
   /* Avisos: el color solo vive acá. El acento de acción es el índigo; el éxito
      sigue siendo el dorado del sello y el fallo, un rojo editorial. */
   --aviso-ok: oklch(0.655 0.105 72);
@@ -72,8 +72,8 @@
   --border: oklch(0.3 0.004 285);
   --input: oklch(0.3 0.004 285);
   --ring: oklch(0.6 0.15 277);
-  --oro: oklch(0.66 0.17 277);
-  --oro-foreground: oklch(0.16 0.01 277);
+  --acento: oklch(0.66 0.17 277);
+  --acento-foreground: oklch(0.16 0.01 277);
   --aviso-ok: oklch(0.8 0.11 78);
   --aviso-ok-tenue: oklch(0.28 0.03 75);
   --aviso-falla: oklch(0.7 0.16 28);
@@ -121,8 +121,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-oro: var(--oro);
-  --color-oro-foreground: var(--oro-foreground);
+  --color-acento: var(--acento);
+  --color-acento-foreground: var(--acento-foreground);
   --color-aviso-ok: var(--aviso-ok);
   --color-aviso-ok-tenue: var(--aviso-ok-tenue);
   --color-aviso-falla: var(--aviso-falla);

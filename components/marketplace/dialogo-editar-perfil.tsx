@@ -166,7 +166,7 @@ export function DialogoEditarPerfil({
       <DialogContent className="sombra-tomo flex max-h-[85vh] flex-col gap-0 overflow-hidden rounded-xl border border-border/70 bg-card p-0 sm:max-w-lg">
         <DialogHeader className="papel gap-3.5 bg-muted/40 p-6 pr-14 pb-5">
           <div className="flex items-center gap-3.5">
-            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary font-serif text-sm font-semibold text-primary-foreground ring-1 ring-oro/40">
+            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary font-serif text-sm font-semibold text-primary-foreground ring-1 ring-acento/40">
               {perfil?.avatarUrl ? (
                 <Image
                   src={perfil.avatarUrl}
@@ -181,7 +181,7 @@ export function DialogoEditarPerfil({
               )}
             </div>
             <div className="min-w-0">
-              <p className="rotulo text-oro/80">Tu ficha</p>
+              <p className="rotulo text-acento/80">Tu ficha</p>
               <DialogTitle className="mt-1 truncate font-serif text-xl font-semibold tracking-tight">
                 {perfil?.nombre ?? nombreActual}
               </DialogTitle>
@@ -204,7 +204,7 @@ export function DialogoEditarPerfil({
             className="flex flex-col gap-4"
             aria-label="Datos del perfil"
           >
-            <p className="rotulo text-oro/80">Datos</p>
+            <p className="rotulo text-acento/80">Datos</p>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1.5 md:col-span-2">
                 <Label className={ETIQUETA} htmlFor="perfil-nombre">Nombre visible</Label>
@@ -276,11 +276,11 @@ export function DialogoEditarPerfil({
 
           <form onSubmit={cambiarClave} className="flex flex-col gap-4" aria-label="Seguridad">
             <div className="flex items-start gap-3">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-oro/15 text-oro">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-acento/15 text-acento">
                 <KeyRound className="size-4" />
               </span>
               <div className="min-w-0">
-                <p className="rotulo text-oro/80">Seguridad</p>
+                <p className="rotulo text-acento/80">Seguridad</p>
                 <p className="mt-1 text-[0.8125rem] leading-relaxed text-muted-foreground">
                   Al cambiar la contraseña se cerrará tu sesión en este dispositivo.
                 </p>
@@ -348,7 +348,7 @@ export function DialogoEditarPerfil({
           <Button
             type="submit"
             form="perfil-datos"
-            className="rounded-lg bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+            className="rounded-lg bg-acento text-acento-foreground shadow-none hover:bg-acento/90"
             disabled={guardando || !perfil}
           >
             {guardando ? (

@@ -69,7 +69,7 @@ export function SellerView({
             </span>
           )}
           <div>
-            <p className="rotulo flex items-center gap-1.5 text-oro/80">
+            <p className="rotulo flex items-center gap-1.5 text-acento/80">
               <BookOpen className="size-3.5" /> {vendedor.nivel}
             </p>
             <h1 className="mt-1 font-serif text-3xl font-semibold tracking-tight md:text-4xl">
@@ -86,11 +86,11 @@ export function SellerView({
           </div>
         </div>
 
-        <div className="shrink-0 rounded-xl border border-oro/25 bg-oro/[0.04] px-5 py-4">
+        <div className="shrink-0 rounded-xl border border-acento/25 bg-acento/[0.04] px-5 py-4">
           <p className="rotulo text-[9px] text-muted-foreground">Reputación</p>
           {reputacion.total > 0 ? (
             <div className="mt-1 flex items-baseline gap-3">
-              <span className="font-serif text-4xl font-semibold tabular-nums text-oro">
+              <span className="font-serif text-4xl font-semibold tabular-nums text-acento">
                 {reputacion.promedio?.toFixed(1)}
               </span>
               <span>

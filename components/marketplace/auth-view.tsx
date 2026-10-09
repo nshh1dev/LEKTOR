@@ -96,7 +96,7 @@ export function AuthView({
     <div className="flex min-h-[calc(100vh-9rem)] items-center justify-center py-8">
       <Card className="w-full max-w-md rounded-2xl border-0 shadow-xl ring-1 ring-border/50">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-2xl bg-oro/15 text-oro">
+          <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-2xl bg-acento/15 text-acento">
             <BookOpen className="size-6" />
           </div>
           <CardTitle className="font-serif text-2xl tracking-tight">
@@ -209,7 +209,7 @@ function FormularioAcceso({ onSuccess }: { onSuccess: (user: SesionUsuario) => v
         </div>
         <Button
           type="submit"
-          className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+          className="rounded-xl bg-acento text-acento-foreground shadow-none hover:bg-acento/90"
           disabled={cargando}
         >
           {cargando ? <LoaderCircle className="size-4 animate-spin" /> : <LogIn />}
@@ -421,7 +421,7 @@ function FormularioRegistro({ onSuccess }: { onSuccess: (user: SesionUsuario) =>
       </div>
       <Button
         type="submit"
-        className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+        className="rounded-xl bg-acento text-acento-foreground shadow-none hover:bg-acento/90"
         disabled={cargando}
       >
         {cargando ? <LoaderCircle className="size-4 animate-spin" /> : <LogIn />}

@@ -200,7 +200,7 @@ export function StockMovementDialog({
             Cancelar
           </Button>
           <Button
-            className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+            className="rounded-xl bg-acento text-acento-foreground shadow-none hover:bg-acento/90"
             onClick={() => void guardar()}
             disabled={enviando || !esNumeroValido || sinSalida}
           >

@@ -368,7 +368,7 @@ export function LektorMarketplace({
               value={busqueda}
               onChange={(event) => onBusquedaChange(event.target.value)}
               placeholder="Busca por título, autor o editorial"
-              className="h-11 rounded-full border-border/60 bg-foreground/[0.045] pr-16 pl-11 transition-colors focus-visible:border-oro/50"
+              className="h-11 rounded-full border-border/60 bg-foreground/[0.045] pr-16 pl-11 transition-colors focus-visible:border-acento/50"
               aria-label="Buscar publicaciones"
             />
             <kbd className="pointer-events-none absolute right-3.5 top-1/2 hidden -translate-y-1/2 rounded-full border border-border/60 bg-background/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground md:block">
@@ -380,7 +380,7 @@ export function LektorMarketplace({
             <Button
               variant="ghost"
               size="icon"
-              className="size-10 rounded-full text-muted-foreground hover:text-oro"
+              className="size-10 rounded-full text-muted-foreground hover:text-acento"
               onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
               aria-label="Cambiar tema"
             >
@@ -436,7 +436,7 @@ export function LektorMarketplace({
               <span className="hidden md:inline">Mi Perfil</span>
             </Button>}
             <Button
-              className="h-10 rounded-full bg-oro px-5 text-oro-foreground shadow-none hover:bg-oro/90"
+              className="h-10 rounded-full bg-acento px-5 text-acento-foreground shadow-none hover:bg-acento/90"
               onClick={() => (usuario ? irAVista("sell") : setAuthPrompt("sell"))}
             >
               <Tag data-icon="inline-start" />
@@ -531,7 +531,7 @@ export function LektorMarketplace({
         ) : (
           <div className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center gap-4 text-center" role={cargandoVendedor ? "status" : undefined}>
             {cargandoVendedor ? (
-              <><LoaderCircle className="size-6 animate-spin text-oro" /><p className="text-sm text-muted-foreground">Cargando perfil del vendedor…</p></>
+              <><LoaderCircle className="size-6 animate-spin text-acento" /><p className="text-sm text-muted-foreground">Cargando perfil del vendedor…</p></>
             ) : (
               <><p className="font-serif text-2xl">{vendedorFallido ? "No pudimos cargar este perfil" : "Perfil no disponible"}</p>
                 <div className="flex gap-2">
@@ -618,7 +618,7 @@ export function LektorMarketplace({
           </DialogHeader>
           <div className="flex flex-col gap-3">
             <Button
-              className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+              className="rounded-xl bg-acento text-acento-foreground shadow-none hover:bg-acento/90"
               onClick={() => {
                 setAuthPrompt(null)
                 irAVista("auth")

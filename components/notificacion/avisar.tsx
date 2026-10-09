@@ -61,7 +61,7 @@ function Ficha({ aviso, id }: { aviso: DatosAviso; id: string | number }) {
                   aviso.accion?.alPulsar()
                   toast.dismiss(id)
                 }}
-                className="rotulo ml-auto flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-foreground transition-colors hover:text-oro focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-oro"
+                className="rotulo ml-auto flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-foreground transition-colors hover:text-acento focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento"
               >
                 {aviso.accion.etiqueta}
                 <ArrowRight className="size-3" />

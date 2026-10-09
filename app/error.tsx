@@ -35,7 +35,7 @@ export default function GlobalError({
         ) : null}
         <div className="flex flex-wrap justify-center gap-2">
           <Button
-            className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+            className="rounded-xl bg-acento text-acento-foreground shadow-none hover:bg-acento/90"
             onClick={() => reset()}
           >
             <RefreshCw data-icon="inline-start" /> Reintentar

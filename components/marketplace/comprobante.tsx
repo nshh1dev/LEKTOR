@@ -149,7 +149,7 @@ export function Comprobante({
     >
       <header className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Sello tono="ok" tamano="lg" fijo className="text-oro" />
+          <Sello tono="ok" tamano="lg" fijo className="text-acento" />
           <div className="flex flex-col">
             <p className="font-serif text-2xl leading-none tracking-tight">LEKTOR</p>
             <p className="text-xs text-muted-foreground">Marketplace de libros usados</p>

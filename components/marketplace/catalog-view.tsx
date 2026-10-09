@@ -138,7 +138,7 @@ export function CatalogView({
     <div className="flex flex-col gap-6 md:gap-8">
       <header className="border-b border-border/60 pb-5 md:pb-8">
         <div className="max-w-2xl">
-          <p className="rotulo text-oro/80">Mangas · Cómics · Libros</p>
+          <p className="rotulo text-acento/80">Mangas · Cómics · Libros</p>
           <h1 className="mt-2 font-serif text-3xl font-semibold leading-[1.05] tracking-tight text-balance md:mt-3 md:text-5xl">
             Encuentra tu próxima historia.
           </h1>
@@ -265,7 +265,7 @@ export function CatalogView({
             </div>
           ) : cargando && publicaciones.length === 0 ? (
             <div className="flex min-h-56 flex-col items-center justify-center gap-3 text-center" role="status">
-              <LoaderCircle className="size-6 animate-spin text-oro" />
+              <LoaderCircle className="size-6 animate-spin text-acento" />
               <p className="text-sm text-muted-foreground">Buscando ejemplares…</p>
             </div>
           ) : publicaciones.length > 0 ? (

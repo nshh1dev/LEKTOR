@@ -124,7 +124,7 @@ export function PagoView({
       >
         <div className="filete-vertical flex items-center justify-between gap-3 border-b border-border/70 bg-foreground px-6 py-4 text-background">
           <div className="flex items-center gap-2">
-            <Sello tono="ok" tamano="sm" className="text-oro" />
+            <Sello tono="ok" tamano="sm" className="text-acento" />
             <span className="font-serif text-lg tracking-tight">LEKTOR Pay</span>
           </div>
           <span className="flex items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-widest text-background/70">
@@ -249,7 +249,7 @@ export function PagoView({
             <Button
               type="submit"
               size="lg"
-              className="w-full rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+              className="w-full rounded-xl bg-acento text-acento-foreground shadow-none hover:bg-acento/90"
               disabled={procesando}
             >
               {procesando ? (

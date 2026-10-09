@@ -20,8 +20,8 @@ function PasoOrden({ estado }: { estado: EstadoOrden }) {
     <div aria-label={`Estado de la orden: ${ESTADO_ORDEN_LABEL[estado]}`} className="grid grid-cols-4 gap-1.5">
       {ESTADO_ORDEN_PASOS.map((paso, index) => (
         <div key={paso} className="flex min-w-0 flex-col gap-2">
-          <div className={`h-1 ${index <= pasoActual ? "bg-oro" : "bg-muted"}`} />
-          <span className={`text-[10px] font-medium leading-snug sm:text-xs ${index === pasoActual ? "text-oro" : "text-muted-foreground"}`}>
+          <div className={`h-1 ${index <= pasoActual ? "bg-acento" : "bg-muted"}`} />
+          <span className={`text-[10px] font-medium leading-snug sm:text-xs ${index === pasoActual ? "text-acento" : "text-muted-foreground"}`}>
             {ESTADO_ORDEN_LABEL[paso]}
           </span>
         </div>
@@ -79,10 +79,10 @@ export function TarjetaOrden({
         <div className="flex min-w-0 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-3">
             <h3 className="flex min-w-0 items-start gap-2 text-lg font-semibold">
-              <PackageCheck className="mt-1 size-4 shrink-0 text-oro" />
+              <PackageCheck className="mt-1 size-4 shrink-0 text-acento" />
               <span className="break-words">{orden.tituloSnapshot}</span>
             </h3>
-            <span className={`text-xs font-medium ${orden.estado === "cancelada" ? "text-muted-foreground" : "text-oro"}`}>{ESTADO_ORDEN_LABEL[orden.estado]}</span>
+            <span className={`text-xs font-medium ${orden.estado === "cancelada" ? "text-muted-foreground" : "text-acento"}`}>{ESTADO_ORDEN_LABEL[orden.estado]}</span>
           </div>
           <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="font-mono">{ordenCode(orden.id, orden.fechaCreacion)}</span>
@@ -91,7 +91,7 @@ export function TarjetaOrden({
         </div>
         <div className="shrink-0 sm:text-right">
           <p className="text-xs text-muted-foreground">Total de la orden</p>
-          <p className="font-serif text-2xl font-semibold text-oro">{formatCLP(orden.total)}</p>
+          <p className="font-serif text-2xl font-semibold text-acento">{formatCLP(orden.total)}</p>
         </div>
       </header>
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-10">
@@ -114,7 +114,7 @@ export function TarjetaOrden({
           <PasoOrden estado={orden.estado} />
           <p className="text-sm leading-relaxed text-muted-foreground">{indicacion[orden.estado]}</p>
           {restante !== null && (
-            <p className="flex items-center gap-2 text-xs text-oro">
+            <p className="flex items-center gap-2 text-xs text-acento">
               <Clock3 className="size-3 shrink-0" /> {restante === "expirada" ? "El plazo de la reserva venció." : `Reserva disponible por ${restante}`}
             </p>
           )}
@@ -125,7 +125,7 @@ export function TarjetaOrden({
             <Button
               size="sm"
               variant="ghost"
-              className="rounded-none text-oro hover:bg-transparent"
+              className="rounded-none text-acento hover:bg-transparent"
               onClick={() => alCambiarEstado(orden.id, siguiente)}
             >
               {etiquetaAvance[siguiente] ?? "Avanzar"}
@@ -161,7 +161,7 @@ export function TarjetaOrden({
             <Button
               size="sm"
               variant="ghost"
-              className="rounded-none text-oro hover:bg-transparent"
+              className="rounded-none text-acento hover:bg-transparent"
               onClick={() => setValorando(true)}
             >
               <Star data-icon="inline-start" /> Valorar compra
@@ -169,7 +169,7 @@ export function TarjetaOrden({
           )}
           {rol === "comprador" && orden.estado === "recibida" && yaValorada && (
             <span className="flex items-center gap-1.5 self-center text-xs font-medium text-muted-foreground">
-              <Star className="size-3.5 fill-oro text-oro" /> Valoración hecha
+              <Star className="size-3.5 fill-acento text-acento" /> Valoración hecha
             </span>
           )}
         </div>

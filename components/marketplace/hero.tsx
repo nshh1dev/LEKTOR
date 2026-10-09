@@ -93,7 +93,7 @@ function Placa({ publicacion }: { publicacion: DatosPortada }) {
       <div
         className={cn(
           "@container relative flex aspect-[2/3] h-full max-w-full flex-col justify-between overflow-hidden",
-          "rounded-md bg-linear-to-br p-[9%] ring-1 ring-inset ring-oro/20",
+          "rounded-md bg-linear-to-br p-[9%] ring-1 ring-inset ring-acento/20",
           coverTone(publicacion.categoria, true),
         )}
       >

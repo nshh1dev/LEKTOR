@@ -107,7 +107,7 @@ export function CheckoutView({
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
             size="lg"
-            className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+            className="rounded-xl bg-acento text-acento-foreground shadow-none hover:bg-acento/90"
             onClick={onVerPerfil}
           >
             Ver mis compras
@@ -328,7 +328,7 @@ export function CheckoutView({
               <Button
                 type="submit"
                 size="lg"
-                className="w-full rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
+                className="w-full rounded-xl bg-acento text-acento-foreground shadow-none hover:bg-acento/90"
                 disabled={pagando}
               >
                 {pagando ? <LoaderCircle className="size-4 animate-spin" /> : <Lock className="size-4" />}

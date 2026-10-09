@@ -496,7 +496,7 @@ export function PublicarView({
               <Button type="button" variant="outline" className="rounded-xl" onClick={onVolver}>
                 Cancelar
               </Button>
-              <Button type="submit" className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90" disabled={enviando || subiendo}>
+              <Button type="submit" className="rounded-xl bg-acento text-acento-foreground shadow-none hover:bg-acento/90" disabled={enviando || subiendo}>
                 {enviando || subiendo ? <LoaderCircle className="size-4 animate-spin" /> : <Check />}
                 {subiendo ? "Subiendo fotos..." : "Publicar"}
               </Button>

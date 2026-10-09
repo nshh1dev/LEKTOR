@@ -44,8 +44,8 @@ export function ProductCard({
       />
 
       <div className="pointer-events-none mt-4 flex flex-1 flex-col">
-        <p className="rotulo text-[9px] text-oro/80">{publicacion.categoria}</p>
-        <h3 className="mt-1.5 line-clamp-2 text-[0.9375rem] font-medium leading-snug tracking-tight transition-colors group-hover:text-oro">
+        <p className="rotulo text-[9px] text-acento/80">{publicacion.categoria}</p>
+        <h3 className="mt-1.5 line-clamp-2 text-[0.9375rem] font-medium leading-snug tracking-tight transition-colors group-hover:text-acento">
           {publicacion.titulo}
         </h3>
         <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
@@ -55,7 +55,7 @@ export function ProductCard({
         </p>
 
         <div className="mt-auto flex items-end justify-between gap-3 pt-3.5">
-          <p className="font-serif text-2xl font-semibold leading-none tracking-tight text-oro tabular-nums">
+          <p className="font-serif text-2xl font-semibold leading-none tracking-tight text-acento tabular-nums">
             {formatCLP(publicacion.precio)}
           </p>
           {hayNota && (
@@ -82,7 +82,7 @@ export function ProductCard({
                 event.stopPropagation()
                 onVendedor(publicacion.vendedorId)
               }}
-              className="pointer-events-auto relative z-20 truncate rounded-full font-medium text-foreground/80 transition-colors hover:text-oro focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="pointer-events-auto relative z-20 truncate rounded-full font-medium text-foreground/80 transition-colors hover:text-acento focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               aria-label={`Ver el perfil de ${publicacion.vendedorNombre}`}
             >
               {publicacion.vendedorNombre}

@@ -82,7 +82,7 @@ export function ConfirmarAccion({
               "rounded-lg shadow-none",
               destructivo
                 ? "bg-aviso-falla text-aviso-falla-foreground hover:bg-aviso-falla/90"
-                : "bg-oro text-oro-foreground hover:bg-oro/90",
+                : "bg-acento text-acento-foreground hover:bg-acento/90",
             )}
           >
             {confirmTexto}

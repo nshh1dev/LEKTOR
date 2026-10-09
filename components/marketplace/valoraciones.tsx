@@ -52,12 +52,12 @@ export function Estrellas({
     <span className={cn("flex shrink-0", className)} aria-hidden>
       {Array.from({ length: PUNTAJE_MAXIMO }, (_, indice) => (
         <span key={indice} className="relative flex">
-          <Star className={cn("shrink-0 text-oro/25", TAMANOS[tamano])} />
+          <Star className={cn("shrink-0 text-acento/25", TAMANOS[tamano])} />
           <span
             className="absolute inset-0 overflow-hidden"
             style={{ width: `${Math.max(0, Math.min(1, acotada - indice)) * 100}%` }}
           >
-            <Star className={cn("shrink-0 fill-oro text-oro", TAMANOS[tamano])} />
+            <Star className={cn("shrink-0 fill-acento text-acento", TAMANOS[tamano])} />
           </span>
         </span>
       ))}
@@ -127,8 +127,8 @@ export function SelectorEstrellas({
             <Star
               aria-hidden
               className={cn(
-                "size-7 rounded-sm text-oro/25 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-oro peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background",
-                valor >= puntaje && "fill-oro text-oro",
+                "size-7 rounded-sm text-acento/25 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-acento peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background",
+                valor >= puntaje && "fill-acento text-acento",
               )}
             />
             <span className="sr-only">
@@ -159,9 +159,9 @@ export function BarrasEstrellas({
       {reputacion.distribucion.map((fila) => (
         <div key={fila.puntaje} className="flex items-center gap-2 text-[11px]">
           <span className="w-12 shrink-0 tabular-nums text-muted-foreground">{fila.puntaje} ★</span>
-          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-oro/15">
+          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-acento/15">
             <span
-              className="block h-full rounded-full bg-oro"
+              className="block h-full rounded-full bg-acento"
               style={{ width: `${fila.porcentaje}%` }}
             />
           </span>

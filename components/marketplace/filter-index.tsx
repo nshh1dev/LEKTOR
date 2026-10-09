@@ -160,8 +160,8 @@ function FiltroPrecio({
           onClick={() => onAplicar(rango.min, rango.max)}
           className={cn(
             "group flex w-full cursor-pointer items-baseline gap-2 rounded-md py-1.5 pr-1 text-left text-sm",
-            "transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-oro",
-            rangoActivo === rango.id ? "text-oro" : "text-muted-foreground hover:text-foreground",
+            "transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento",
+            rangoActivo === rango.id ? "text-acento" : "text-muted-foreground hover:text-foreground",
           )}
         >
           <span
@@ -236,13 +236,13 @@ function ListaFiltros({
           className={cn(
             "mt-1 w-fit cursor-pointer text-[11px] transition-colors",
             activasOcultas > 0
-              ? "font-medium text-oro hover:text-oro/75"
-              : "text-oro/80 hover:text-oro",
+              ? "font-medium text-acento hover:text-acento/75"
+              : "text-acento/80 hover:text-acento",
           )}
         >
           + {ocultas} más
           {activasOcultas > 0 && (
-            <span className="text-oro">
+            <span className="text-acento">
               {" "}
               · {activasOcultas} {activasOcultas === 1 ? "activa" : "activas"}
             </span>
@@ -301,8 +301,8 @@ function FilaFiltro({
       aria-pressed={activo}
       className={cn(
         "group flex w-full cursor-pointer items-baseline gap-2 rounded-md py-1.5 pr-1 text-left text-sm",
-        "transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-oro",
-        activo ? "text-oro" : "text-muted-foreground hover:text-foreground",
+        "transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-acento",
+        activo ? "text-acento" : "text-muted-foreground hover:text-foreground",
       )}
     >
       <span
