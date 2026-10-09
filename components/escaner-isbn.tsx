@@ -120,10 +120,10 @@ export function EscanerIsbn({
   return (
     <Card className="overflow-hidden rounded-2xl shadow-sm ring-1 ring-border/60">
       <CardContent className="flex flex-col gap-3 p-4">
-        <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-slate-950">
+        <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-neutral-950">
           <video ref={videoRef} playsInline muted className="size-full object-cover" />
           {!activo && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-200">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-neutral-200">
               <Camera className="size-8" />
               <p className="text-sm">Apunta al código de barras del tomo</p>
             </div>

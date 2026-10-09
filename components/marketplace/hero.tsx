@@ -42,7 +42,7 @@ export function Portada({
     <div
       className={cn(
         "@container relative aspect-[2/3] w-full overflow-hidden",
-        presentacion === "portada" && "bg-neutral-900 dark:bg-neutral-950",
+        presentacion === "portada" && "bg-neutral-950",
         className,
       )}
       aria-label={url ? undefined : `Portada de ${publicacion.titulo}`}
