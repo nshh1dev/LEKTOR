@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ChevronLeft, ChevronRight, LoaderCircle, PanelLeftClose, PanelLeftOpen, Search, SlidersHorizontal } from "lucide-react"
+import { ChevronLeft, ChevronRight, LoaderCircle, PanelLeftClose, PanelLeftOpen, Search, SlidersHorizontal, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -10,10 +10,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ORDENES_CATALOGO, type Categoria, type Condicion, type Facetas, type Paginacion, type PublicacionListItem } from "@/lib/catalog"
 import { ORDEN_LABELS, pluralEjemplares } from "@/components/marketplace/shared"
 import { cn } from "@/lib/utils"
+import { formatCLP } from "@/lib/format"
 import { type OrdenCatalogo } from "@/components/marketplace/types"
 import { ProductCard } from "@/components/marketplace/product-card"
 import { IndiceFiltros } from "@/components/marketplace/filter-index"
@@ -101,18 +102,44 @@ export function CatalogView({
       alternarFiltro={alternarFiltro}
       elegirFiltro={elegirFiltro}
       setPrecioRango={setPrecioRango}
-      limpiarFiltros={limpiarFiltros}
-      filtrosActivos={filtrosActivos}
     />
   )
   const resultados = paginacion.total
+  const etiquetas: { clave: string; texto: string; quitar: () => void }[] = []
+  for (const grupo of ["categoria", "condicion", "comuna"] as const) {
+    for (const valor of filtros[grupo]) {
+      etiquetas.push({
+        clave: `${grupo}:${valor}`,
+        texto: `${grupo === "categoria" ? "Tipo" : grupo === "condicion" ? "Estado" : "Comuna"}: ${valor}`,
+        quitar: () => alternarFiltro(grupo, valor),
+      })
+    }
+  }
+  for (const grupo of ["autor", "editorial"] as const) {
+    const valor = filtros[grupo]
+    if (valor) {
+      etiquetas.push({
+        clave: grupo,
+        texto: `${grupo === "autor" ? "Autoría" : "Editorial"}: ${valor}`,
+        quitar: () => elegirFiltro(grupo, valor),
+      })
+    }
+  }
+  if (filtros.precioMin !== null || filtros.precioMax !== null) {
+    const texto = filtros.precioMin !== null && filtros.precioMax !== null
+      ? `${formatCLP(filtros.precioMin)} a ${formatCLP(filtros.precioMax)}`
+      : filtros.precioMin !== null
+        ? `Desde ${formatCLP(filtros.precioMin)}`
+        : `Hasta ${formatCLP(filtros.precioMax ?? 0)}`
+    etiquetas.push({ clave: "precio", texto: `Precio: ${texto}`, quitar: () => setPrecioRango(null, null) })
+  }
 
   return (
-    <div className="flex flex-col gap-10">
-      <header className="flex flex-col gap-5 border-b border-border/60 pb-8 md:flex-row md:items-end md:justify-between">
+    <div className="flex flex-col gap-6 md:gap-8">
+      <header className="border-b border-border/60 pb-5 md:pb-8">
         <div className="max-w-2xl">
           <p className="rotulo text-oro/80">Mangas · Cómics · Libros</p>
-          <h1 className="mt-3 font-serif text-4xl font-semibold leading-[1.05] tracking-tight text-balance md:text-5xl">
+          <h1 className="mt-2 font-serif text-3xl font-semibold leading-[1.05] tracking-tight text-balance md:mt-3 md:text-5xl">
             Encuentra tu próxima historia.
           </h1>
           <p className="mt-3 max-w-lg text-pretty text-sm leading-relaxed text-muted-foreground">
@@ -120,16 +147,6 @@ export function CatalogView({
             siguiente.
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="w-fit shrink-0 rounded-full lg:hidden"
-          onClick={() => setCajonAbierto(true)}
-        >
-          <SlidersHorizontal data-icon="inline-start" /> Filtros
-          {filtrosActivos > 0 && (
-            <span className="ml-0.5 font-mono text-[10px] text-oro">{filtrosActivos}</span>
-          )}
-        </Button>
       </header>
 
       <div
@@ -140,56 +157,104 @@ export function CatalogView({
       >
         {filtrosAbiertos && (
           <aside id="indice-filtros" className="hidden lg:block">
-            <div className="scrollbar-fina sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pe-3 pb-8">
+            <div className="sticky top-24 flex max-h-[calc(100dvh-7rem)] flex-col">
+              <div className="mb-5 flex items-center justify-between border-b border-border/60 pb-3">
+                <span className="rotulo">Filtros</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 cursor-pointer rounded-full px-2 text-xs text-muted-foreground"
+                  aria-expanded={filtrosAbiertos}
+                  aria-controls="indice-filtros"
+                  onClick={alternarFiltros}
+                >
+                  <PanelLeftClose data-icon="inline-start" /> Plegar
+                </Button>
+              </div>
+              <div className="scrollbar-fina min-h-0 overflow-y-auto pe-3 pb-8">
               {indice("indice")}
+              </div>
             </div>
           </aside>
         )}
 
-        <section className="flex flex-col gap-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground" aria-live="polite">
-              <span className="sr-only">{pluralEjemplares(resultados)}</span>
-              <span aria-hidden className="text-pretty">
-                {filtrosActivos > 0
-                  ? "Filtrando el índice"
-                  : "Todo el índice, a la espera de que elijas"}
-              </span>
-              {cargando && <span className="text-muted-foreground/70"> · actualizando</span>}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden h-9 rounded-full border-border/70 text-xs lg:inline-flex"
-                aria-expanded={filtrosAbiertos}
-                aria-controls="indice-filtros"
-                onClick={alternarFiltros}
-              >
-                {filtrosAbiertos ? (
-                  <PanelLeftClose data-icon="inline-start" />
-                ) : (
-                  <PanelLeftOpen data-icon="inline-start" />
+        <section aria-label="Resultados del catálogo" className="flex min-w-0 flex-col gap-6">
+          <div className="flex flex-col gap-4 border-b border-border/60 pb-5">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div className="flex flex-col items-start gap-2">
+                {!filtrosAbiertos && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="hidden cursor-pointer rounded-full text-muted-foreground lg:inline-flex"
+                    aria-label="Mostrar filtros"
+                    title="Mostrar filtros"
+                    aria-expanded={false}
+                    aria-controls="indice-filtros"
+                    onClick={alternarFiltros}
+                  >
+                    <PanelLeftOpen data-icon="inline-start" /> Mostrar
+                  </Button>
                 )}
-                {filtrosAbiertos ? "Ocultar filtros" : "Mostrar filtros"}
-              </Button>
-              <span className="rotulo text-[9px]">Ordenar</span>
-              <Select value={orden} onValueChange={(value) => setOrden(value as OrdenCatalogo)}>
-                <SelectTrigger
-                  className="h-9 w-[10.5rem] rounded-full border-border/70 text-xs"
-                  aria-label="Ordenar resultados"
+                <p role="status" className="text-sm">
+                  {errorCarga ? "Resultados no disponibles" : cargando ? "Buscando ejemplares…" : (
+                    <>
+                      <span className="font-semibold tabular-nums">{pluralEjemplares(resultados)}</span>
+                      <span className="text-muted-foreground">{filtrosActivos > 0 ? " con tus filtros" : " en el catálogo"}</span>
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="min-h-10 cursor-pointer rounded-full lg:hidden"
+                  onClick={() => setCajonAbierto(true)}
                 >
-                  <SelectValue>{ORDEN_LABELS[orden]}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {ORDENES_CATALOGO.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {ORDEN_LABELS[value]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SlidersHorizontal data-icon="inline-start" /> Filtros
+                  {filtrosActivos > 0 && <span>({filtrosActivos})</span>}
+                </Button>
+                <label htmlFor="orden-catalogo" className="hidden text-sm text-muted-foreground sm:block">Ordenar</label>
+                <Select value={orden} onValueChange={(value) => setOrden(value as OrdenCatalogo)}>
+                  <SelectTrigger
+                    id="orden-catalogo"
+                    className="min-h-10 w-[11rem] cursor-pointer rounded-full"
+                    aria-label="Ordenar resultados"
+                  >
+                    <SelectValue>{ORDEN_LABELS[orden]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {ORDENES_CATALOGO.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {ORDEN_LABELS[value]}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            {etiquetas.length > 0 && (
+              <div aria-label="Filtros activos" className="flex flex-wrap items-center gap-2">
+                {etiquetas.map((etiqueta) => (
+                  <Button
+                    key={etiqueta.clave}
+                    variant="secondary"
+                    size="sm"
+                    className="h-auto min-h-9 max-w-full cursor-pointer rounded-full py-2"
+                    aria-label={`Quitar filtro ${etiqueta.texto}`}
+                    onClick={etiqueta.quitar}
+                  >
+                    <span className="min-w-0 whitespace-normal break-words text-left">{etiqueta.texto}</span>
+                    <X data-icon="inline-end" />
+                  </Button>
+                ))}
+                <Button variant="ghost" size="sm" className="min-h-9 cursor-pointer rounded-full" onClick={limpiarFiltros}>
+                  Limpiar filtros
+                </Button>
+              </div>
+            )}
           </div>
 
           {errorCarga ? (

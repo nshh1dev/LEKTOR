@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { RANGOS_PRECISO, rangoPrecioDesde, type Categoria, type Condicion, type Facetas } from "@/lib/catalog"
 
@@ -33,8 +32,6 @@ export function IndiceFiltros({
   alternarFiltro,
   elegirFiltro,
   setPrecioRango,
-  limpiarFiltros,
-  filtrosActivos,
   idRaiz,
 }: {
   facetas: FacetasIndice
@@ -42,8 +39,6 @@ export function IndiceFiltros({
   alternarFiltro: <K extends "categoria" | "condicion" | "comuna">(grupo: K, valor: string) => void
   elegirFiltro: (grupo: "autor" | "editorial", valor: string) => void
   setPrecioRango: (min: number | null, max: number | null) => void
-  limpiarFiltros: () => void
-  filtrosActivos: number
   idRaiz: string
 }) {
   return (
@@ -54,15 +49,6 @@ export function IndiceFiltros({
         <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
           Acota por tipo, autor, editorial, estado, precio o comuna para llegar antes al que buscas.
         </p>
-        {filtrosActivos > 0 && (
-          <button
-            type="button"
-            onClick={limpiarFiltros}
-            className="mt-4 flex cursor-pointer items-center gap-1.5 text-xs text-oro transition-colors hover:text-oro/75"
-          >
-            <RotateCcw className="size-3" /> Limpiar filtros
-          </button>
-        )}
       </div>
 
       <Bloque idRaiz={idRaiz} titulo="Tipo de lectura">
@@ -333,4 +319,3 @@ function FilaFiltro({
     </button>
   )
 }
-
