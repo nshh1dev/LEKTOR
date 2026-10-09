@@ -181,27 +181,31 @@ export function CatalogView({
         <section aria-label="Resultados del catálogo" className="flex min-w-0 flex-col gap-6">
           <div className="flex flex-col gap-4 border-b border-border/60 pb-5">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <p role="status" className="text-sm">
-                {errorCarga ? "Resultados no disponibles" : cargando ? "Buscando ejemplares…" : (
-                  <>
-                    <span className="font-semibold tabular-nums">{pluralEjemplares(resultados)}</span>
-                    <span className="text-muted-foreground">{filtrosActivos > 0 ? " con tus filtros" : " en el catálogo"}</span>
-                  </>
-                )}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col items-start gap-2">
                 {!filtrosAbiertos && (
                   <Button
-                    variant="outline"
-                    className="hidden min-h-9 cursor-pointer rounded-full px-3 text-sm lg:inline-flex"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="hidden cursor-pointer rounded-full text-muted-foreground lg:inline-flex"
+                    aria-label="Mostrar filtros"
+                    title="Mostrar filtros"
                     aria-expanded={false}
                     aria-controls="indice-filtros"
                     onClick={alternarFiltros}
                   >
-                    <PanelLeftOpen data-icon="inline-start" /> Mostrar filtros
-                    {filtrosActivos > 0 && <span>({filtrosActivos})</span>}
+                    <PanelLeftOpen />
                   </Button>
                 )}
+                <p role="status" className="text-sm">
+                  {errorCarga ? "Resultados no disponibles" : cargando ? "Buscando ejemplares…" : (
+                    <>
+                      <span className="font-semibold tabular-nums">{pluralEjemplares(resultados)}</span>
+                      <span className="text-muted-foreground">{filtrosActivos > 0 ? " con tus filtros" : " en el catálogo"}</span>
+                    </>
+                  )}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="outline"
                   className="min-h-10 cursor-pointer rounded-full lg:hidden"
