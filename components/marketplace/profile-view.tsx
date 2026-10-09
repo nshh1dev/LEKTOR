@@ -265,13 +265,9 @@ export function PerfilView({
         >
           <ArrowLeft className="size-4" /> Volver al catálogo
         </button>
-        <Button variant="outline" size="sm" onClick={onCerrarSesion}>
-          Cerrar sesión
-        </Button>
       </div>
 
-      <Card className="gap-0 rounded-2xl py-0 shadow-none">
-        <CardContent className="flex flex-col gap-6 p-5 sm:p-8 md:flex-row md:items-center">
+      <header className="flex flex-col gap-6 border-b border-border/60 pb-8 md:flex-row md:items-center">
           <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted font-serif text-2xl font-semibold text-foreground">
             {perfil?.avatarUrl ? (
               <Image src={perfil.avatarUrl} alt="Avatar" width={80} height={80} className="size-full object-cover" unoptimized />
@@ -298,7 +294,7 @@ export function PerfilView({
                 </Link>
               </Button>
             )}
-            <Button variant="outline" size="sm" disabled={!perfil || cargandoFicha} onClick={() => setEditandoPerfil(true)}>
+            <Button variant="ghost" size="sm" disabled={!perfil || cargandoFicha} onClick={() => setEditandoPerfil(true)}>
               <UserPen data-icon="inline-start" /> {cargandoFicha ? "Cargando perfil…" : "Editar perfil"}
             </Button>
             {!perfil && !cargandoFicha && (
@@ -306,12 +302,8 @@ export function PerfilView({
                 Reintentar carga del perfil
               </Button>
             )}
-            <Button size="sm" onClick={onNuevaPublicacion}>
-              <Tag data-icon="inline-start" /> Publicar
-            </Button>
           </div>
-        </CardContent>
-      </Card>
+      </header>
 
       <nav aria-label="Secciones de mi perfil" className="grid gap-6 border-b border-border/60 pb-6 lg:grid-cols-2">
         {([
@@ -332,15 +324,15 @@ export function PerfilView({
               {grupo.secciones.map(([clave, etiqueta, total]) => (
                 <Button
                   key={clave}
-                  variant={pestana === clave ? "default" : "outline"}
-                  className="h-auto min-h-14 min-w-0 flex-col gap-1 rounded-xl px-2 py-2 sm:min-h-11 sm:flex-row"
+                  variant="ghost"
+                  className={`h-auto min-h-14 min-w-0 flex-col gap-1 rounded-none border-b-2 px-2 py-2 sm:min-h-11 sm:flex-row ${pestana === clave ? "border-oro text-oro" : "border-transparent text-muted-foreground"}`}
                   aria-current={pestana === clave ? "page" : undefined}
                   onClick={() => setPestana(clave)}
                 >
                   <span className="text-xs sm:text-sm">{etiqueta}</span>
-                  <Badge variant="secondary" className="tabular-nums">
+                  <span className="text-xs tabular-nums opacity-70">
                     {cargandoFicha ? "…" : total}
-                  </Badge>
+                  </span>
                   {clave === "notificaciones" && sinLeer > 0 && (
                     <span className="sr-only">{sinLeer} sin leer</span>
                   )}
@@ -367,8 +359,7 @@ export function PerfilView({
             </Card>
           ) : (
             misPublicaciones.map((publicacion) => (
-              <Card key={publicacion.id} className="rounded-xl">
-                <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+              <article key={publicacion.id} className="flex flex-col gap-4 border-b border-border/60 py-5 sm:flex-row sm:items-center">
                   <div className="w-20 shrink-0">
                     <Portada publicacion={publicacion} foto={publicacion.fotos[0]} />
                   </div>
@@ -382,12 +373,12 @@ export function PerfilView({
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button size="sm" variant="outline" className="rounded-lg" onClick={() => onAbrirPublicacion(publicacion.id)}>
+                    <Button size="sm" variant="ghost" className="rounded-lg" onClick={() => onAbrirPublicacion(publicacion.id)}>
                       Ver
                     </Button>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       className="rounded-lg"
                       onClick={() => {
                         setStockEdicion(String(publicacion.stock))
@@ -396,7 +387,7 @@ export function PerfilView({
                     >
                       Stock
                     </Button>
-                    <Button size="sm" variant="outline" className="rounded-lg" onClick={() => void alternarEstadoPublicacion(publicacion)}>
+                    <Button size="sm" variant="ghost" className="rounded-lg" onClick={() => void alternarEstadoPublicacion(publicacion)}>
                       {publicacion.estado === "pausada" ? "Reactivar" : "Pausar"}
                     </Button>
                     <Button
@@ -409,8 +400,7 @@ export function PerfilView({
                       <Trash2 />
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+              </article>
             ))
           )}
         </div>
