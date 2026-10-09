@@ -319,7 +319,6 @@ export function PerfilView({
           ] },
         ] as const).map((grupo) => (
           <div key={grupo.titulo} className="flex min-w-0 flex-col gap-3">
-            <p className="rotulo">{grupo.titulo}</p>
             <div className="grid grid-cols-3 gap-2">
               {grupo.secciones.map(([clave, etiqueta, total]) => (
                 <Button
