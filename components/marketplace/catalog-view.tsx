@@ -102,8 +102,6 @@ export function CatalogView({
       alternarFiltro={alternarFiltro}
       elegirFiltro={elegirFiltro}
       setPrecioRango={setPrecioRango}
-      limpiarFiltros={limpiarFiltros}
-      filtrosActivos={filtrosActivos}
     />
   )
   const resultados = paginacion.total
@@ -159,8 +157,23 @@ export function CatalogView({
       >
         {filtrosAbiertos && (
           <aside id="indice-filtros" className="hidden lg:block">
-            <div className="scrollbar-fina sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto pe-3 pb-8">
+            <div className="sticky top-24 flex max-h-[calc(100dvh-7rem)] flex-col">
+              <div className="mb-5 flex items-center justify-between border-b border-border/60 pb-3">
+                <span className="rotulo">Filtros</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 cursor-pointer rounded-full px-2 text-xs text-muted-foreground"
+                  aria-expanded={filtrosAbiertos}
+                  aria-controls="indice-filtros"
+                  onClick={alternarFiltros}
+                >
+                  <PanelLeftClose data-icon="inline-start" /> Plegar
+                </Button>
+              </div>
+              <div className="scrollbar-fina min-h-0 overflow-y-auto pe-3 pb-8">
               {indice("indice")}
+              </div>
             </div>
           </aside>
         )}
@@ -185,21 +198,6 @@ export function CatalogView({
                   <SlidersHorizontal data-icon="inline-start" /> Filtros
                   {filtrosActivos > 0 && <span>({filtrosActivos})</span>}
                 </Button>
-                <Button
-                  variant="outline"
-                  className="hidden min-h-10 cursor-pointer rounded-full lg:inline-flex"
-                  aria-expanded={filtrosAbiertos}
-                  aria-controls="indice-filtros"
-                  onClick={alternarFiltros}
-                >
-                  {filtrosAbiertos ? (
-                    <PanelLeftClose data-icon="inline-start" />
-                  ) : (
-                    <PanelLeftOpen data-icon="inline-start" />
-                  )}
-                  {filtrosAbiertos ? "Ocultar filtros" : "Mostrar filtros"}
-                  {filtrosActivos > 0 && <span>({filtrosActivos})</span>}
-                </Button>
                 <label htmlFor="orden-catalogo" className="hidden text-sm text-muted-foreground sm:block">Ordenar</label>
                 <Select value={orden} onValueChange={(value) => setOrden(value as OrdenCatalogo)}>
                   <SelectTrigger
@@ -221,6 +219,18 @@ export function CatalogView({
                 </Select>
               </div>
             </div>
+            {!filtrosAbiertos && (
+              <Button
+                variant="outline"
+                className="hidden w-fit min-h-9 cursor-pointer rounded-full lg:inline-flex"
+                aria-expanded={false}
+                aria-controls="indice-filtros"
+                onClick={alternarFiltros}
+              >
+                <PanelLeftOpen data-icon="inline-start" /> Mostrar filtros
+                {filtrosActivos > 0 && <span>({filtrosActivos})</span>}
+              </Button>
+            )}
             {etiquetas.length > 0 && (
               <div aria-label="Filtros activos" className="flex flex-wrap items-center gap-2">
                 {etiquetas.map((etiqueta) => (
