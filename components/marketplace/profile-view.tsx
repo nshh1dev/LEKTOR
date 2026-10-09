@@ -270,27 +270,27 @@ export function PerfilView({
         </Button>
       </div>
 
-      <Card className="rounded-2xl border-0 bg-primary text-primary-foreground shadow-lg">
-        <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center">
-          <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-foreground/15 text-2xl font-bold ring-4 ring-primary-foreground/10">
+      <Card className="gap-0 rounded-2xl py-0 shadow-none">
+        <CardContent className="flex flex-col gap-6 p-5 sm:p-8 md:flex-row md:items-center">
+          <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted font-serif text-2xl font-semibold text-foreground">
             {perfil?.avatarUrl ? (
               <Image src={perfil.avatarUrl} alt="Avatar" width={80} height={80} className="size-full object-cover" unoptimized />
             ) : (
               iniciales
             )}
           </div>
-          <div className="flex-1">
-            <p className="text-sm text-primary-foreground/70">Mi perfil</p>
-            <h1 className="text-3xl font-bold">{perfil?.nombre ?? usuario.nombre}</h1>
-            <p className="mt-1 text-sm text-primary-foreground/75">
+          <div className="min-w-0 flex-1">
+            <p className="rotulo text-oro">Mi perfil</p>
+            <h1 className="mt-2 break-words font-serif text-3xl font-semibold">{perfil?.nombre ?? usuario.nombre}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
               {[perfil?.comuna, perfil?.region].filter(Boolean).join(", ") || "Completa tu ubicación"}
             </p>
-            {perfil?.bio && <p className="mt-2 max-w-lg text-sm text-primary-foreground/80">{perfil.bio}</p>}
-            <p className="mt-2 text-xs text-primary-foreground/60">
+            {perfil?.bio && <p className="mt-3 max-w-lg whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground">{perfil.bio}</p>}
+            <p className="mt-3 text-xs text-muted-foreground">
               Miembro desde {perfil ? formatDate(perfil.fechaCreacion) : ""}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 md:max-w-52 md:justify-end">
             {esStaff(usuario.rol) && (
               <Button variant="secondary" size="sm" asChild>
                 <Link href="/admin">
@@ -298,7 +298,7 @@ export function PerfilView({
                 </Link>
               </Button>
             )}
-            <Button variant="secondary" size="sm" disabled={!perfil || cargandoFicha} onClick={() => setEditandoPerfil(true)}>
+            <Button variant="outline" size="sm" disabled={!perfil || cargandoFicha} onClick={() => setEditandoPerfil(true)}>
               <UserPen data-icon="inline-start" /> {cargandoFicha ? "Cargando perfil…" : "Editar perfil"}
             </Button>
             {!perfil && !cargandoFicha && (
@@ -306,38 +306,53 @@ export function PerfilView({
                 Reintentar carga del perfil
               </Button>
             )}
-            <Button variant="secondary" size="sm" onClick={onNuevaPublicacion}>
+            <Button size="sm" onClick={onNuevaPublicacion}>
               <Tag data-icon="inline-start" /> Publicar
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap items-center gap-1 rounded-xl bg-muted p-1">
-        {(
-          [
-            ["publicaciones", "Mis publicaciones", misPublicaciones.length],
-            ["ventas", "Ventas", ventas.length],
-            ["compras", "Compras", compras.length],
-            ["resenas", "Reseñas", reseñas.escritas.length + reseñas.recibidas.length],
+      <nav aria-label="Secciones de mi perfil" className="grid gap-6 border-b border-border/60 pb-6 lg:grid-cols-2">
+        {([
+          { titulo: "Actividad", secciones: [
+            ["publicaciones", "Publicaciones", misPublicaciones.length],
+            ["compras", "Compras", paginas.compras.total],
+            ["ventas", "Ventas", paginas.ventas.total],
+          ] },
+          { titulo: "Comunidad", secciones: [
             ["mensajes", "Mensajes", conversaciones.length],
-            ["notificaciones", "Notificaciones", notificaciones.length],
-          ] as const
-        ).map(([clave, etiqueta, total]) => (
-          <Button
-            key={clave}
-            variant={pestana === clave ? "default" : "ghost"}
-            className="flex-1"
-            onClick={() => setPestana(clave)}
-          >
-            {etiqueta}
-            <Badge variant="secondary" className="ml-2">
-              {total}
-            </Badge>
-          </Button>
+            ["resenas", "Reseñas", reseñas.escritas.length + reseñas.recibidas.length],
+            ["notificaciones", "Avisos", notificaciones.length],
+          ] },
+        ] as const).map((grupo) => (
+          <div key={grupo.titulo} className="flex min-w-0 flex-col gap-3">
+            <p className="rotulo">{grupo.titulo}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {grupo.secciones.map(([clave, etiqueta, total]) => (
+                <Button
+                  key={clave}
+                  variant={pestana === clave ? "default" : "outline"}
+                  className="h-auto min-h-14 min-w-0 flex-col gap-1 rounded-xl px-2 py-2 sm:min-h-11 sm:flex-row"
+                  aria-current={pestana === clave ? "page" : undefined}
+                  onClick={() => setPestana(clave)}
+                >
+                  <span className="text-xs sm:text-sm">{etiqueta}</span>
+                  <Badge variant="secondary" className="tabular-nums">
+                    {cargandoFicha ? "…" : total}
+                  </Badge>
+                  {clave === "notificaciones" && sinLeer > 0 && (
+                    <span className="sr-only">{sinLeer} sin leer</span>
+                  )}
+                </Button>
+              ))}
+            </div>
+            {grupo.titulo === "Comunidad" && sinLeer > 0 && (
+              <p className="text-xs text-muted-foreground">{sinLeer} aviso{sinLeer > 1 ? "s" : ""} sin leer</p>
+            )}
+          </div>
         ))}
-        {sinLeer > 0 && <Badge className="ml-auto">{sinLeer} sin leer</Badge>}
-      </div>
+      </nav>
 
       {pestana === "publicaciones" && (
         <div className="flex flex-col gap-4">
