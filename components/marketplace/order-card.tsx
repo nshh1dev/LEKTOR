@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Clock3, FileText, PackageCheck, Star } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
 import { ChatOrden } from "@/components/marketplace/chat-orden"
 import { DialogoComprobante } from "@/components/marketplace/comprobante"
@@ -15,15 +14,15 @@ import { ESTADO_ORDEN_BADGE, ESTADO_ORDEN_LABEL, ESTADO_ORDEN_PASOS, METODO_ENTR
 
 function PasoOrden({ estado }: { estado: EstadoOrden }) {
   if (estado === "cancelada") {
-    return <Badge className={ESTADO_ORDEN_BADGE.cancelada}>Cancelada</Badge>
+    return null
   }
   const pasoActual = ESTADO_ORDEN_PASOS.indexOf(estado)
   return (
-    <div className="flex items-center gap-1">
+    <div aria-label={`Estado de la orden: ${ESTADO_ORDEN_LABEL[estado]}`} className="grid grid-cols-4 gap-1.5">
       {ESTADO_ORDEN_PASOS.map((paso, index) => (
-        <div key={paso} className="flex flex-1 flex-col gap-1">
+        <div key={paso} className="flex min-w-0 flex-col gap-2">
           <div className={`h-1 ${index <= pasoActual ? "bg-oro" : "bg-muted"}`} />
-          <span className={`text-[10px] font-medium uppercase tracking-wide ${index <= pasoActual ? "text-foreground" : "text-muted-foreground/60"}`}>
+          <span className={`text-[10px] font-medium leading-snug sm:text-xs ${index === pasoActual ? "text-oro" : "text-muted-foreground"}`}>
             {ESTADO_ORDEN_LABEL[paso]}
           </span>
         </div>
@@ -66,57 +65,63 @@ export function TarjetaOrden({
     despachada: "Marcar despachada",
     recibida: "Confirmar recepción",
   }
+  const indicacion: Record<EstadoOrden, string> = {
+    reservada: rol === "comprador" ? "Tu ejemplar está reservado. Coordina el pago con el vendedor." : "Coordina el pago con el comprador y prepara el ejemplar.",
+    en_preparacion: rol === "comprador" ? "El vendedor está preparando tu ejemplar." : "Prepara la entrega y marca el despacho cuando esté listo.",
+    despachada: rol === "comprador" ? "Confirma la recepción cuando tengas el ejemplar." : "El comprador debe confirmar que recibió el ejemplar.",
+    recibida: "Entrega completada.",
+    cancelada: "La orden se canceló. El chat sigue disponible para coordinar cualquier devolución.",
+  }
+  const restante = orden.estado === "reservada" ? tiempoRestante(orden.reservaExpiraEn) : null
 
   return (
-    <Card className="rounded-none border-0 border-b border-border/60 bg-transparent py-6 shadow-none">
-      <CardHeader className="gap-2 px-0 pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <PackageCheck className="size-4 text-oro" />
-            {orden.tituloSnapshot}
-          </CardTitle>
-          <Badge className={ESTADO_ORDEN_BADGE[orden.estado]}>{ESTADO_ORDEN_LABEL[orden.estado]}</Badge>
-        </div>
-        <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <span className="font-mono">{ordenCode(orden.id, orden.fechaCreacion)}</span>
-          <span>{formatDateTime(orden.fechaCreacion)}</span>
-          <span>
-            {rol === "comprador" ? "Vende" : "Compra"}: {contraparte.nombre}
-              {contraparte.comuna ? ` · ${contraparte.comuna}` : ""}
-          </span>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5 px-0">
-        <PasoOrden estado={orden.estado} />
-        <div className="grid gap-4 border-b border-border/60 py-4 text-sm sm:grid-cols-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Entrega</p>
-            <p className="font-medium">{METODO_ENTREGA_LABEL[orden.datosDespacho.metodoEntrega as keyof typeof METODO_ENTREGA_LABEL] ?? orden.datosDespacho.metodoEntrega}</p>
+    <article className="flex flex-col gap-5 border-b border-border/60 py-6">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="flex min-w-0 items-start gap-2 text-lg font-semibold">
+              <PackageCheck className="mt-1 size-4 shrink-0 text-oro" />
+              <span className="break-words">{orden.tituloSnapshot}</span>
+            </h3>
+            <Badge className={ESTADO_ORDEN_BADGE[orden.estado]}>{ESTADO_ORDEN_LABEL[orden.estado]}</Badge>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Recibe</p>
-            <p className="font-medium">{orden.datosDespacho.nombreRecibe}</p>
-            <p className="text-xs text-muted-foreground">{formatearTelefono(orden.datosDespacho.telefono)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Total</p>
-            <p className="font-medium">{formatCLP(orden.total)}</p>
-          </div>
-        </div>
-        {orden.estado === "reservada" && (
-          <p className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
-            <Clock3 className="size-3" /> La reserva expira en {tiempoRestante(orden.reservaExpiraEn)}
+          <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="font-mono">{ordenCode(orden.id, orden.fechaCreacion)}</span>
+            <span>{formatDateTime(orden.fechaCreacion)}</span>
           </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="rounded-lg"
-            onClick={() => setComprobanteAbierto(true)}
-          >
-            <FileText data-icon="inline-start" /> Ver comprobante
-          </Button>
+        </div>
+        <div className="shrink-0 sm:text-right">
+          <p className="text-xs text-muted-foreground">Total de la orden</p>
+          <p className="font-serif text-2xl font-semibold text-oro">{formatCLP(orden.total)}</p>
+        </div>
+      </header>
+      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-10">
+        <dl className="grid grid-cols-2 content-start gap-x-5 gap-y-4 text-sm">
+          <div className="col-span-2">
+            <dt className="text-xs text-muted-foreground">{rol === "comprador" ? "Vendedor" : "Comprador"}</dt>
+            <dd className="mt-1 break-words font-medium">{contraparte.nombre}{contraparte.comuna ? ` · ${contraparte.comuna}` : ""}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Entrega</dt>
+            <dd className="mt-1 font-medium">{METODO_ENTREGA_LABEL[orden.datosDespacho.metodoEntrega as keyof typeof METODO_ENTREGA_LABEL] ?? orden.datosDespacho.metodoEntrega}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Recibe</dt>
+            <dd className="mt-1 break-words font-medium">{orden.datosDespacho.nombreRecibe}</dd>
+            <dd className="mt-1 text-xs text-muted-foreground">{formatearTelefono(orden.datosDespacho.telefono)}</dd>
+          </div>
+        </dl>
+        <div className="flex flex-col gap-3">
+          <PasoOrden estado={orden.estado} />
+          <p className="text-sm leading-relaxed text-muted-foreground">{indicacion[orden.estado]}</p>
+          {restante !== null && (
+            <p className="flex items-center gap-2 text-xs text-oro">
+              <Clock3 className="size-3 shrink-0" /> {restante === "expirada" ? "El plazo de la reserva venció." : `Reserva disponible por ${restante}`}
+            </p>
+          )}
+        </div>
+      </div>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {puedeAvanzar && siguiente && (
             <Button
               size="sm"
@@ -126,6 +131,14 @@ export function TarjetaOrden({
               {etiquetaAvance[siguiente] ?? "Avanzar"}
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="rounded-lg"
+            onClick={() => setComprobanteAbierto(true)}
+          >
+            <FileText data-icon="inline-start" /> Ver comprobante
+          </Button>
           {(orden.estado === "reservada" || orden.estado === "en_preparacion") && (
             <Button
               size="sm"
@@ -160,7 +173,6 @@ export function TarjetaOrden({
             </span>
           )}
         </div>
-      </CardContent>
 
       <ConfirmarAccion
         abierto={cancelacionAbierta}
@@ -197,6 +209,6 @@ export function TarjetaOrden({
           setValorando(false)
         }}
       />
-    </Card>
+    </article>
   )
 }
