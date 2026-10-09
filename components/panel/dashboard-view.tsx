@@ -161,9 +161,9 @@ export function DashboardView() {
                   kpis.tendencia === null ? (
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                   ) : kpis.tendencia < 0 ? (
-                    <ArrowDownRight className="h-4 w-4 text-amber-600" />
+                    <ArrowDownRight className="h-4 w-4 text-aviso-falla" />
                   ) : (
-                    <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+                    <ArrowUpRight className="h-4 w-4 text-aviso-ok" />
                   )
                 }
                 label="Ventas del mes"
@@ -475,8 +475,8 @@ function KpiCard({
         <div
           className={cn(
             "text-2xl font-semibold",
-            tone === "positive" && "text-emerald-600",
-            tone === "warning" && "text-amber-600",
+            tone === "positive" && "text-aviso-ok",
+            tone === "warning" && "text-aviso-revisar",
           )}
         >
           {value}

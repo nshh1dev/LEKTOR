@@ -85,7 +85,13 @@ const PERIODOS: { value: string; label: string }[] = [
   { value: "365", label: "Último año" },
 ]
 
-const COLORES = ["#6366f1", "#f59e0b", "#10b981", "#ec4899", "#0ea5e9", "#8b5cf6"]
+const COLORES = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+]
 
 export function ReportsView() {
   const [dias, setDias] = useState("30")
@@ -246,8 +252,8 @@ export function ReportsView() {
                     <AreaChart data={data.serie}>
                       <defs>
                         <linearGradient id="ventas" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.5} />
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                          <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.5} />
+                          <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -262,14 +268,14 @@ export function ReportsView() {
                         type="monotone"
                         dataKey="ventas"
                         name="Ventas"
-                        stroke="#6366f1"
+                        stroke="var(--chart-1)"
                         fill="url(#ventas)"
                       />
                       <Area
                         type="monotone"
                         dataKey="brutas"
                         name="Bruto"
-                        stroke="#f59e0b"
+                        stroke="var(--chart-3)"
                         fill="transparent"
                       />
                     </AreaChart>
@@ -327,7 +333,7 @@ export function ReportsView() {
                           tickFormatter={(valor: string) => (valor.length > 22 ? `${valor.slice(0, 22)}…` : valor)}
                         />
                         <Tooltip formatter={(valor: number) => `${valor} uds.`} />
-                        <Bar dataKey="unidades" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                        <Bar dataKey="unidades" fill="var(--chart-1)" radius={[0, 4, 4, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -494,8 +500,8 @@ function ResumenCard({
         <div
           className={cn(
             "text-2xl font-semibold",
-            tone === "positive" && "text-emerald-600",
-            tone === "warning" && "text-amber-600",
+            tone === "positive" && "text-aviso-ok",
+            tone === "warning" && "text-aviso-revisar",
           )}
         >
           {value}

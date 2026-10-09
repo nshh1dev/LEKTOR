@@ -74,8 +74,8 @@ const ESTADOS: { value: string; label: string }[] = [
 ]
 
 const ESTADO_BADGE: Record<EstadoPublicacion, string> = {
-  activa: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200",
-  pausada: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200",
+  activa: "border-aviso-ok/35 bg-aviso-ok-tenue text-foreground",
+  pausada: "border-aviso-revisar/30 bg-aviso-revisar-tenue text-foreground",
   agotada: "border-border bg-muted text-muted-foreground",
 }
 
@@ -349,7 +349,7 @@ export function ProductsView({ esAdmin }: { esAdmin: boolean }) {
                       <TableCell className="text-right font-mono">
                         {publicacion.unidadesVendidas}
                         {publicacion.ordenesActivas > 0 && (
-                          <div className="text-xs text-amber-600">{publicacion.ordenesActivas} activas</div>
+                          <div className="text-xs text-aviso-revisar">{publicacion.ordenesActivas} activas</div>
                         )}
                       </TableCell>
                       <TableCell>
