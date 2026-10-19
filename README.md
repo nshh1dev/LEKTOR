@@ -141,7 +141,10 @@ botones, búsqueda y recarga en el dispositivo. Para comparar con Turbopack: `pn
 - Si niegas el permiso, debe mostrarse un aviso y seguir disponible la entrada manual.
 - Cambia un texto del proyecto para comprobar Fast Refresh sin `build`.
 
-Si cambia la IP, repite `pnpm dev:certificados NUEVA_IP` y reinicia el servidor. Se reutiliza
+Si cambia la IP, actualiza también `allowedDevOrigins` en `next.config.mjs` con la IP exacta
+del computador (sin protocolo ni puerto), repite `pnpm dev:certificados NUEVA_IP` y reinicia
+el servidor. No uses comodines: esta lista permite el acceso a recursos de desarrollo y a
+Fast Refresh desde ese origen. Se reutiliza
 la misma CA, así que no hay que volver a instalarla en el celular. Si eliminas la CA o cambias
 de computador, habrá que instalar la nueva. Si aparece una advertencia HTTPS, revisa la IP del
 certificado y la confianza del perfil antes de intentar usar la cámara.
