@@ -18,7 +18,7 @@ Proyecto de título de desarrollo grupal. Aplicación web para conectar vendedor
 - Catálogo con búsqueda, filtros por categoría, autor, editorial, condición, precio (por tramos) y comuna, más orden.
 - Fichas de publicación con galería de imágenes por URL, relacionados y perfil del vendedor.
 - Perfiles de usuario con reseñas y métricas de venta.
-- Escaneo de ISBN con la cámara del dispositivo (`BarcodeDetector`) o entrada manual, consulta de Open Library y caché local de metadatos.
+- Escaneo de ISBN con cámara trasera y ZXing (incluido Safari en iPhone) o entrada manual, consulta de Open Library y caché local de metadatos.
 - Compra directa con pasarela de pago por tarjeta, envío a domicilio o retiro en punto, y notificaciones de cada cambio de estado.
 - Reserva inmediata de ejemplares por **48 horas** con liberación automática de stock.
 
@@ -74,6 +74,87 @@ pnpm dev
 
 Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
 
+### Cámara desde un celular: HTTPS local
+
+La cámara requiere un contexto seguro: `http://localhost` sirve en el computador, pero
+`http://192.168.…` **no habilita la cámara del celular**. No basta con saltarse una advertencia
+de certificado. El computador y el celular deben estar en el mismo Wi-Fi de confianza.
+No se necesita desplegar ni exponer el proyecto a internet.
+
+`pnpm dev` utiliza Webpack como alternativa de compatibilidad para el fallo de interactividad
+observado con el arranque de desarrollo predeterminado en iPhone. Conserva Fast Refresh; no
+requiere `build`. La causa exacta del fallo original no está confirmada: hay que comprobar
+botones, búsqueda y recarga en el dispositivo. Para comparar con Turbopack: `pnpm dev --turbopack`.
+
+#### Primera configuración (Windows + iPhone)
+
+1. Detén cualquier servidor anterior con **Ctrl+C**. Consigue
+   [mkcert del repositorio oficial](https://github.com/FiloSottile/mkcert/releases/tag/v1.4.4).
+   Para Windows x64 puedes guardarlo **dentro del proyecto**, sin instalación global:
+
+   ```powershell
+   New-Item -ItemType Directory -Force .certificates
+   Invoke-WebRequest -Uri "https://github.com/FiloSottile/mkcert/releases/download/v1.4.4/mkcert-v1.4.4-windows-amd64.exe" -OutFile .certificates/mkcert.exe
+   pnpm dev:certificados 192.168.100.6
+   ```
+
+   Sustituye la IP por la IPv4 actual del computador (`ipconfig`). Sin argumento, el script
+   incluye las IPv4 de sus interfaces. En otras plataformas instala mkcert por el método oficial
+   y ejecuta el mismo comando de pnpm. El script mantiene la CA y las claves en `.certificates/`,
+   ignorada por Git, y **no modifica la confianza del sistema automáticamente**.
+
+2. Para confiar en esta CA en el computador, ejecuta conscientemente:
+
+   ```powershell
+   $env:CAROOT = Join-Path $PWD ".certificates/ca"
+   ./.certificates/mkcert.exe -install
+   Remove-Item Env:CAROOT
+   ```
+
+   Este paso modifica el almacén de confianza de Windows y puede pedir autorización.
+   En macOS/Linux usa `mkcert -install` con el mismo `CAROOT` apuntando a la carpeta del proyecto.
+
+3. Transfiere **solo** `.certificates/ca/LEKTOR-local.cer` al iPhone por un medio privado
+   (por ejemplo, correo propio) y ábrelo para instalar el perfil. En Ajustes → General →
+   VPN y gestión de dispositivos instala el perfil descargado. Luego, en Ajustes → General →
+   Información → Ajustes de confianza de certificados, activa la confianza total para esa CA.
+   Los nombres pueden variar según la versión de iOS.
+
+4. Ejecuta el desarrollo habitual:
+
+   ```powershell
+   pnpm dev
+   ```
+
+   Si encuentra ambos certificados, **el mismo `pnpm dev` activa HTTPS**. Abre
+   `https://192.168.100.6:3000` en Safari (no `http`, `localhost` ni `0.0.0.0`).
+   Permite el acceso a la cámara al activar el escáner. Si Windows pregunta por el firewall,
+   permite Node solo en la red privada; no desactives el firewall.
+
+#### Comprobación para la demostración
+
+- Comprueba búsqueda, apertura de publicaciones e inicio de sesión desde Safari.
+- En Publicar o en el escáner del panel, activa la cámara y apunta al **código de barras ISBN**
+  de un libro (EAN-13 que empieza por 978 o 979), no a un QR ni al código de precio.
+- Comprueba que se consulta el ISBN detectado y aparecen sus metadatos cuando el proveedor los tiene.
+- Detén y reactiva la cámara; cambia de vista y de aplicación: la cámara debe liberarse.
+- Si niegas el permiso, debe mostrarse un aviso y seguir disponible la entrada manual.
+- Cambia un texto del proyecto para comprobar Fast Refresh sin `build`.
+
+Si cambia la IP, actualiza también `allowedDevOrigins` en `next.config.mjs` con la IP exacta
+del computador (sin protocolo ni puerto), repite `pnpm dev:certificados NUEVA_IP` y reinicia
+el servidor. No uses comodines: esta lista permite el acceso a recursos de desarrollo y a
+Fast Refresh desde ese origen. Se reutiliza
+la misma CA, así que no hay que volver a instalarla en el celular. Si eliminas la CA o cambias
+de computador, habrá que instalar la nueva. Si aparece una advertencia HTTPS, revisa la IP del
+certificado y la confianza del perfil antes de intentar usar la cámara.
+
+**Seguridad:** nunca compartas `rootCA-key.pem` ni `localhost-key.pem`, ni coloques certificados
+o claves en `public/`. No subas `.certificates/` al repositorio. Las imágenes de la cámara se
+procesan en el dispositivo, no se envían al servidor. Al terminar, detén el servidor con Ctrl+C.
+Cuando ya no se necesite la CA, elimina su perfil del iPhone y desinstala la confianza del
+computador con `mkcert -uninstall` usando el mismo `CAROOT`.
+
 ### Cuentas de demostración
 
 | Rol      | Correo              | Contraseña |
@@ -87,7 +168,8 @@ El resto de lectores de ejemplo usa la contraseña `123456` (`nico@`, `camila@`,
 
 | Comando            | Descripción                                          |
 | ------------------ | ---------------------------------------------------- |
-| `pnpm dev`         | Inicia el servidor de desarrollo                     |
+| `pnpm dev`         | Desarrollo con Webpack; HTTPS si hay certificados locales |
+| `pnpm dev:certificados [IP]` | Genera certificados para probar la cámara por Wi-Fi |
 | `pnpm build`       | Genera la versión de producción                      |
 | `pnpm start`       | Inicia el servidor de producción                     |
 | `pnpm lint`        | Ejecuta el linter de ESLint                          |
