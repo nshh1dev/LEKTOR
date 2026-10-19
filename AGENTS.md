@@ -64,7 +64,7 @@ ni la base ni el dev server; `pnpm simular` necesita ambos.
 - Colocar componentes por área:
   - `components/marketplace/` — vistas del marketplace público (`catalog-view`, `detail-view`, `sell-view`, `checkout-view`, `pago-view`, `profile-view`, `seller-view`, `auth-view`, `order-card`, `product-card`, `dialogo-contacto`, `dialogo-editar-perfil`, `comuna-input`, `filter-index`, `hero`) más `types.ts`, `api.ts` y `shared.tsx`. El shell que las coordina sigue en `components/lektor-marketplace.tsx`.
   - `components/notificacion/` — sistema único de avisos: `avisar.tsx` (toasts), `avisos.tsx` (bloques en línea y lista de datos faltantes), `sello.tsx` (sello estampado), `toaster.tsx` y `confirmar-accion.tsx`.
-  - `components/escaner-isbn.tsx` — lector de ISBN por cámara, compartido por `sell-view` y el escáner del panel.
+  - `components/escaner-isbn.tsx` — lector de ISBN por cámara con ZXing cargado al activarlo, compartido por `sell-view` y el escáner del panel. No depender de `BarcodeDetector`: debe funcionar también en Safari de iPhone.
   - `components/admin/` — shell del panel.
   - `components/panel/` — vistas del panel principal.
   - `components/ui/` — componentes base shadcn/ui (no modificar salvo necesidad).
@@ -156,6 +156,13 @@ ni la base ni el dev server; `pnpm simular` necesita ambos.
   **lo detiene al terminar**. No dejar procesos de Next escuchando en el puerto 3000 al cerrar la
   sesión. Si `pnpm simular` no puede correr porque no hay servidor, se dice y se sigue con el resto
   de las puertas, que no necesitan base ni servidor.
+- **Cámara en celulares:** `pnpm dev` usa Webpack como alternativa de compatibilidad en desarrollo
+  y activa HTTPS si existen `.certificates/localhost.pem` y `localhost-key.pem`. El comando
+  `pnpm dev:certificados [IP]` usa mkcert para generar los certificados y la CA dentro de
+  `.certificates/` (ignorada por Git); no instala confianza ni arranca el servidor. La confianza
+  en Windows y en el iPhone la configura la persona siguiendo README. No guardar nada en
+  `public/`, compartir claves privadas ni desactivar la validación TLS. La cámara necesita
+  HTTPS confiable al entrar por IP; HTTP solo permite cámara bajo la excepción de localhost.
 - Los topes de intentos viven en la memoria del proceso, y hay que leerlos del código antes de
   citarlos: el registro admite 5 por hora, el login 60 por IP y 10 por correo cada 5 minutos, el
   cambio de contraseña 5 cada 15 minutos y la consulta de ISBN 30 cada 5 minutos. Al ampliar la

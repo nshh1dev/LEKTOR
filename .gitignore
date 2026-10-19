@@ -21,6 +21,7 @@ node_modules
 .DS_Store
 
 # Secrets / keys
+.certificates/
 *.pem
 *.key
 *.p12
