@@ -59,6 +59,7 @@ ni la base ni el dev server; `pnpm simular` necesita ambos.
 
 ## Convenciones de código
 
+- **Contexto de diseño (Impeccable):** leer `PRODUCT.md` para el producto y `DESIGN.md` para el sistema visual; este último se registra desde el código y se actualiza con su sidecar `.impeccable/design.json` mediante `impeccable document`, sin rediseñar la interfaz por una discrepancia documental.
 - TypeScript estricto y tipado explícito donde aporte claridad.
 - Usar los componentes base de `components/ui` (shadcn/ui) y no reimplementarlos.
 - Colocar componentes por área:
