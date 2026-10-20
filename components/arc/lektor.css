@@ -1,0 +1,59 @@
+/*
+ * Puente entre UIArc y LEKTOR.
+ *
+ * Los componentes de `components/arc` leen sus tokens con nombres propios y no
+ * traen tema: este bloque los resuelve contra la paleta y las medidas vigentes.
+ * Se aplica con `.arc-scope` sobre el contenedor que usa la pieza, para que sus
+ * nombres no choquen con los tokens de shadcn y el tema oscuro siga funcionando
+ * (los valores apuntan a variables, no a colores fijos).
+ */
+.arc-scope {
+  --surface: var(--card);
+  --surface-muted: var(--muted);
+  --text-secondary: var(--muted-foreground);
+  --text-muted: var(--muted-foreground);
+  --border-strong: color-mix(in oklab, var(--foreground) 35%, var(--border));
+  --accent: var(--oro);
+  --accent-strong: var(--foreground);
+  --danger: var(--aviso-falla);
+
+  --radius-control: 6px;
+  --radius-pill: 9999px;
+  --control-height-sm: 2.25rem;
+  --control-height-md: 2.25rem;
+
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --tracking-body: 0;
+  --leading-body: 1.5;
+
+  --duration-instant: 80ms;
+  --duration-fast: 150ms;
+  --duration-standard: 240ms;
+  --duration-spring: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
+}
+
+/* El foco de las piezas de Arc usa el oro de la marca, como el resto del
+   marketplace, en vez del anillo del navegador. */
+.arc-scope button:focus-visible {
+  outline: 2px solid var(--oro);
+  outline-offset: 2px;
+}
+
+/* El campo de contraseña conserva el tamaño de letra de `Input`: 16px en móvil
+   para que iOS no amplíe la página al enfocar, y 14px desde `md`. */
+.arc-scope .field input {
+  font-size: 1rem;
+}
+
+@media (min-width: 768px) {
+  .arc-scope .field input {
+    font-size: 0.875rem;
+  }
+}
