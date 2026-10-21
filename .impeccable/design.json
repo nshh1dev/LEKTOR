@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-20T03:05:21.957Z",
+  "title": "Design System: LEKTOR",
+  "extensions": {
+    "colorMeta": {
+      "oro-light": {
+        "role": "primary",
+        "displayName": "Oro de marca — claro",
+        "tonalRamp": ["oklch(0.15 0.12 72)", "oklch(0.264 0.12 72)", "oklch(0.379 0.12 72)", "oklch(0.493 0.12 72)", "oklch(0.607 0.12 72)", "oklch(0.721 0.12 72)", "oklch(0.836 0.12 72)", "oklch(0.95 0.12 72)"]
+      },
+      "oro-dark": {
+        "role": "primary",
+        "displayName": "Oro de marca — oscuro",
+        "tonalRamp": ["oklch(0.15 0.135 78)", "oklch(0.264 0.135 78)", "oklch(0.379 0.135 78)", "oklch(0.493 0.135 78)", "oklch(0.607 0.135 78)", "oklch(0.721 0.135 78)", "oklch(0.836 0.135 78)", "oklch(0.95 0.135 78)"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Voz editorial", "purpose": "Títulos del catálogo y perfiles; no sustituye el cuerpo operativo." },
+      "body": { "displayName": "Lectura y operación", "purpose": "Cuerpo, formularios y navegación." },
+      "reference": { "displayName": "Referencias", "purpose": "Códigos e índices." },
+      "label": { "displayName": "Rótulo", "purpose": "Índices y referencias cortas en mayúsculas." }
+    },
+    "shadows": [
+      { "name": "shadow-xs", "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)", "purpose": "Inputs y botones outline; valor de Tailwind utilizado por los componentes base." },
+      { "name": "shadow-sm", "value": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)", "purpose": "Card base." },
+      { "name": "sombra-tomo", "value": "0 16px 26px -18px oklch(0 0 0 / 0.55), 0 3px 8px -4px oklch(0 0 0 / 0.3)", "purpose": "Profundidad de las portadas al pasar el cursor; app/globals.css." }
+    ],
+    "motion": [
+      { "name": "transition-default", "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Transiciones base de Tailwind; respetar movimiento reducido." },
+      { "name": "sello-presion", "value": "sello-presion 420ms cubic-bezier(0.34, 1.3, 0.64, 1) both", "purpose": "Entrada del sello; fotogramas definidos en app/globals.css." },
+      { "name": "sello-latido", "value": "sello-latido 2.4s ease-in-out infinite", "purpose": "Pulso del sello en los usos existentes, no animación global." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "40rem" },
+      { "name": "md", "value": "48rem" },
+      { "name": "lg", "value": "64rem" },
+      { "name": "xl", "value": "80rem" },
+      { "name": "2xl", "value": "96rem" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón base",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "Button default de components/ui/button.tsx; las variables siguen el tema del proyecto.",
+      "html": "<button class=\"ds-button-default\" type=\"button\">Continuar</button>",
+      "css": ".ds-button-default{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;flex-shrink:0;border:0;border-radius:calc(var(--radius) - 2px);height:36px;padding:8px 16px;background:var(--primary);color:var(--primary-foreground);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all 150ms cubic-bezier(0.4,0,0.2,1)}.ds-button-default:hover{background:color-mix(in oklab,var(--primary) 90%,transparent)}.ds-button-default:focus-visible{outline:0;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent)}.ds-button-default:disabled{pointer-events:none;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-button-default{transition-duration:.01ms}}"
+    },
+    {
+      "name": "Acción dorada de cabecera",
+      "kind": "button",
+      "refersTo": "button-oro",
+      "description": "Personalización del Button del shell público: altura de 40px, oro y silueta redondeada completa.",
+      "html": "<button class=\"ds-button-oro\" type=\"button\">Publicar</button>",
+      "css": ".ds-button-oro{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:9999px;height:40px;padding:0 20px;background:var(--oro);color:var(--oro-foreground);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all 150ms cubic-bezier(0.4,0,0.2,1)}.ds-button-oro:hover{background:color-mix(in oklab,var(--oro) 90%,transparent)}.ds-button-oro:focus-visible{outline:0;box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent)}.ds-button-oro:disabled{pointer-events:none;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-button-oro{transition-duration:.01ms}}"
+    },
+    {
+      "name": "Botón outline",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Button outline; el estado oscuro usa input translúcido, como el componente base.",
+      "html": "<button class=\"ds-button-outline\" type=\"button\">Volver al catálogo</button>",
+      "css": ".ds-button-outline{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border);border-radius:calc(var(--radius) - 2px);height:36px;padding:8px 16px;background:var(--background);color:var(--foreground);box-shadow:0 1px 2px 0 rgb(0 0 0 / .05);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all 150ms cubic-bezier(0.4,0,0.2,1)}.ds-button-outline:hover{background:var(--accent);color:var(--accent-foreground)}:host-context(.dark) .ds-button-outline{border-color:var(--input);background:color-mix(in oklab,var(--input) 30%,transparent)}:host-context(.dark) .ds-button-outline:hover{background:color-mix(in oklab,var(--input) 50%,transparent)}.ds-button-outline:focus-visible{outline:0;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent)}.ds-button-outline:disabled{pointer-events:none;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-button-outline{transition-duration:.01ms}}"
+    },
+    {
+      "name": "Botón ghost",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Acción de baja jerarquía, sin superficie en reposo.",
+      "html": "<button class=\"ds-button-ghost\" type=\"button\">Ver detalle</button>",
+      "css": ".ds-button-ghost{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:calc(var(--radius) - 2px);height:36px;padding:8px 16px;background:transparent;color:var(--foreground);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all 150ms cubic-bezier(0.4,0,0.2,1)}.ds-button-ghost:hover{background:var(--accent);color:var(--accent-foreground)}:host-context(.dark) .ds-button-ghost:hover{background:color-mix(in oklab,var(--accent) 50%,transparent)}.ds-button-ghost:focus-visible{outline:0;box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent)}.ds-button-ghost:disabled{pointer-events:none;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-button-ghost{transition-duration:.01ms}}"
+    },
+    {
+      "name": "Botón destructivo",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Estilo del Button destructive; no sustituye al diálogo único de confirmación.",
+      "html": "<button class=\"ds-button-destructive\" type=\"button\">Eliminar</button>",
+      "css": ".ds-button-destructive{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:calc(var(--radius) - 2px);height:36px;padding:8px 16px;background:var(--destructive);color:#fff;font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all 150ms cubic-bezier(0.4,0,0.2,1)}.ds-button-destructive:hover{background:color-mix(in oklab,var(--destructive) 90%,transparent)}:host-context(.dark) .ds-button-destructive{background:color-mix(in oklab,var(--destructive) 60%,transparent)}.ds-button-destructive:focus-visible{outline:0;box-shadow:0 0 0 3px color-mix(in oklab,var(--destructive) 20%,transparent)}:host-context(.dark) .ds-button-destructive:focus-visible{box-shadow:0 0 0 3px color-mix(in oklab,var(--destructive) 40%,transparent)}.ds-button-destructive:disabled{pointer-events:none;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-button-destructive{transition-duration:.01ms}}"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Input base con etiqueta de muestra; estados de foco, inválido y deshabilitado.",
+      "html": "<label class=\"ds-input-label\" for=\"ds-isbn\">ISBN</label><input class=\"ds-input\" id=\"ds-isbn\" type=\"text\" inputmode=\"numeric\" placeholder=\"Ingresa un ISBN\" />",
+      "css": ".ds-input-label{display:block;margin-bottom:8px;color:var(--foreground);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif;font-size:14px}.ds-input{border:1px solid var(--input);border-radius:calc(var(--radius) - 2px);height:36px;width:100%;min-width:0;padding:4px 12px;background:transparent;color:var(--foreground);box-shadow:0 1px 2px 0 rgb(0 0 0 / .05);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif;font-size:16px;transition:color 150ms cubic-bezier(0.4,0,0.2,1),box-shadow 150ms cubic-bezier(0.4,0,0.2,1)}.ds-input::placeholder{color:var(--muted-foreground)}:host-context(.dark) .ds-input{background:color-mix(in oklab,var(--input) 30%,transparent)}.ds-input:focus-visible{outline:0;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent)}.ds-input[aria-invalid=true]{border-color:var(--destructive);box-shadow:0 0 0 3px color-mix(in oklab,var(--destructive) 20%,transparent)}.ds-input:disabled{pointer-events:none;opacity:.5;cursor:not-allowed}@media(min-width:48rem){.ds-input{font-size:14px}}@media(prefers-reduced-motion:reduce){.ds-input{transition-duration:.01ms}}"
+    },
+    {
+      "name": "Navegación de actividad",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Muestra estática de pestañas del perfil; los botones de la aplicación cambian de sección con React.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Secciones de mi perfil\"><button class=\"ds-nav-item\" type=\"button\" aria-current=\"page\">Publicaciones <span>3</span></button><button class=\"ds-nav-item\" type=\"button\">Compras <span>1</span></button><button class=\"ds-nav-item\" type=\"button\">Ventas <span>2</span></button></nav>",
+      "css": ".ds-nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding-bottom:24px;border-bottom:1px solid color-mix(in oklab,var(--border) 60%,transparent)}.ds-nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;min-height:56px;padding:8px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--muted-foreground);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all 150ms cubic-bezier(0.4,0,0.2,1)}.ds-nav-item span{font-size:12px;font-variant-numeric:tabular-nums;opacity:.7}.ds-nav-item[aria-current=page]{color:var(--oro);border-bottom-color:var(--oro)}.ds-nav-item:hover{color:var(--accent-foreground)}.ds-nav-item:focus-visible{outline:0;box-shadow:0 0 0 3px color-mix(in oklab,var(--ring) 50%,transparent)}@media(min-width:40rem){.ds-nav-item{min-height:44px;flex-direction:row;font-size:14px}}@media(prefers-reduced-motion:reduce){.ds-nav-item{transition-duration:.01ms}}"
+    },
+    {
+      "name": "Etiqueta base",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Badge default estático, no un botón de filtro.",
+      "html": "<span class=\"ds-badge\">Ejemplar físico</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;justify-content:center;gap:4px;width:fit-content;white-space:nowrap;border:1px solid transparent;border-radius:calc(var(--radius) - 2px);padding:2px 8px;background:var(--primary);color:var(--primary-foreground);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:500}"
+    },
+    {
+      "name": "Tarjeta base",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Card con cabecera y contenido; no representa ProductCard ni añade una tarjeta nueva al catálogo.",
+      "html": "<section class=\"ds-card\"><header class=\"ds-card-header\"><h3 class=\"ds-card-title\">Datos del ejemplar</h3><p class=\"ds-card-description\">Información de la publicación</p></header><div class=\"ds-card-content\">ISBN, condición y stock</div></section>",
+      "css": ".ds-card{display:flex;flex-direction:column;gap:24px;border:1px solid var(--border);border-radius:calc(var(--radius) + 4px);padding:24px 0;background:var(--card);color:var(--card-foreground);box-shadow:0 1px 3px 0 rgb(0 0 0 / .1),0 1px 2px -1px rgb(0 0 0 / .1);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif}.ds-card-header{display:grid;gap:8px;padding:0 24px}.ds-card-title{margin:0;font-size:16px;line-height:1;font-weight:600}.ds-card-description{margin:0;font-size:14px;color:var(--muted-foreground)}.ds-card-content{padding:0 24px;font-size:14px}"
+    },
+    {
+      "name": "Sello confirmado",
+      "kind": "custom",
+      "refersTo": "sello",
+      "description": "Sello ok mediano y fijo, como Sello con fijo=true; su significado se acompaña de texto, no solo color.",
+      "html": "<span class=\"ds-sello\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m20 6-11 11-5-5\" /></svg></span><span class=\"ds-sello-label\">Confirmado</span>",
+      "css": ".ds-sello{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:32px;height:32px;border:2px solid currentColor;border-radius:9999px;box-shadow:0 0 0 1px color-mix(in oklab,currentColor 40%,transparent);color:var(--aviso-ok);rotate:-7deg}.ds-sello-label{margin-left:12px;color:var(--foreground);font-family:var(--font-geist),ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:500;letter-spacing:.18em;text-transform:uppercase}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Ficha de biblioteca",
+    "overview": "Interfaz editorial, cálida y legible: las portadas muestran el ejemplar; los títulos serif, los rótulos y los avisos con sello recuerdan una ficha impresa. Los controles son sobrios y funcionales, con superficies y separadores suaves. La profundidad se reserva para distinguir capas y dar presencia a los libros, no para convertir cada sección en una tarjeta decorativa.",
+    "keyCharacteristics": [
+      "Papel claro o tinta oscura según el tema, con oro de marca.",
+      "Fraunces para voz editorial, Geist para operación y JetBrains Mono para referencias.",
+      "Fichas de aviso con rótulo, sello y tono semántico.",
+      "Portadas protagonistas; listas y filtros organizados para consultar y actuar."
+    ],
+    "rules": [
+      { "name": "The Sello Rule", "body": "El éxito es el oro de marca, nunca verde genérico. El tono no debe ser la única señal: conservar el glifo, el rótulo y el mensaje.", "section": "colors" }
+    ],
+    "dos": [
+      "Do reutilizar los tokens y componentes existentes en ambos temas.",
+      "Do conservar la identidad «Ficha de biblioteca» sin añadir decoración a cada pantalla.",
+      "Do mantener los nombres, estados y explicaciones reales del producto.",
+      "Do comprobar foco, lectura y comportamiento en móvil cuando se modifica una interfaz.",
+      "Do actualizar este registro y regenerar su sidecar cuando cambie el sistema visual."
+    ],
+    "donts": [
+      "Don't recuperar la paleta descartada ni renombrar `--oro` como parte de esta incorporación.",
+      "Don't sustituir el oro del éxito por verde ni crear un segundo sistema de avisos.",
+      "Don't interpretar las rampas de muestra del sidecar como tokens nuevos para la aplicación.",
+      "Don't cambiar paletas de portadas o gráficos bajo el pretexto de documentarlas.",
+      "Don't afirmar conformidad WCAG o contraste equivalente entre temas sin comprobarlo."
+    ]
+  }
+}
