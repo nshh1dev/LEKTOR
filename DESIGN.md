@@ -260,6 +260,15 @@ Las etiquetas sobre fotografía tienen un tratamiento específico de contraste.
 el contenido añade sus márgenes. `ProductCard` no es esa tarjeta genérica: portada, título,
 autor/editorial, precio y datos del vendedor conservan su propia estructura abierta.
 
+### Piezas de UIArc
+
+`components/arc/` guarda las piezas gratuitas de UIArc (licencia MIT) que usa el proyecto:
+`ChipGroup` en categoría y condición de la publicación, y `PasswordField` en acceso y registro.
+No se importa el tema de UIArc: sus tokens llegan por el puente `.arc-scope` de
+`components/arc/lektor.css`, que los resuelve contra esta paleta y contra las medidas de `Input`
+(36px de alto, radio de 6px, oro en el foco). Al sumar otra pieza, se envuelve en `.arc-scope` y se
+completa el puente; no se copian colores ni se abre un segundo sistema visual.
+
 ### Navigation
 
 Conservar búsqueda y acciones del shell público, navegación de actividad del perfil y sidebar del panel.
@@ -285,6 +294,7 @@ anillo, girado y animado al estamparse. Se respeta `prefers-reduced-motion`; no 
 
 ### Don't:
 - Don't recuperar la paleta descartada ni renombrar `--oro` como parte de esta incorporación.
+- Don't importar el tema global de UIArc ni fijar sus colores dentro de una pieza: el puente sostiene el tema claro y el oscuro.
 - Don't sustituir el oro del éxito por verde ni crear un segundo sistema de avisos.
 - Don't interpretar las rampas de muestra del sidecar como tokens nuevos para la aplicación.
 - Don't cambiar paletas de portadas o gráficos bajo el pretexto de documentarlas.

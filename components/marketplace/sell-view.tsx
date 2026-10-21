@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ChipGroup } from "@/components/arc/chip-group/chip-group"
 import { avisar } from "@/components/notificacion/avisar"
 import { FaltanDatos } from "@/components/notificacion/avisos"
 import { mensajeDeFallo, resumenFaltantes } from "@/lib/avisos"
@@ -22,6 +22,9 @@ import { MensajeError, MensajeNoLatino } from "@/components/marketplace/shared"
 import { api } from "@/components/marketplace/api"
 
 type PublicarForm = Omit<PublicarFormValues, "precio"> & { precio: string }
+
+const OPCIONES_CATEGORIA = CATEGORIAS.map((value) => ({ value, label: value }))
+const OPCIONES_CONDICION = CONDICIONES.map((value) => ({ value, label: value }))
 
 const MAX_FOTO_BYTES = 5 * 1024 * 1024
 const TIPOS_FOTO = ["image/jpeg", "image/png", "image/webp"]
@@ -80,6 +83,8 @@ export function PublicarView({
 
   const isbnActual = useWatch({ control, name: "isbn" })
   const precioActual = useWatch({ control, name: "precio" })
+  const categoriaActual = useWatch({ control, name: "categoria" })
+  const condicionActual = useWatch({ control, name: "condicion" })
 
   const valorFotos = useWatch({ control, name: "fotos" })
   const fotosActuales = useMemo(() => listaFotosAUrls(valorFotos ?? ""), [valorFotos])
@@ -377,44 +382,37 @@ export function PublicarView({
                 <MensajeNoLatino campo="editorial" mostrar={!!libro?.sinTraducir?.includes("editorial")} />
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="categoria">Categoría</Label>
-                <Select onValueChange={(value) => setValue("categoria", value as Categoria, { shouldValidate: true })} defaultValue="Mangas">
-                  <SelectTrigger id="categoria" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIAS.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="flex flex-col gap-4">
+              <div className="arc-scope flex flex-col gap-2">
+                <span className="text-sm font-medium">Categoría</span>
+                <ChipGroup
+                  label="Categoría"
+                  options={OPCIONES_CATEGORIA}
+                  value={[categoriaActual]}
+                  multiple={false}
+                  onValueChange={(siguiente) => {
+                    const elegida = siguiente[0]
+                    if (elegida) setValue("categoria", elegida as Categoria, { shouldValidate: true })
+                  }}
+                />
+                <MensajeError campo="categoria" mensaje={errors.categoria?.message} />
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="condicion">Condición física</Label>
-                <Select onValueChange={(value) => setValue("condicion", value as Condicion, { shouldValidate: true })} defaultValue="Como nuevo">
-                  <SelectTrigger id="condicion" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CONDICIONES.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="volumen">Volumen</Label>
-                <Input aria-invalid={errors.volumen ? true : undefined} aria-describedby={errors.volumen ? "volumen-error" : undefined} id="volumen" inputMode="numeric" placeholder="1" {...register("volumen")} />
-                <MensajeError campo="volumen" mensaje={errors.volumen?.message} />
+              <div className="arc-scope flex flex-col gap-2">
+                <span className="text-sm font-medium">Condición física</span>
+                <ChipGroup
+                  label="Condición física"
+                  options={OPCIONES_CONDICION}
+                  value={[condicionActual]}
+                  multiple={false}
+                  onValueChange={(siguiente) => {
+                    const elegida = siguiente[0]
+                    if (elegida) setValue("condicion", elegida as Condicion, { shouldValidate: true })
+                  }}
+                />
+                <MensajeError campo="condicion" mensaje={errors.condicion?.message} />
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="precio">Precio (CLP)</Label>
                 <Input
@@ -435,6 +433,11 @@ export function PublicarView({
                 <Label htmlFor="stock">Ejemplares</Label>
                 <Input aria-invalid={errors.stock ? true : undefined} aria-describedby={errors.stock ? "stock-error" : undefined} id="stock" type="number" min={1} {...register("stock", { valueAsNumber: true })} />
                 <MensajeError campo="stock" mensaje={errors.stock?.message} />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="volumen">Volumen</Label>
+                <Input aria-invalid={errors.volumen ? true : undefined} aria-describedby={errors.volumen ? "volumen-error" : undefined} id="volumen" inputMode="numeric" placeholder="1" {...register("volumen")} />
+                <MensajeError campo="volumen" mensaje={errors.volumen?.message} />
               </div>
             </div>
             <div className="flex flex-col gap-2">

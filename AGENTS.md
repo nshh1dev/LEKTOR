@@ -69,6 +69,8 @@ ni la base ni el dev server; `pnpm simular` necesita ambos.
   - `components/admin/` — shell del panel.
   - `components/panel/` — vistas del panel principal.
   - `components/ui/` — componentes base shadcn/ui (no modificar salvo necesidad).
+  - `components/arc/` — piezas gratuitas de UIArc (MIT) ya instaladas; su tema no se importa: los
+    tokens llegan por el puente `.arc-scope` de `components/arc/lektor.css`.
 - **Avisos**: todo aviso del proyecto pasa por `components/notificacion/`. No se llama a `toast.*`
   directamente fuera de `avisar.tsx`, ni se usa `AlertDialog` fuera de `confirmar-accion.tsx`, ni
   `Alert` de shadcn. El vocabulario (tonos `ok`/`falla`/`revisar`/`dato`, rótulos y copy de motivos

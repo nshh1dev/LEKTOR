@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ToasterAvisos } from "@/components/notificacion/toaster"
 import "./globals.css"
+import "@/components/arc/lektor.css"
 
 const geist = Geist({
   subsets: ["latin"],

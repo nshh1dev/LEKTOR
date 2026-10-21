@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PasswordField } from "@/components/arc/password-field/password-field"
 import {
   Select,
   SelectContent,
@@ -43,6 +44,11 @@ const ETIQUETAS_REGISTRO = {
   comuna: "Comuna",
   region: "Región",
   confirmarPassword: "Repite la contraseña",
+}
+
+const MENSAJES_PASSWORD = {
+  showPassword: "Mostrar contraseña",
+  hidePassword: "Ocultar contraseña",
 }
 
 const ANCLAS_ACCESO = {
@@ -179,7 +185,7 @@ function FormularioAcceso({ onSuccess }: { onSuccess: (user: SesionUsuario) => v
 
   return (
     <>
-      <form onSubmit={entrar} noValidate className="flex flex-col gap-4">
+      <form onSubmit={entrar} noValidate className="arc-scope flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="auth-email">Correo electrónico</Label>
           <Input
@@ -195,12 +201,12 @@ function FormularioAcceso({ onSuccess }: { onSuccess: (user: SesionUsuario) => v
           <MensajeError campo="auth-email" className="mt-1" mensaje={errors.email?.message} />
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="auth-password">Contraseña</Label>
-          <Input
+          <PasswordField
             id="auth-password"
-            type="password"
+            label="Contraseña"
             autoComplete="current-password"
             placeholder="tu contraseña"
+            messages={MENSAJES_PASSWORD}
             aria-invalid={errors.password ? true : undefined}
             aria-describedby={errors.password ? "auth-password-error" : undefined}
             {...register("password")}
@@ -308,7 +314,7 @@ function FormularioRegistro({ onSuccess }: { onSuccess: (user: SesionUsuario) =>
   })
 
   return (
-    <form onSubmit={crearCuenta} noValidate className="flex flex-col gap-4">
+    <form onSubmit={crearCuenta} noValidate className="arc-scope flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="auth-name">Nombre visible</Label>
         <Input
@@ -390,12 +396,12 @@ function FormularioRegistro({ onSuccess }: { onSuccess: (user: SesionUsuario) =>
         <MensajeError campo="auth-email" className="mt-1" mensaje={errors.email?.message} />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="auth-password">Contraseña</Label>
-        <Input
+        <PasswordField
           id="auth-password"
-          type="password"
+          label="Contraseña"
           autoComplete="new-password"
           placeholder="mínimo 6 caracteres"
+          messages={MENSAJES_PASSWORD}
           aria-invalid={errors.password ? true : undefined}
           aria-describedby={errors.password ? "auth-password-error" : undefined}
           {...register("password")}
@@ -403,14 +409,16 @@ function FormularioRegistro({ onSuccess }: { onSuccess: (user: SesionUsuario) =>
         <MensajeError campo="auth-password" className="mt-1" mensaje={errors.password?.message} />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="auth-confirmar">Repite la contraseña</Label>
-        <Input
+        <PasswordField
           id="auth-confirmar"
-          type="password"
+          label="Repite la contraseña"
           autoComplete="new-password"
           placeholder="mínimo 6 caracteres"
+          messages={MENSAJES_PASSWORD}
           aria-invalid={errors.confirmarPassword ? true : undefined}
-          aria-describedby={errors.confirmarPassword ? "auth-confirmar-error" : undefined}
+          aria-describedby={
+            errors.confirmarPassword ? "auth-confirmar-error" : undefined
+          }
           {...register("confirmarPassword")}
         />
         <MensajeError
