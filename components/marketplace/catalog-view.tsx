@@ -270,7 +270,7 @@ export function CatalogView({
             </div>
           ) : publicaciones.length > 0 ? (
             <div
-              className={`grid auto-rows-fr grid-cols-2 gap-x-5 gap-y-9 md:gap-x-7 lg:grid-cols-3 2xl:grid-cols-4 ${cargando ? "opacity-60" : ""}`}
+              className={`grid auto-rows-fr grid-cols-2 gap-x-5 gap-y-9 md:gap-x-7 lg:grid-cols-3 2xl:grid-cols-4 transition-opacity duration-200 ${cargando ? "opacity-60" : ""}`}
             >
               {publicaciones.map((publicacion) => (
                 <ProductCard

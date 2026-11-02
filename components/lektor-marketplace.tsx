@@ -100,7 +100,6 @@ export function LektorMarketplace({
   parametrosCatalogo.set("pagina", String(pagina))
   parametrosCatalogo.set("porPagina", String(initialPaginacion.porPagina))
   const claveConsultaCatalogo = parametrosCatalogo.toString()
-  const consultaCatalogoVigente = claveResultados === claveConsultaCatalogo && busqueda.trim() === busquedaAplicada
 
   const [detalle, setDetalle] = useState<PublicacionListItem | null>(null)
   const [detalleSolicitadoId, setDetalleSolicitadoId] = useState<string | null>(null)
@@ -450,11 +449,11 @@ export function LektorMarketplace({
       <main id="catalogo" tabIndex={-1} className={`mx-auto max-w-[92rem] px-4 md:px-8 ${vista === "detail" ? "py-4 md:py-5" : "py-10 md:py-14"}`}>
         {vista === "catalog" && (
           <CatalogView
-            publicaciones={consultaCatalogoVigente ? publicaciones : []}
+            publicaciones={publicaciones}
             facetas={facetas}
-            paginacion={consultaCatalogoVigente ? paginacion : { ...paginacion, pagina: 1, paginas: 1, total: 0 }}
-            cargando={cargandoCatalogo || !consultaCatalogoVigente}
-            errorCarga={consultaCatalogoVigente && claveErrorCatalogo === claveConsultaCatalogo}
+            paginacion={paginacion}
+            cargando={cargandoCatalogo && claveResultados !== claveConsultaCatalogo}
+            errorCarga={claveErrorCatalogo === claveConsultaCatalogo}
             onReintentar={() => setIntentoCatalogo((n) => n + 1)}
             orden={orden}
             setOrden={(value) => {
