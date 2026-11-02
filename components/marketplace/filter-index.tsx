@@ -100,26 +100,26 @@ export function IndiceFiltros({
       </Bloque>
 
       <Bloque idRaiz={idRaiz} titulo="Ubicación">
-        {filtros.region ? (
-          <div className="flex flex-col gap-1.5">
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Ciudades principales de {filtros.region}: elige la comuna donde está el vendedor.
-            </p>
-            {CIUDADES_PRINCIPALES[filtros.region as Region].map((ciudad) => (
-              <FilaFiltro
-                key={ciudad}
-                activo={filtros.comuna.includes(ciudad)}
-                onClick={() => alternarFiltro("comuna", ciudad)}
-                etiqueta={ciudad}
-                total={facetas.comunas.find((item) => item.value === ciudad)?.total ?? 0}
-              />
-            ))}
-          </div>
-        ) : facetas.regiones.length > 0 ? (
+        {facetas.regiones.length > 0 ? (
           <ListaFiltros
             items={facetas.regiones}
             activo={(value) => filtros.region === value}
             onAlternar={(value) => elegirFiltro("region", value)}
+            render={(item) =>
+              filtros.region === item.value ? (
+                <div className="flex flex-col gap-1 border-l border-border/60 pl-3">
+                  {CIUDADES_PRINCIPALES[item.value as Region].map((ciudad) => (
+                    <FilaFiltro
+                      key={ciudad}
+                      activo={filtros.comuna.includes(ciudad)}
+                      onClick={() => alternarFiltro("comuna", ciudad)}
+                      etiqueta={ciudad}
+                      total={facetas.comunas.find((comuna) => comuna.value === ciudad)?.total ?? 0}
+                    />
+                  ))}
+                </div>
+              ) : null
+            }
           />
         ) : (
           <p className="text-xs leading-relaxed text-muted-foreground">
@@ -193,10 +193,12 @@ function ListaFiltros({
   items,
   activo,
   onAlternar,
+  render,
 }: {
   items: { value: string; total: number }[]
   activo: (value: string) => boolean
   onAlternar: (value: string) => void
+  render?: (item: { value: string; total: number }) => React.ReactNode
 }) {
   const [expandida, setExpandida] = useState(false)
   const seleccionados = items.filter((item) => activo(item.value))
@@ -214,13 +216,15 @@ function ListaFiltros({
   return (
     <>
       {visibles.map((item) => (
-        <FilaFiltro
-          key={item.value}
-          activo={activo(item.value)}
-          onClick={() => onAlternar(item.value)}
-          etiqueta={item.value}
-          total={item.total}
-        />
+        <div key={item.value} className="flex flex-col">
+          <FilaFiltro
+            activo={activo(item.value)}
+            onClick={() => onAlternar(item.value)}
+            etiqueta={item.value}
+            total={item.total}
+          />
+          {render?.(item)}
+        </div>
       ))}
       {expandida && plegable && (
         <button
