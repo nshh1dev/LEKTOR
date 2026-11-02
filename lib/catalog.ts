@@ -180,10 +180,10 @@ export function cuerpoDeStock(stock: number): z.infer<typeof publicationUpdateSc
 export const searchQuerySchema = z.object({
   q: z.string().trim().max(120).optional(),
   categoria: z.array(z.enum(CATEGORIAS)).max(3).optional(),
-  autor: z.string().trim().max(200).optional(),
   editorial: z.string().trim().max(200).optional(),
   condicion: z.array(z.enum(CONDICIONES)).max(6).optional(),
   comuna: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+  region: z.enum(REGIONES, { message: "Región inválida" }).optional(),
   precioMin: z.coerce.number().int().min(0).optional(),
   precioMax: z.coerce.number().int().min(0).optional(),
   disponible: z.enum(["true", "false"]).optional(),
@@ -204,10 +204,10 @@ export function parseSearchParams(params: URLSearchParams): SearchQuery {
   return searchQuerySchema.parse({
     q: params.get("q") ?? undefined,
     categoria: repeated("categoria"),
-    autor: params.get("autor") ?? undefined,
     editorial: params.get("editorial") ?? undefined,
     condicion: repeated("condicion"),
     comuna: repeated("comuna"),
+    region: params.get("region") ?? undefined,
     precioMin: params.get("precioMin") ?? undefined,
     precioMax: params.get("precioMax") ?? undefined,
     disponible: params.get("disponible") ?? undefined,
@@ -909,7 +909,7 @@ export type Facetas = {
   categorias: { value: Categoria; total: number }[]
   condiciones: { value: Condicion; total: number }[]
   comunas: { value: string; total: number }[]
-  autores: { value: string; total: number }[]
+  regiones: { value: string; total: number }[]
   editoriales: { value: string; total: number }[]
 }
 

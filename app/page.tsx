@@ -10,7 +10,7 @@ const POR_PAGINA = 12
 const estadoVisible = and(eq(publications.estado, "activa"), eq(users.activo, true))
 
 export default async function HomePage() {
-  const [filas, [facetasPrecios], [activos], categorias, condiciones, comunas, autores, editoriales] =
+  const [filas, [facetasPrecios], [activos], categorias, condiciones, comunas, regiones, editoriales] =
     await Promise.all([
       db
         .select({
@@ -80,13 +80,12 @@ export default async function HomePage() {
         .orderBy(desc(count()), users.comuna)
         .limit(24),
       db
-        .select({ value: publications.autor, total: count() })
+        .select({ value: users.region, total: count() })
         .from(publications)
         .innerJoin(users, eq(publications.vendedorId, users.id))
         .where(estadoVisible)
-        .groupBy(publications.autor)
-        .orderBy(publications.autor)
-        .limit(200),
+        .groupBy(users.region)
+        .orderBy(desc(count())),
       db
         .select({ value: publications.editorial, total: count() })
         .from(publications)
@@ -113,7 +112,7 @@ export default async function HomePage() {
     categorias: categorias as Facetas["categorias"],
     condiciones: condiciones as Facetas["condiciones"],
     comunas: comunas as Facetas["comunas"],
-    autores: autores as Facetas["autores"],
+    regiones: regiones as Facetas["regiones"],
     editoriales: editoriales as Facetas["editoriales"],
   }
 

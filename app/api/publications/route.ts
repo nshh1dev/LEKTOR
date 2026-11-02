@@ -43,17 +43,15 @@ const condicionesQuery = db
   .groupBy(publications.condicion)
   .orderBy(desc(count()))
 
-// La lista de autores va en orden alfabético y sin tope corto: hay decenas de
-// nombres distintos y a quien busca un autor lo busca por nombre, no por
-// popularidad. Un tope como el de comuna dejaría fuera a la mayoría.
-const autoresQuery = db
-  .select({ value: publications.autor, total: count() })
+// La lista de regiones va en orden de mayor a menor publicaciones activas, sin tope
+// corto: son las 16 regiones del catálogo y todas pueden tener catálogo.
+const regionesQuery = db
+  .select({ value: users.region, total: count() })
   .from(publications)
   .innerJoin(users, eq(publications.vendedorId, users.id))
   .where(estadoVisible)
-  .groupBy(publications.autor)
-  .orderBy(asc(publications.autor))
-  .limit(200)
+  .groupBy(users.region)
+  .orderBy(desc(count()), asc(users.region))
 
 const editorialesQuery = db
   .select({ value: publications.editorial, total: count() })
@@ -100,7 +98,7 @@ function buildFilters(query: SearchQuery, sessionUserId?: string) {
   if (query.categoria?.length) filters.push(inArray(publications.categoria, query.categoria))
   if (query.condicion?.length) filters.push(inArray(publications.condicion, query.condicion))
   if (query.comuna?.length) filters.push(inArray(users.comuna, query.comuna))
-  if (query.autor) filters.push(ilike(publications.autor, `%${query.autor}%`))
+  if (query.region) filters.push(eq(users.region, query.region))
   if (query.editorial) filters.push(ilike(publications.editorial, `%${query.editorial}%`))
   if (query.precioMin !== undefined) filters.push(gte(publications.precio, query.precioMin))
   if (query.precioMax !== undefined) filters.push(lte(publications.precio, query.precioMax))
@@ -123,7 +121,7 @@ export async function GET(request: NextRequest) {
     const query = parseSearchParams(request.nextUrl.searchParams)
     const filters = buildFilters(query, session?.id)
 
-    const [rows, [conteo], [facetas], categorias, condiciones, comunas, autores, editoriales, [activos]] =
+    const [rows, [conteo], [facetas], categorias, condiciones, comunas, regiones, editoriales, [activos]] =
       await Promise.all([
       db
         .select({
@@ -161,7 +159,7 @@ export async function GET(request: NextRequest) {
       categoriasQuery,
       condicionesQuery,
       comunasQuery,
-      autoresQuery,
+      regionesQuery,
       editorialesQuery,
         db
           .select({ total: count() })
@@ -179,7 +177,7 @@ export async function GET(request: NextRequest) {
         categorias,
         condiciones,
         comunas,
-        autores,
+        regiones,
         editoriales,
       },
       paginacion: {

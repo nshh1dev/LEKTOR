@@ -308,23 +308,21 @@ test("parseSearchParams acepta varias comunas y acota la lista", () => {
   )
 })
 
-test("parseSearchParams acepta autor y editorial como valores sueltos", () => {
+test("parseSearchParams acepta region como valor único", () => {
   const query = parseSearchParams(
-    new URLSearchParams("autor=Fujimoto&editorial=Ivrea"),
+    new URLSearchParams("region=Región de Valparaíso&editorial=Ivrea"),
   )
-  assert.equal(query.autor, "Fujimoto")
+  assert.equal(query.region, "Región de Valparaíso")
   assert.equal(query.editorial, "Ivrea")
 
   const sinFiltros = parseSearchParams(new URLSearchParams(""))
-  assert.equal(sinFiltros.autor, undefined)
+  assert.equal(sinFiltros.region, undefined)
   assert.equal(sinFiltros.editorial, undefined)
 
-  // El recorte corre antes que el tope, igual que en autor: un valor en blanco
-  // queda en cadena vacía y no se aplica filtro, y lo que manda es el largo.
-  assert.equal(searchQuerySchema.parse({ editorial: "  Ivrea  " }).editorial, "Ivrea")
-  assert.equal(searchQuerySchema.parse({ editorial: "   " }).editorial, "")
-  assert.equal(searchQuerySchema.safeParse({ editorial: "x".repeat(201) }).success, false)
-  assert.equal(searchQuerySchema.safeParse({ autor: "x".repeat(201) }).success, false)
+  // Una región que no está en el catálogo no es un valor válido, y un texto más
+  // largo que el catálogo tampoco lo es.
+  assert.equal(searchQuerySchema.safeParse({ region: "Región Inventada" }).success, false)
+  assert.equal(searchQuerySchema.safeParse({ region: "x".repeat(201) }).success, false)
 })
 
 test("datosDespachoSchema exige dirección y punto de retiro según el método", () => {
