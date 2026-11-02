@@ -26,8 +26,8 @@ type Filtros = {
   categoria: Categoria[]
   condicion: Condicion[]
   comuna: string[]
-  autor: string | null
   editorial: string | null
+  region: string | null
   precioMin: number | null
   precioMax: number | null
 }
@@ -63,7 +63,7 @@ export function CatalogView({
   setOrden: (value: OrdenCatalogo) => void
   filtros: Filtros
   alternarFiltro: <K extends GrupoFiltro>(grupo: K, valor: string) => void
-  elegirFiltro: (grupo: "autor" | "editorial", valor: string) => void
+  elegirFiltro: (grupo: "editorial" | "region", valor: string) => void
   setPrecioRango: (min: number | null, max: number | null) => void
   limpiarFiltros: () => void
   filtrosActivos: number
@@ -115,12 +115,12 @@ export function CatalogView({
       })
     }
   }
-  for (const grupo of ["autor", "editorial"] as const) {
+  for (const grupo of ["editorial", "region"] as const) {
     const valor = filtros[grupo]
     if (valor) {
       etiquetas.push({
         clave: grupo,
-        texto: `${grupo === "autor" ? "Autoría" : "Editorial"}: ${valor}`,
+        texto: `${grupo === "editorial" ? "Editorial" : "Región"}: ${valor}`,
         quitar: () => elegirFiltro(grupo, valor),
       })
     }

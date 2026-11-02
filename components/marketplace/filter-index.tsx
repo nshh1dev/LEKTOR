@@ -3,13 +3,14 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { RANGOS_PRECISO, rangoPrecioDesde, type Categoria, type Condicion, type Facetas } from "@/lib/catalog"
+import { CIUDADES_PRINCIPALES, type Region } from "@/lib/comunas"
 
 type Filtros = {
   categoria: Categoria[]
   condicion: Condicion[]
   comuna: string[]
-  autor: string | null
   editorial: string | null
+  region: string | null
   precioMin: number | null
   precioMax: number | null
 }
@@ -20,7 +21,7 @@ type FacetasIndice = Pick<
   | "categorias"
   | "condiciones"
   | "comunas"
-  | "autores"
+  | "regiones"
   | "editoriales"
   | "precioMin"
   | "precioMax"
@@ -37,7 +38,7 @@ export function IndiceFiltros({
   facetas: FacetasIndice
   filtros: Filtros
   alternarFiltro: <K extends "categoria" | "condicion" | "comuna">(grupo: K, valor: string) => void
-  elegirFiltro: (grupo: "autor" | "editorial", valor: string) => void
+  elegirFiltro: (grupo: "editorial" | "region", valor: string) => void
   setPrecioRango: (min: number | null, max: number | null) => void
   idRaiz: string
 }) {
@@ -47,7 +48,7 @@ export function IndiceFiltros({
         <p className="rotulo">Catálogo</p>
         <p className="mt-2.5 font-serif text-2xl leading-tight">Afina tu búsqueda</p>
         <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-          Acota por tipo, autor, editorial, estado, precio o comuna para llegar antes al que buscas.
+          Acota por tipo, editorial, estado, precio o ubicación (región y comuna) para llegar antes al que buscas.
         </p>
       </div>
 
@@ -61,20 +62,6 @@ export function IndiceFiltros({
             total={item.total}
           />
         ))}
-      </Bloque>
-
-      <Bloque idRaiz={idRaiz} titulo="Autoría">
-        {facetas.autores.length > 0 ? (
-          <ListaFiltros
-            items={facetas.autores}
-            activo={(value) => filtros.autor === value}
-            onAlternar={(value) => elegirFiltro("autor", value)}
-          />
-        ) : (
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Aún no hay ejemplares con autor registrado.
-          </p>
-        )}
       </Bloque>
 
       <Bloque idRaiz={idRaiz} titulo="Editorial">
@@ -113,11 +100,26 @@ export function IndiceFiltros({
       </Bloque>
 
       <Bloque idRaiz={idRaiz} titulo="Ubicación">
-        {facetas.comunas.length > 0 ? (
+        {filtros.region ? (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Ciudades principales de {filtros.region}: elige la comuna donde está el vendedor.
+            </p>
+            {CIUDADES_PRINCIPALES[filtros.region as Region].map((ciudad) => (
+              <FilaFiltro
+                key={ciudad}
+                activo={filtros.comuna.includes(ciudad)}
+                onClick={() => alternarFiltro("comuna", ciudad)}
+                etiqueta={ciudad}
+                total={facetas.comunas.find((item) => item.value === ciudad)?.total ?? 0}
+              />
+            ))}
+          </div>
+        ) : facetas.regiones.length > 0 ? (
           <ListaFiltros
-            items={facetas.comunas}
-            activo={(value) => filtros.comuna.includes(value)}
-            onAlternar={(value) => alternarFiltro("comuna", value)}
+            items={facetas.regiones}
+            activo={(value) => filtros.region === value}
+            onAlternar={(value) => elegirFiltro("region", value)}
           />
         ) : (
           <p className="text-xs leading-relaxed text-muted-foreground">
