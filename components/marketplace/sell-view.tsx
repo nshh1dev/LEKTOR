@@ -85,6 +85,7 @@ export function PublicarView({
   const precioActual = useWatch({ control, name: "precio" })
   const categoriaActual = useWatch({ control, name: "categoria" })
   const condicionActual = useWatch({ control, name: "condicion" })
+  const stockBloqueado = condicionActual !== "Sellado"
 
   const valorFotos = useWatch({ control, name: "fotos" })
   const fotosActuales = useMemo(() => listaFotosAUrls(valorFotos ?? ""), [valorFotos])
@@ -406,7 +407,10 @@ export function PublicarView({
                   multiple={false}
                   onValueChange={(siguiente) => {
                     const elegida = siguiente[0]
-                    if (elegida) setValue("condicion", elegida as Condicion, { shouldValidate: true })
+                    if (elegida) {
+                      setValue("condicion", elegida as Condicion, { shouldValidate: true })
+                      if (elegida !== "Sellado") setValue("stock", 1, { shouldValidate: true })
+                    }
                   }}
                 />
                 <MensajeError campo="condicion" mensaje={errors.condicion?.message} />
@@ -431,7 +435,15 @@ export function PublicarView({
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="stock">Ejemplares</Label>
-                <Input aria-invalid={errors.stock ? true : undefined} aria-describedby={errors.stock ? "stock-error" : undefined} id="stock" type="number" min={1} {...register("stock", { valueAsNumber: true })} />
+                <Input
+                  aria-invalid={errors.stock ? true : undefined}
+                  aria-describedby={errors.stock ? "stock-error" : undefined}
+                  id="stock"
+                  type="number"
+                  min={1}
+                  disabled={stockBloqueado}
+                  {...register("stock", { valueAsNumber: true })}
+                />
                 <MensajeError campo="stock" mensaje={errors.stock?.message} />
               </div>
               <div className="flex flex-col gap-2">
