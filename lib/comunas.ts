@@ -102,6 +102,33 @@ export const COMUNAS_POR_REGION: Record<Region, readonly string[]> = {
   ],
 }
 
+/**
+ * Ciudades principales por región, para el filtro de ubicación: una región se
+ * elige y se despliegan las ciudades que importan de esa región, no las 346
+ * comunas del catálogo. El orden define la prioridad visual: la capital va
+ * primero y el resto siguen por importancia de ciudad.
+ */
+export const CIUDADES_PRINCIPALES: Record<Region, readonly string[]> = {
+  "Región de Arica y Parinacota": ["Arica", "Putre"],
+  "Región de Tarapacá": ["Iquique", "Alto Hospicio", "Pica"],
+  "Región de Antofagasta": ["Antofagasta", "Calama", "Tocopilla"],
+  "Región de Atacama": ["Copiapó", "Caldera", "Vallenar"],
+  "Región de Coquimbo": ["La Serena", "Coquimbo", "Ovalle", "Illapel"],
+  "Región de Valparaíso": ["Valparaíso", "Viña del Mar", "San Antonio", "Quilpué"],
+  "Región Metropolitana": [
+    "Santiago Centro", "Puente Alto", "Maipú", "La Florida", "Las Condes", "Providencia", "Ñuñoa",
+  ],
+  "Región del Libertador General Bernardo O'Higgins": ["Rancagua", "San Fernando", "Santa Cruz"],
+  "Región del Maule": ["Talca", "Curicó", "Linares"],
+  "Región del Ñuble": ["Chillán", "San Carlos", "Bulnes"],
+  "Región del Biobío": ["Concepción", "Talcahuano", "Los Ángeles", "Coronel"],
+  "Región de La Araucanía": ["Temuco", "Villarrica", "Angol", "Padre las Casas"],
+  "Región de Los Ríos": ["Valdivia", "La Unión", "Río Bueno"],
+  "Región de Los Lagos": ["Puerto Montt", "Osorno", "Ancud", "Castro"],
+  "Región de Aysén del General Carlos Ibáñez del Campo": ["Coihaique", "Aysén", "Chile Chico"],
+  "Región de Magallanes y de la Antártica Chilena": ["Punta Arenas", "Natales", "Cabo de Hornos"],
+}
+
 function sinTildes(valor: string): string {
   return valor.normalize("NFD").replace(/\p{Diacritic}/gu, "")
 }

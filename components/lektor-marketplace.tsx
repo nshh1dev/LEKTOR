@@ -68,16 +68,16 @@ export function LektorMarketplace({
     categoria: Categoria[]
     condicion: Condicion[]
     comuna: string[]
-    autor: string | null
     editorial: string | null
+    region: string | null
     precioMin: number | null
     precioMax: number | null
   }>({
     categoria: [],
     condicion: [],
     comuna: [],
-    autor: null,
     editorial: null,
+    region: null,
     precioMin: null,
     precioMax: null,
   })
@@ -92,7 +92,7 @@ export function LektorMarketplace({
   if (filtros.categoria.length) parametrosCatalogo.set("categoria", filtros.categoria.join(","))
   if (filtros.condicion.length) parametrosCatalogo.set("condicion", filtros.condicion.join(","))
   if (filtros.comuna.length) parametrosCatalogo.set("comuna", filtros.comuna.join(","))
-  if (filtros.autor) parametrosCatalogo.set("autor", filtros.autor)
+  if (filtros.region) parametrosCatalogo.set("region", filtros.region)
   if (filtros.editorial) parametrosCatalogo.set("editorial", filtros.editorial)
   if (filtros.precioMin !== null) parametrosCatalogo.set("precioMin", String(filtros.precioMin))
   if (filtros.precioMax !== null) parametrosCatalogo.set("precioMax", String(filtros.precioMax))
@@ -100,7 +100,6 @@ export function LektorMarketplace({
   parametrosCatalogo.set("pagina", String(pagina))
   parametrosCatalogo.set("porPagina", String(initialPaginacion.porPagina))
   const claveConsultaCatalogo = parametrosCatalogo.toString()
-  const consultaCatalogoVigente = claveResultados === claveConsultaCatalogo && busqueda.trim() === busquedaAplicada
 
   const [detalle, setDetalle] = useState<PublicacionListItem | null>(null)
   const [detalleSolicitadoId, setDetalleSolicitadoId] = useState<string | null>(null)
@@ -309,8 +308,8 @@ export function LektorMarketplace({
     filtros.categoria.length +
     filtros.condicion.length +
     filtros.comuna.length +
-    (filtros.autor ? 1 : 0) +
     (filtros.editorial ? 1 : 0) +
+    (filtros.region ? 1 : 0) +
     (filtros.precioMin !== null || filtros.precioMax !== null ? 1 : 0)
 
   const alternarFiltro = <K extends "categoria" | "condicion" | "comuna">(
@@ -327,9 +326,9 @@ export function LektorMarketplace({
     })
   }
 
-  // Autor y editorial son de un solo valor, a diferencia de los grupos de arriba.
+  // Editorial y región son de un solo valor, a diferencia de los grupos de arriba.
   // Volver a elegir el mismo lo desmarca.
-  const elegirFiltro = (grupo: "autor" | "editorial", valor: string) => {
+  const elegirFiltro = (grupo: "editorial" | "region", valor: string) => {
     setPagina(1)
     setFiltros((current) => ({
       ...current,
@@ -450,11 +449,11 @@ export function LektorMarketplace({
       <main id="catalogo" tabIndex={-1} className={`mx-auto max-w-[92rem] px-4 md:px-8 ${vista === "detail" ? "py-4 md:py-5" : "py-10 md:py-14"}`}>
         {vista === "catalog" && (
           <CatalogView
-            publicaciones={consultaCatalogoVigente ? publicaciones : []}
+            publicaciones={publicaciones}
             facetas={facetas}
-            paginacion={consultaCatalogoVigente ? paginacion : { ...paginacion, pagina: 1, paginas: 1, total: 0 }}
-            cargando={cargandoCatalogo || !consultaCatalogoVigente}
-            errorCarga={consultaCatalogoVigente && claveErrorCatalogo === claveConsultaCatalogo}
+            paginacion={paginacion}
+            cargando={cargandoCatalogo && claveResultados !== claveConsultaCatalogo}
+            errorCarga={claveErrorCatalogo === claveConsultaCatalogo}
             onReintentar={() => setIntentoCatalogo((n) => n + 1)}
             orden={orden}
             setOrden={(value) => {
@@ -473,8 +472,8 @@ export function LektorMarketplace({
                 categoria: [],
                 condicion: [],
                 comuna: [],
-                autor: null,
                 editorial: null,
+                region: null,
                 precioMin: null,
                 precioMax: null,
               })
