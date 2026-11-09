@@ -2,13 +2,23 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 
 import { REGIONES } from "@/lib/catalog"
-import { COMUNAS_POR_REGION, gruposComunas, regionDeComuna } from "@/lib/comunas"
+import { CIUDADES_PRINCIPALES, COMUNAS_POR_REGION, gruposComunas, regionDeComuna } from "@/lib/comunas"
 
 test("el catálogo cubre las 16 regiones con las 346 comunas del país", () => {
   assert.deepEqual(Object.keys(COMUNAS_POR_REGION).sort(), [...REGIONES].sort())
   const total = REGIONES.reduce((suma, region) => suma + COMUNAS_POR_REGION[region].length, 0)
   assert.equal(total, 346)
   for (const region of REGIONES) assert.ok(COMUNAS_POR_REGION[region].length > 0, region)
+})
+
+test("las ciudades del filtro usan comunas del catálogo y de su propia región", () => {
+  assert.deepEqual(Object.keys(CIUDADES_PRINCIPALES).sort(), [...REGIONES].sort())
+  for (const region of REGIONES) {
+    assert.ok(CIUDADES_PRINCIPALES[region].length > 0, region)
+    for (const comuna of CIUDADES_PRINCIPALES[region]) {
+      assert.ok(COMUNAS_POR_REGION[region].includes(comuna), `${comuna}: ${region}`)
+    }
+  }
 })
 
 test("ninguna comuna se repite entre regiones, así que siempre se sabe cuál es", () => {

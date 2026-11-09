@@ -116,17 +116,17 @@ export const CIUDADES_PRINCIPALES: Record<Region, readonly string[]> = {
   "Región de Coquimbo": ["La Serena", "Coquimbo", "Ovalle", "Illapel"],
   "Región de Valparaíso": ["Valparaíso", "Viña del Mar", "San Antonio", "Quilpué"],
   "Región Metropolitana": [
-    "Santiago", "Puente Alto", "Maipú", "La Florida", "Las Condes", "Providencia", "Ñuñoa",
+    "Santiago Centro", "Puente Alto", "Maipú", "La Florida", "Las Condes", "Providencia", "Ñuñoa",
   ],
   "Región del Libertador General Bernardo O'Higgins": ["Rancagua", "San Fernando", "Santa Cruz"],
   "Región del Maule": ["Talca", "Curicó", "Linares"],
   "Región del Ñuble": ["Chillán", "San Carlos", "Bulnes"],
   "Región del Biobío": ["Concepción", "Talcahuano", "Los Ángeles", "Coronel"],
   "Región de La Araucanía": ["Temuco", "Villarrica", "Angol", "Padre las Casas"],
-  "Región de Los Ríos": ["Valdivia", "La Unión", "Puerto Montt"],
+  "Región de Los Ríos": ["Valdivia", "La Unión", "Río Bueno"],
   "Región de Los Lagos": ["Puerto Montt", "Osorno", "Ancud", "Castro"],
-  "Región de Aysén del General Carlos Ibáñez del Campo": ["Coyhaique", "Puerto Aysén", "Chile Chico"],
-  "Región de Magallanes y de la Antártica Chilena": ["Punta Arenas", "Puerto Natales", "Puerto Williams"],
+  "Región de Aysén del General Carlos Ibáñez del Campo": ["Coihaique", "Aysén", "Chile Chico"],
+  "Región de Magallanes y de la Antártica Chilena": ["Punta Arenas", "Natales", "Cabo de Hornos"],
 }
 
 function sinTildes(valor: string): string {
