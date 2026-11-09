@@ -24,8 +24,10 @@ import {
   profileUpdateSchema,
   publicationInputSchema,
   publicationUpdateSchema,
+  publicarFormSchema,
   rangoPrecioDesde,
   searchQuerySchema,
+  stockAdmitido,
   stockEdicionSchema,
   misOrdenesQuerySchema,
   envioSegunMetodo,
@@ -193,7 +195,7 @@ test("publicationInputSchema valida el anuncio", () => {
     categoria: "Mangas",
     condicion: "Como nuevo",
     precio: 19990,
-    stock: 2,
+    stock: 1,
     isbn: "9780306406157",
   }
   assert.equal(publicationInputSchema.safeParse(valido).success, true)
@@ -212,6 +214,31 @@ test("publicationInputSchema valida el anuncio", () => {
     }).success,
     false,
   )
+})
+
+test("publicarFormSchema solo admite más de un ejemplar en Sellado", () => {
+  const base = {
+    titulo: "Chainsaw Man Vol. 1",
+    autor: "Tatsuki Fujimoto",
+    editorial: "Shueisha",
+    categoria: "Mangas",
+    condicion: "Como nuevo",
+    precio: 19990,
+    stock: 1,
+    isbn: "",
+    descripcion: "",
+    fotos: "",
+  }
+  // Fuera de Sellado el stock no puede crecer: un ejemplar a la vez.
+  assert.equal(publicarFormSchema.safeParse({ ...base, stock: 2 }).success, false)
+  assert.equal(publicarFormSchema.safeParse({ ...base, condicion: "Sellado", stock: 3 }).success, true)
+})
+
+test("stockAdmitido solo deja sumar más de un ejemplar en Sellado", () => {
+  assert.equal(stockAdmitido("Sellado", 1), true)
+  assert.equal(stockAdmitido("Sellado", 3), true)
+  assert.equal(stockAdmitido("Como nuevo", 1), true)
+  assert.equal(stockAdmitido("Como nuevo", 2), false)
 })
 
 test("searchQuerySchema aplica valores por defecto y topes", () => {

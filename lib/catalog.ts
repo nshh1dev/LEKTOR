@@ -664,6 +664,12 @@ export function listaFotosAUrls(valor: string): string[] {
     .slice(0, 6)
 }
 
+export const MENSAJE_STOCK_UN_EJEMULAR = "Solo se puede añadir más de un ejemplar cuando la condición física es Sellado."
+
+export function stockAdmitido(condicion: Condicion, stock: number): boolean {
+  return condicion === "Sellado" || stock <= 1
+}
+
 export const publicarFormSchema = z.object({
   titulo: z.string().trim().min(1, "El título es obligatorio").max(255),
   autor: z.string().trim().min(1, "El autor es obligatorio").max(200),
@@ -696,6 +702,14 @@ export const publicarFormSchema = z.object({
       (valor) => listaFotosAUrls(valor).every(esUrlValida),
       "Las fotos deben ser URLs o rutas /uploads válidas",
     ),
+}).superRefine((valores, ctx) => {
+  if (!stockAdmitido(valores.condicion, valores.stock)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: MENSAJE_STOCK_UN_EJEMULAR,
+      path: ["stock"],
+    })
+  }
 })
 
 export type PublicarFormValues = z.infer<typeof publicarFormSchema>

@@ -2,11 +2,13 @@ import type { NextRequest } from "next/server"
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm"
 import { db } from "@/db"
 import { publications, users } from "@/db/schema"
-import { getSession, requireSession } from "@/lib/auth"
+import { getSession, requireSession, ApiError } from "@/lib/auth"
 import { fail, ok, created } from "@/lib/api"
 import {
+  MENSAJE_STOCK_UN_EJEMULAR,
   publicationInputSchema,
   parseSearchParams,
+  stockAdmitido,
   type SearchQuery,
 } from "@/lib/catalog"
 import { normalizeIsbn } from "@/lib/isbn"
@@ -194,6 +196,10 @@ export async function POST(request: Request) {
   try {
     const user = await requireSession()
     const data = publicationInputSchema.parse(await request.json())
+
+    if (!stockAdmitido(data.condicion, data.stock)) {
+      throw new ApiError(400, "stock-sellado", MENSAJE_STOCK_UN_EJEMULAR)
+    }
 
     const [inserted] = await db
       .insert(publications)
