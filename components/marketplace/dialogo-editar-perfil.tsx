@@ -17,24 +17,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { avisar } from "@/components/notificacion/avisar"
 import { mensajeDeFallo } from "@/lib/avisos"
-import {
-  REGIONES,
-  cuerpoDePerfil,
-  perfilFormSchema,
-  type PerfilUI,
-} from "@/lib/catalog"
+import { cuerpoDePerfil, perfilFormSchema, type PerfilUI } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
-import { regionDeComuna } from "@/lib/comunas"
 import { api } from "@/components/marketplace/api"
-import { ComunaInput } from "@/components/marketplace/comuna-input"
-import { MensajeError } from "@/components/marketplace/shared"
-
-/** Etiqueta de campo en versalitas, como los rótulos del resto del marketplace. */
-const ETIQUETA =
-  "text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+import { CampoUbicacion } from "@/components/marketplace/campo-ubicacion"
+import { ETIQUETA_CAMPO, MensajeError } from "@/components/marketplace/shared"
 
 /**
  * "Editar perfil" del perfil del lector: los datos que ve la contraparte (nombre, bio,
@@ -207,68 +196,31 @@ export function DialogoEditarPerfil({
             <p className="rotulo text-oro/80">Datos</p>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1.5 md:col-span-2">
-                <Label className={ETIQUETA} htmlFor="perfil-nombre">Nombre visible</Label>
+                <Label className={ETIQUETA_CAMPO} htmlFor="perfil-nombre">Nombre visible</Label>
                 <Input aria-invalid={errors.nombre ? true : undefined} aria-describedby={errors.nombre ? "nombre-error" : undefined} id="perfil-nombre" {...register("nombre")} />
                 <MensajeError campo="nombre" mensaje={errors.nombre?.message} />
               </div>
               <div className="flex flex-col gap-1.5 md:col-span-2">
-                <Label className={ETIQUETA} htmlFor="perfil-bio">Bio</Label>
+                <Label className={ETIQUETA_CAMPO} htmlFor="perfil-bio">Bio</Label>
                 <Textarea aria-invalid={errors.bio ? true : undefined} aria-describedby={errors.bio ? "bio-error" : undefined} id="perfil-bio" rows={2} placeholder="Coleccionista de mangas, compro sellados y los intercambio" {...register("bio")} />
                 <MensajeError campo="bio" mensaje={errors.bio?.message} />
               </div>
               <div className="flex flex-col gap-1.5 md:col-span-2">
-                <Label className={ETIQUETA} htmlFor="perfil-telefono">Teléfono de contacto</Label>
+                <Label className={ETIQUETA_CAMPO} htmlFor="perfil-telefono">Teléfono de contacto</Label>
                 <Input aria-invalid={errors.telefono ? true : undefined} aria-describedby={errors.telefono ? "telefono-error" : undefined} id="perfil-telefono" type="tel" inputMode="tel" autoComplete="tel" placeholder="+56 9 1234 5678" className="font-mono" value={telefonoActual ?? ""} onChange={(event) => setValue("telefono", formatearTelefono(event.target.value), { shouldValidate: true })} />
                 <MensajeError campo="telefono" mensaje={errors.telefono?.message} />
               </div>
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <Label className={ETIQUETA} htmlFor="perfil-region">Región</Label>
-                <Select
-                  value={regionActual ?? ""}
-                  onValueChange={(value) => {
-                    // La comuna escrita manda: si pertenece a otra región se limpia, para no
-                    // guardar una pareja que el catálogo no reconoce.
-                    const regionDeLaComuna = regionDeComuna(comunaActual ?? "")
-                    if (regionDeLaComuna && regionDeLaComuna !== value) setValue("comuna", "")
-                    setValue("region", value, { shouldValidate: true })
-                  }}
-                >
-                  <SelectTrigger id="perfil-region" className="w-full">
-                    <SelectValue placeholder="Selecciona tu región" />
-                  </SelectTrigger>
-                  {/* El desplegable se portaliza al body: se ata al ancho del campo para no
-                      ir más ancho que el modal y se abre hacia arriba, porque la sección
-                      termina acá. Sin tope propio de alto se abre lo que alcance la
-                      pantalla: las 16 regiones se ven enteras y no hay lista que "salte"
-                      con la rueda, ya que Radix la acota al espacio disponible. */}
-                  <SelectContent
-                    side="top"
-                    align="start"
-                    sideOffset={6}
-                    className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]"
-                  >
-                    {REGIONES.map((region) => (
-                      <SelectItem key={region} value={region}>
-                        {region}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5 md:col-span-2">
-                <Label className={ETIQUETA} htmlFor="perfil-comuna">Comuna</Label>
-                <ComunaInput
-                  describedBy={errors.comuna ? "comuna-error" : undefined}
-                  id="perfil-comuna"
-                  invalid={errors.comuna ? true : undefined}
-                  onRegionSugerida={(value) => setValue("region", value, { shouldValidate: true })}
-                  onValueChange={(valor) => setValue("comuna", valor, { shouldValidate: true })}
-                  placeholder={regionActual ? "Providencia" : "Elige la región y busca tu comuna"}
-                  region={regionActual}
-                  value={comunaActual ?? ""}
-                />
-                <MensajeError campo="comuna" mensaje={errors.comuna?.message} />
-              </div>
+              <CampoUbicacion
+                className="md:col-span-2"
+                comuna={comunaActual ?? ""}
+                errorComuna={errors.comuna?.message}
+                errorRegion={errors.region?.message}
+                lado="top"
+                onComunaChange={(valor) => setValue("comuna", valor, { shouldValidate: true })}
+                onRegionChange={(valor) => setValue("region", valor, { shouldValidate: true })}
+                prefijo="perfil"
+                region={regionActual ?? ""}
+              />
             </div>
           </form>
 
@@ -288,7 +240,7 @@ export function DialogoEditarPerfil({
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1.5 md:col-span-2">
-                <Label className={ETIQUETA} htmlFor="clave-actual">Contraseña actual</Label>
+                <Label className={ETIQUETA_CAMPO} htmlFor="clave-actual">Contraseña actual</Label>
                 <Input
                   id="clave-actual"
                   type="password"
@@ -300,7 +252,7 @@ export function DialogoEditarPerfil({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label className={ETIQUETA} htmlFor="clave-nueva">Nueva contraseña</Label>
+                <Label className={ETIQUETA_CAMPO} htmlFor="clave-nueva">Nueva contraseña</Label>
                 <Input
                   id="clave-nueva"
                   type="password"
@@ -313,7 +265,7 @@ export function DialogoEditarPerfil({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label className={ETIQUETA} htmlFor="clave-confirmar">Repite la nueva contraseña</Label>
+                <Label className={ETIQUETA_CAMPO} htmlFor="clave-confirmar">Repite la nueva contraseña</Label>
                 <Input
                   id="clave-confirmar"
                   type="password"

@@ -9,18 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PasswordField } from "@/components/arc/password-field/password-field"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { avisar } from "@/components/notificacion/avisar"
 import { Aviso, FaltanDatos } from "@/components/notificacion/avisos"
 import { mensajeDeFallo, resumenFaltantes } from "@/lib/avisos"
 import {
-  REGIONES,
   cuerpoDeRegistro,
   loginFormSchema,
   registroSchema,
@@ -29,6 +21,7 @@ import {
   type SesionUsuario,
 } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
+import { CampoUbicacion } from "@/components/marketplace/campo-ubicacion"
 import { MensajeError } from "@/components/marketplace/shared"
 import { api, ApiFailure } from "@/components/marketplace/api"
 
@@ -288,6 +281,7 @@ function FormularioRegistro({ onSuccess }: { onSuccess: (user: SesionUsuario) =>
 
   const telefonoActual = useWatch({ control, name: "telefono" })
   const regionActual = useWatch({ control, name: "region" })
+  const comunaActual = useWatch({ control, name: "comuna" })
 
   const faltan = resumenFaltantes(errors, ETIQUETAS_REGISTRO, ANCLAS_REGISTRO)
 
@@ -345,42 +339,15 @@ function FormularioRegistro({ onSuccess }: { onSuccess: (user: SesionUsuario) =>
         />
         <MensajeError campo="auth-telefono" className="mt-1" mensaje={errors.telefono?.message} />
       </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="auth-comuna">Comuna</Label>
-        <Input
-          id="auth-comuna"
-          autoComplete="address-level2"
-          placeholder="Providencia"
-          aria-invalid={errors.comuna ? true : undefined}
-          aria-describedby={errors.comuna ? "auth-comuna-error" : undefined}
-          {...register("comuna")}
-        />
-        <MensajeError campo="auth-comuna" className="mt-1" mensaje={errors.comuna?.message} />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="auth-region">Región</Label>
-        <Select
-          value={regionActual ?? ""}
-          onValueChange={(value) => setValue("region", value, { shouldValidate: true })}
-        >
-          <SelectTrigger
-            id="auth-region"
-            className="w-full"
-            aria-invalid={errors.region ? true : undefined}
-            aria-describedby={errors.region ? "auth-region-error" : undefined}
-          >
-            <SelectValue placeholder="Selecciona tu región" />
-          </SelectTrigger>
-          <SelectContent>
-            {REGIONES.map((valor) => (
-              <SelectItem key={valor} value={valor}>
-                {valor}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <MensajeError campo="auth-region" className="mt-1" mensaje={errors.region?.message} />
-      </div>
+      <CampoUbicacion
+        comuna={comunaActual ?? ""}
+        errorComuna={errors.comuna?.message}
+        errorRegion={errors.region?.message}
+        onComunaChange={(valor) => setValue("comuna", valor, { shouldValidate: true })}
+        onRegionChange={(valor) => setValue("region", valor, { shouldValidate: true })}
+        prefijo="auth"
+        region={regionActual ?? ""}
+      />
       <div className="flex flex-col gap-2">
         <Label htmlFor="auth-email">Correo electrónico</Label>
         <Input
