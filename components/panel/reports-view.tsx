@@ -113,13 +113,13 @@ export function ReportsView() {
   }
 
   return (
-    <main className="flex-1 space-y-6 p-4 md:p-6">
+    <main className="reportes-impresion flex-1 space-y-6 p-4 md:p-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Reportes</h1>
           <p className="text-sm text-muted-foreground">Ventas, órdenes y movimientos de inventario</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 print:hidden">
           <Select value={dias} onValueChange={setDias}>
             <SelectTrigger className="w-48" aria-label="Período de análisis">
               <SelectValue />
@@ -180,7 +180,7 @@ export function ReportsView() {
           </div>
 
           <Tabs defaultValue="movimientos" className="space-y-4">
-            <TabsList>
+            <TabsList className="print:hidden">
               <TabsTrigger value="movimientos">Órdenes</TabsTrigger>
               <TabsTrigger value="graficos">Gráficos</TabsTrigger>
               <TabsTrigger value="analisis">Análisis</TabsTrigger>
