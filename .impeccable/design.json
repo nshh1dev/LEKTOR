@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-20T03:05:21.957Z",
+  "generatedAt": "2026-11-24T22:32:37.827Z",
   "title": "Design System: LEKTOR",
   "extensions": {
     "colorMeta": {
@@ -158,6 +158,7 @@
     ],
     "donts": [
       "Don't recuperar la paleta descartada ni renombrar `--oro` como parte de esta incorporación.",
+      "Don't importar el tema global de UIArc ni fijar sus colores dentro de una pieza: el puente sostiene el tema claro y el oscuro.",
       "Don't sustituir el oro del éxito por verde ni crear un segundo sistema de avisos.",
       "Don't interpretar las rampas de muestra del sidecar como tokens nuevos para la aplicación.",
       "Don't cambiar paletas de portadas o gráficos bajo el pretexto de documentarlas.",
