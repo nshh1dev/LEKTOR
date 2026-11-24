@@ -9,14 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { avisar } from "@/components/notificacion/avisar"
 import { FaltanDatos } from "@/components/notificacion/avisos"
 import { Sello } from "@/components/notificacion/sello"
 import { resumenFaltantes } from "@/lib/avisos"
-import { COSTO_ENVIO_DOMICILIO, REGIONES, RESERVA_HORAS, checkoutFormSchema, type CheckoutFormValues, type OrdenUI, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
+import { COSTO_ENVIO_DOMICILIO, RESERVA_HORAS, checkoutFormSchema, type CheckoutFormValues, type OrdenUI, type PublicacionListItem, type SesionUsuario } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
 import { METODO_ENTREGA_LABEL, formatCLP, ordenCode } from "@/lib/format"
+import { CampoUbicacion } from "@/components/marketplace/campo-ubicacion"
 import { MensajeError } from "@/components/marketplace/shared"
 import { PagoView } from "@/components/marketplace/pago-view"
 import { ComprobanteCarga } from "@/components/marketplace/comprobante"
@@ -70,6 +70,7 @@ export function CheckoutView({
   const metodoEntrega = useWatch({ control, name: "metodoEntrega" })
   const telefonoActual = useWatch({ control, name: "telefono" })
   const regionActual = useWatch({ control, name: "region" })
+  const comunaActual = useWatch({ control, name: "comuna" })
   const envio = metodoEntrega === "envio_domicilio" ? COSTO_ENVIO_DOMICILIO : 0
   const total = publicacion.precio + envio
   const [datosDespacho, setDatosDespacho] = useState<CheckoutFormValues | null>(null)
@@ -239,37 +240,14 @@ export function CheckoutView({
                 </div>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor="comuna">Comuna</Label>
-                  <Input aria-invalid={errors.comuna ? true : undefined} aria-describedby={errors.comuna ? "comuna-error" : undefined} id="comuna" placeholder="Providencia" {...register("comuna")} />
-                  <MensajeError campo="comuna" mensaje={errors.comuna?.message} />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label htmlFor="region">Region</Label>
-                  <Select
-                    value={regionActual || undefined}
-                    onValueChange={(value) => setValue("region", value, { shouldValidate: true })}
-                  >
-                    <SelectTrigger
-                      id="region"
-                      className="w-full"
-                      aria-invalid={errors.region ? true : undefined}
-                      aria-describedby={errors.region ? "region-error" : undefined}
-                    >
-                      <SelectValue placeholder="Selecciona" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {REGIONES.map((region) => (
-                        <SelectItem key={region} value={region}>
-                          {region}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <MensajeError campo="region" mensaje={errors.region?.message} />
-                </div>
-              </div>
+              <CampoUbicacion
+                comuna={comunaActual ?? ""}
+                errorComuna={errors.comuna?.message}
+                errorRegion={errors.region?.message}
+                onComunaChange={(valor) => setValue("comuna", valor, { shouldValidate: true })}
+                onRegionChange={(valor) => setValue("region", valor, { shouldValidate: true })}
+                region={regionActual ?? ""}
+              />
             </div>
 
             <Separator />
