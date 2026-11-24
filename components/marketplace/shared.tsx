@@ -5,6 +5,10 @@ import { type PublicacionListItem } from "@/lib/catalog"
 import { type OrdenCatalogo } from "@/components/marketplace/types"
 import { cn } from "@/lib/utils"
 
+/** Etiqueta de campo en versalitas, como los rótulos del resto del marketplace. */
+export const ETIQUETA_CAMPO =
+  "text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+
 export const ORDEN_LABELS: Record<OrdenCatalogo, string> = {
   recientes: "Más recientes",
   precio_asc: "Menor precio",

@@ -33,13 +33,13 @@ async function main() {
   const demoUsers = [
     { email: "admin@lektor.cl", password: "admin123", nombre: "Marcela R.", rol: "admin", activo: true, bio: "Administradora de la comunidad LEKTOR.", telefono: "+56911110001", comuna: "Providencia", region: "Región Metropolitana" },
     { email: "moderacion@lektor.cl", password: "admin123", nombre: "Rodrigo S.", rol: "admin", activo: true, bio: "Reviso reseñas y publicaciones del panel.", telefono: "+56911110002", comuna: "Ñuñoa", region: "Región Metropolitana" },
-    { email: "otaku@lektor.cl", password: "otaku123", nombre: "OtakuStore99", rol: "lector", activo: true, bio: "Coleccionista de shonen y novelas negras.", telefono: "+56911110003", comuna: "Rancagua", region: "Región de O'Higgins" },
+    { email: "otaku@lektor.cl", password: "otaku123", nombre: "OtakuStore99", rol: "lector", activo: true, bio: "Coleccionista de shonen y novelas negras.", telefono: "+56911110003", comuna: "Rancagua", region: "Región del Libertador General Bernardo O'Higgins" },
     { email: "nico@lektor.cl", password: "123456", nombre: "Nico R.", rol: "lector", activo: true, bio: "Busco tomos de Lauper y ediciones difíciles.", telefono: "+56911110004", comuna: "Concepción", region: "Región del Biobío" },
     { email: "camila@lektor.cl", password: "123456", nombre: "Camila V.", rol: "lector", activo: true, bio: "Comics de superhéroes, edición Chilean.", telefono: "+56911110005", comuna: "Las Condes", region: "Región Metropolitana" },
     { email: "felipe@lektor.cl", password: "123456", nombre: "Felipe M.", rol: "lector", activo: true, bio: "Literatura chilena y ficción traducida.", telefono: "+56911110006", comuna: "Viña del Mar", region: "Región de Valparaíso" },
     { email: "vale@lektor.cl", password: "123456", nombre: "Vale K.", rol: "lector", activo: true, bio: "Mangas seinen de los 2000.", telefono: "+56911110007", comuna: "Temuco", region: "Región de La Araucanía" },
     { email: "jorge@lektor.cl", password: "123456", nombre: "Jorge P.", rol: "lector", activo: true, bio: "Cómics clásicos en buen estado.", telefono: "+56911110008", comuna: "Antofagasta", region: "Región de Antofagasta" },
-    { email: "fran@lektor.cl", password: "123456", nombre: "Fran S.", rol: "lector", activo: true, bio: "Fantasía épica y reediciones.", telefono: "+56911110009", comuna: "Punta Arenas", region: "Región de Magallanes" },
+    { email: "fran@lektor.cl", password: "123456", nombre: "Fran S.", rol: "lector", activo: true, bio: "Fantasía épica y reediciones.", telefono: "+56911110009", comuna: "Punta Arenas", region: "Región de Magallanes y de la Antártica Chilena" },
     { email: "tati@lektor.cl", password: "123456", nombre: "Tati L.", rol: "lector", activo: true, bio: "Shonen de Jump y tomo sueltos.", telefono: "+56911110010", comuna: "Maipú", region: "Región Metropolitana" },
     { email: "beto@lektor.cl", password: "123456", nombre: "Beto S.", rol: "lector", activo: true, bio: "Seinen oscuro y novelas coreanas.", telefono: "+56911110011", comuna: "Chillán", region: "Región del Ñuble" },
     { email: "cami@lektor.cl", password: "123456", nombre: "Cami P.", rol: "lector", activo: true, bio: "Cómics europeos y graphic novels.", telefono: "+56911110012", comuna: "Osorno", region: "Región de Los Lagos" },
@@ -48,7 +48,7 @@ async function main() {
     { email: "gabi@lektor.cl", password: "123456", nombre: "Gabi C.", rol: "lector", activo: true, bio: "Mangas de autor y seinen de nicho.", telefono: "+56911110015", comuna: "La Serena", region: "Región de Coquimbo" },
     { email: "heli@lektor.cl", password: "123456", nombre: "Heli V.", rol: "lector", activo: true, bio: "Libros de bolsillo y ciencia ficción.", telefono: "+56911110016", comuna: "Arica", region: "Región de Arica y Parinacota" },
     { email: "patrik@lektor.cl", password: "123456", nombre: "Patrik O.", rol: "lector", activo: true, bio: "Mangas de la Jump y shōnen clásico.", telefono: "+56911110017", comuna: "Curicó", region: "Región del Maule" },
-    { email: "suspendido@lektor.cl", password: "123456", nombre: "Cuenta Suspendida", rol: "lector", activo: false, bio: "Cuenta dada de baja para probar el panel.", telefono: "+56911110018", comuna: "Rancagua", region: "Región de O'Higgins" },
+    { email: "suspendido@lektor.cl", password: "123456", nombre: "Cuenta Suspendida", rol: "lector", activo: false, bio: "Cuenta dada de baja para probar el panel.", telefono: "+56911110018", comuna: "Rancagua", region: "Región del Libertador General Bernardo O'Higgins" },
   ]
 
   await db.insert(schema.users).values(
@@ -969,7 +969,7 @@ async function main() {
         metodoEntrega: "envio_domicilio",
         direccion: "Calle Los Alerces 2210, Depto. 51",
         comuna: "Rancagua",
-        region: "Región de O'Higgins",
+        region: "Región del Libertador General Bernardo O'Higgins",
         puntoRetiro: null,
         horas: 120,
       },
@@ -1013,7 +1013,7 @@ async function main() {
         metodoEntrega: "envio_domicilio",
         direccion: "Av. Brasil 1200, Depto. 33",
         comuna: "Rancagua",
-        region: "Región de O'Higgins",
+        region: "Región del Libertador General Bernardo O'Higgins",
         puntoRetiro: null,
         horas: 400,
       },
