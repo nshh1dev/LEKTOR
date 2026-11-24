@@ -2,6 +2,7 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 
 import {
+  CONDICIONES,
   COMISION_PLATAFORMA,
   COSTO_ENVIO_DOMICILIO,
   RANGOS_PRECISO,
@@ -230,15 +231,23 @@ test("publicarFormSchema solo admite más de un ejemplar en Sellado", () => {
     fotos: "",
   }
   // Fuera de Sellado el stock no puede crecer: un ejemplar a la vez.
-  assert.equal(publicarFormSchema.safeParse({ ...base, stock: 2 }).success, false)
+  for (const condicion of CONDICIONES.filter((valor) => valor !== "Sellado")) {
+    assert.equal(
+      publicarFormSchema.safeParse({ ...base, condicion, stock: 2 }).success,
+      false,
+      `${condicion} no debe admitir más de un ejemplar`,
+    )
+  }
   assert.equal(publicarFormSchema.safeParse({ ...base, condicion: "Sellado", stock: 3 }).success, true)
 })
 
 test("stockAdmitido solo deja sumar más de un ejemplar en Sellado", () => {
   assert.equal(stockAdmitido("Sellado", 1), true)
   assert.equal(stockAdmitido("Sellado", 3), true)
-  assert.equal(stockAdmitido("Como nuevo", 1), true)
-  assert.equal(stockAdmitido("Como nuevo", 2), false)
+  for (const condicion of CONDICIONES.filter((valor) => valor !== "Sellado")) {
+    assert.equal(stockAdmitido(condicion, 1), true, `${condicion} debe admitir una unidad`)
+    assert.equal(stockAdmitido(condicion, 2), false, `${condicion} debe rechazar varias unidades`)
+  }
 })
 
 test("searchQuerySchema aplica valores por defecto y topes", () => {
