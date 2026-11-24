@@ -343,11 +343,16 @@
    página, para que los bloques invisibles que lo rodean no dejen hojas en
    blanco por delante. */
 @media print {
+  @page reportes {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+
   body {
     background: #fff;
   }
 
-  body * {
+  body:has(.comprobante-documento) * {
     visibility: hidden !important;
   }
 
@@ -380,5 +385,27 @@
     border: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;
+  }
+
+  body:has(.reportes-impresion) [data-slot="sidebar-inset"] > header {
+    display: none !important;
+  }
+
+  .reportes-impresion {
+    page: reportes;
+    width: 100%;
+    padding: 0 !important;
+  }
+
+  .reportes-impresion > .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .reportes-impresion [data-slot="card"] {
+    break-inside: avoid;
+  }
+
+  .reportes-impresion table {
+    font-size: 9pt;
   }
 }
