@@ -618,15 +618,29 @@ etapa("F3 · el vendedor publica tres ejemplares", async () => {
     autor: "Eiichiro Oda",
     editorial: "Shueisha",
     categoria: "Mangas",
-    condicion: "Como nuevo",
     descripcion: "Ejemplar de prueba creado por la simulación.",
     fotos: [],
   }
   const casos = [
-    { titulo: "Sim One Piece vol. 1", precio: 8000, stock: 3 },
-    { titulo: "Sim Berserk deluxe 3", precio: 12500, stock: 2 },
-    { titulo: "Sim Dune Messiah", precio: 9500, stock: 1 },
+    { titulo: "Sim One Piece vol. 1", precio: 8000, stock: 3, condicion: "Sellado" },
+    { titulo: "Sim Berserk deluxe 3", precio: 12500, stock: 2, condicion: "Sellado" },
+    { titulo: "Sim Dune Messiah", precio: 9500, stock: 1, condicion: "Como nuevo" },
   ]
+
+  const stockNoSellado = await pedir("/api/publications", {
+    method: "POST",
+    cookie: actor.vendedor.cookie,
+    body: {
+      ...base,
+      titulo: "Sim rechazo stock no sellado",
+      precio: 8000,
+      stock: 2,
+      condicion: "Como nuevo",
+    },
+  })
+  igual(stockNoSellado.status, 400, "stock múltiple en una publicación no sellada")
+  igual(stockNoSellado.datos.reason, "stock-sellado", "motivo del rechazo de stock no sellado")
+
   for (const caso of casos) {
     const r = await pedir("/api/publications", {
       method: "POST",
@@ -1886,4 +1900,3 @@ main().catch((error) => {
   console.error(error)
   process.exit(1)
 })
-
