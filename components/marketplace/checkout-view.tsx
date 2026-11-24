@@ -17,6 +17,7 @@ import { COSTO_ENVIO_DOMICILIO, RESERVA_HORAS, checkoutFormSchema, type Checkout
 import { formatearTelefono } from "@/lib/entrada"
 import { METODO_ENTREGA_LABEL, formatCLP, ordenCode } from "@/lib/format"
 import { CampoUbicacion } from "@/components/marketplace/campo-ubicacion"
+import { DireccionInput } from "@/components/marketplace/direccion-input"
 import { MensajeError } from "@/components/marketplace/shared"
 import { PagoView } from "@/components/marketplace/pago-view"
 import { ComprobanteCarga } from "@/components/marketplace/comprobante"
@@ -71,6 +72,7 @@ export function CheckoutView({
   const telefonoActual = useWatch({ control, name: "telefono" })
   const regionActual = useWatch({ control, name: "region" })
   const comunaActual = useWatch({ control, name: "comuna" })
+  const direccionActual = useWatch({ control, name: "direccion" })
   const envio = metodoEntrega === "envio_domicilio" ? COSTO_ENVIO_DOMICILIO : 0
   const total = publicacion.precio + envio
   const [datosDespacho, setDatosDespacho] = useState<CheckoutFormValues | null>(null)
@@ -225,9 +227,23 @@ export function CheckoutView({
               </div>
 
               {metodoEntrega === "envio_domicilio" && (
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5">
                   <Label htmlFor="direccion">Dirección completa</Label>
-                  <Input aria-invalid={errors.direccion ? true : undefined} aria-describedby={errors.direccion ? "direccion-error" : undefined} id="direccion" placeholder="Calle, número, depto" {...register("direccion")} />
+                  <DireccionInput
+                    describedBy={errors.direccion ? "direccion-error" : undefined}
+                    id="direccion"
+                    invalid={errors.direccion ? true : undefined}
+                    onSugerencia={(sugerencia) => {
+                      if (!sugerencia.region) return
+                      setValue("region", sugerencia.region, { shouldValidate: true })
+                      if (sugerencia.comuna) setValue("comuna", sugerencia.comuna, { shouldValidate: true })
+                    }}
+                    onValueChange={(valor) => setValue("direccion", valor, { shouldValidate: true })}
+                    placeholder="Calle, número, depto"
+                    comuna={comunaActual ?? ""}
+                    region={regionActual ?? ""}
+                    value={direccionActual ?? ""}
+                  />
                   <MensajeError campo="direccion" mensaje={errors.direccion?.message} />
                 </div>
               )}
