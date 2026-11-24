@@ -1020,4 +1020,6 @@ export type SesionUsuario = {
   activo: boolean
   avatarUrl?: string | null
   telefono?: string | null
+  comuna?: string | null
+  region?: string | null
 }

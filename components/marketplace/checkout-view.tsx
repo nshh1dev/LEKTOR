@@ -62,8 +62,8 @@ export function CheckoutView({
       telefono: usuario.telefono ? formatearTelefono(usuario.telefono) : "",
       metodoEntrega: "envio_domicilio",
       direccion: "",
-      comuna: "",
-      region: "",
+      comuna: usuario.comuna ?? "",
+      region: usuario.region ?? "",
       puntoRetiro: "",
     },
   })
@@ -264,6 +264,9 @@ export function CheckoutView({
                 onRegionChange={(valor) => setValue("region", valor, { shouldValidate: true })}
                 region={regionActual ?? ""}
               />
+              <p className="text-xs text-muted-foreground">
+                Usamos la ubicación de tu perfil. Puedes cambiarla para esta entrega.
+              </p>
             </div>
 
             <Separator />

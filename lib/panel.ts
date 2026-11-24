@@ -58,6 +58,8 @@ export function toSesionUsuario(user: SafeUser): SesionUsuario {
     rol: user.rol === "admin" ? "admin" : "lector",
     activo: user.activo,
     avatarUrl: user.avatarUrl,
+    comuna: user.comuna,
+    region: user.region,
   }
 }
 
