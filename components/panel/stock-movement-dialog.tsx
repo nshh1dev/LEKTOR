@@ -138,12 +138,18 @@ export function StockMovementDialog({
               max={999}
               step={1}
               value={cantidad}
+              aria-invalid={!esNumeroValido || sinSalida}
+              aria-describedby={
+                !esNumeroValido || sinSalida
+                  ? "cantidad-movimiento-ayuda cantidad-movimiento-error"
+                  : undefined
+              }
               onChange={(evento) => {
                 setCantidad(evento.target.value)
                 setFallo(null)
               }}
             />
-            <p className="text-xs text-muted-foreground">
+            <p id="cantidad-movimiento-ayuda" className="text-xs text-muted-foreground">
               Stock resultante:{" "}
               <span className="font-mono">{esNumeroValido ? resultante : "—"}</span>
             </p>
@@ -162,6 +168,7 @@ export function StockMovementDialog({
 
           {!esNumeroValido || sinSalida ? (
             <FaltanDatos
+              id="cantidad-movimiento-error"
               titulo="Revisa la cantidad antes de registrar"
               datos={[
                 ...(!esNumeroValido

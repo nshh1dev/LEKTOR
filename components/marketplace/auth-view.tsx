@@ -24,6 +24,7 @@ import { formatearTelefono } from "@/lib/entrada"
 import { CampoUbicacion } from "@/components/marketplace/campo-ubicacion"
 import { MensajeError } from "@/components/marketplace/shared"
 import { api, ApiFailure } from "@/components/marketplace/api"
+import { saludoDeInicio } from "@/lib/auth-copy"
 
 const ETIQUETAS_ACCESO = {
   email: "Correo electrónico",
@@ -165,7 +166,7 @@ function FormularioAcceso({ onSuccess }: { onSuccess: (user: SesionUsuario) => v
       })
       avisar.ok({
         titulo: "Sesión iniciada",
-        descripcion: `Hola de nuevo, ${data.user.nombre}. Tu estantería te estaba esperando.`,
+        descripcion: saludoDeInicio(data.user.nombre),
       })
       onSuccess(data.user)
     } catch (error) {

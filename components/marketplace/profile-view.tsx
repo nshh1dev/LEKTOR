@@ -139,7 +139,10 @@ export function PerfilView({
       await api(`/api/orders/${ordenId}`, { method: "PATCH", body: JSON.stringify({ estado }) })
       avisar.ok({
         titulo: `Orden ${ESTADO_ORDEN_LABEL[estado].toLowerCase()}`,
-        descripcion: "El comprador ya puede ver el nuevo estado.",
+        descripcion:
+          estado === "cancelada"
+            ? "La orden se canceló y el ejemplar volvió al stock."
+            : "La contraparte ya puede ver el nuevo estado.",
       })
       // Solo se recarga la lista afectada y en la página que ya se estaba viendo.
       const rol = ventas.some((orden) => orden.id === ordenId) ? "ventas" : "compras"

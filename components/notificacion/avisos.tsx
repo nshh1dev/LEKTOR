@@ -59,17 +59,20 @@ export function FaltanDatos({
   datos,
   vivo = true,
   className,
+  id,
 }: {
   titulo: string
   datos: Faltante[]
   /** En un formulario que se valida en vivo, el bloque no debe anunciarse solo. */
   vivo?: boolean
   className?: string
+  id?: string
 }) {
   if (datos.length === 0) return null
   return (
     <div
       role={vivo ? "alert" : undefined}
+      id={id}
       className={cn(
         "flex flex-col gap-2.5 rounded-lg border border-border/70 border-l-[3px] border-aviso-revisar bg-aviso-revisar-tenue px-4 py-3",
         className,
