@@ -22,9 +22,13 @@ import { MensajeError } from "@/components/marketplace/shared"
 import { PagoView } from "@/components/marketplace/pago-view"
 import { ComprobanteCarga } from "@/components/marketplace/comprobante"
 import { api } from "@/components/marketplace/api"
+import { cuerpoDeOrden } from "@/lib/catalog"
+import { COURIERS, DATOS_COURIER } from "@/lib/couriers"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Portada } from "@/components/marketplace/hero"
 
 const ETIQUETAS_ENTREGA: Record<string, string> = {
+  courier: "Transportista",
   nombreRecibe: "Quién recibe",
   telefono: "Teléfono",
   metodoEntrega: "Método de entrega",
@@ -65,10 +69,12 @@ export function CheckoutView({
       comuna: usuario.comuna ?? "",
       region: usuario.region ?? "",
       puntoRetiro: "",
+      courier: "",
     },
   })
 
   const metodoEntrega = useWatch({ control, name: "metodoEntrega" })
+  const courier = useWatch({ control, name: "courier" })
   const telefonoActual = useWatch({ control, name: "telefono" })
   const regionActual = useWatch({ control, name: "region" })
   const comunaActual = useWatch({ control, name: "comuna" })
@@ -89,6 +95,7 @@ export function CheckoutView({
     comuna: "comuna",
     region: "region",
     puntoRetiro: "puntoRetiro",
+    courier: "courier",
   })
 
   if (ordenConfirmada && ordenConfirmada.publicacionId === publicacion.id) {
@@ -131,18 +138,7 @@ export function CheckoutView({
         "/api/orders",
         {
           method: "POST",
-          body: JSON.stringify({
-            publicacionId: publicacion.id,
-            datosDespacho: {
-              nombreRecibe: datosDespacho.nombreRecibe,
-              telefono: datosDespacho.telefono,
-              metodoEntrega: datosDespacho.metodoEntrega,
-              direccion: datosDespacho.direccion.trim() || null,
-              comuna: datosDespacho.comuna,
-              region: datosDespacho.region,
-              puntoRetiro: datosDespacho.puntoRetiro.trim() || null,
-            },
-          }),
+          body: JSON.stringify(cuerpoDeOrden(publicacion.id, datosDespacho)),
         },
       )
       avisar.ok({
@@ -254,10 +250,30 @@ export function CheckoutView({
                 </div>
               )}
 
+              {metodoEntrega !== "coordinar" && (
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="courier">Transportista</Label>
+                  <Select value={courier} onValueChange={(valor) => {
+                    setValue("courier", valor as CheckoutFormValues["courier"], { shouldValidate: true })
+                    setValue("puntoRetiro", "")
+                  }}>
+                    <SelectTrigger id="courier" aria-invalid={Boolean(errors.courier)} aria-describedby={errors.courier ? "courier-error" : undefined}>
+                      <SelectValue placeholder="Selecciona un transportista" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COURIERS.map((valor) => <SelectItem key={valor} value={valor}>{DATOS_COURIER[valor].nombre}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <MensajeError campo="courier" mensaje={errors.courier?.message} />
+                  <p className="text-xs text-muted-foreground">Envío y tarifa simulados. No se contrata transporte ni se genera una etiqueta.</p>
+                </div>
+              )}
               {metodoEntrega === "retiro_punto" && (
                 <div className="flex flex-col gap-1">
                   <Label htmlFor="puntoRetiro">Punto de retiro</Label>
-                  <Input aria-invalid={errors.puntoRetiro ? true : undefined} aria-describedby={errors.puntoRetiro ? "puntoRetiro-error" : undefined} id="puntoRetiro" placeholder="Bluexpress Providencia" {...register("puntoRetiro")} />
+                  {courier && <a className="text-sm underline underline-offset-4" href={DATOS_COURIER[courier].sucursales} target="_blank" rel="noopener noreferrer">Buscar sucursal en sitio oficial (abre otra pestaña)</a>}
+                  <Input aria-invalid={errors.puntoRetiro ? true : undefined} aria-describedby={errors.puntoRetiro ? "puntoRetiro-error" : "puntoRetiro-ayuda"} id="puntoRetiro" placeholder="Nombre y dirección de la sucursal" {...register("puntoRetiro")} />
+                  <p id="puntoRetiro-ayuda" className="text-xs text-muted-foreground">Confirma en el sitio oficial que admite retiro. Ingresa su nombre y dirección y usa la comuna y región de la sucursal. LEKTOR no verifica disponibilidad.</p>
                   <MensajeError campo="puntoRetiro" mensaje={errors.puntoRetiro?.message} />
                 </div>
               )}
@@ -319,7 +335,7 @@ export function CheckoutView({
                   <span>{formatCLP(publicacion.precio)}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Envio</span>
+                  <span className="text-muted-foreground">Envío simulado</span>
                   <span>{envio === 0 ? "Por coordinar" : formatCLP(envio)}</span>
                 </div>
                 <div className="flex items-center justify-between text-base font-bold">

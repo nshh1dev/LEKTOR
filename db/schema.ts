@@ -90,6 +90,7 @@ export const orders = pgTable(
     total: integer("total").notNull(),
     metodoPago: varchar("metodo_pago", { length: 40 }).notNull().default("simulado"),
     datosDespacho: jsonb("datos_despacho").$type<{
+      courier?: import("../lib/couriers").Courier | null
       nombreRecibe: string
       telefono: string
       metodoEntrega: string
