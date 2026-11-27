@@ -16,6 +16,7 @@ import {
   type ParteOrdenUI,
 } from "@/lib/catalog"
 import { ESTADO_ORDEN_LABEL, METODO_ENTREGA_LABEL, formatCLP, formatDateTime, ordenCode, tiempoRestante } from "@/lib/format"
+import { DATOS_COURIER } from "@/lib/couriers"
 
 type EstadoCarga = "inactivo" | "cargando" | "listo" | "fallido"
 
@@ -110,6 +111,7 @@ function LineaDespacho({ entrega }: { entrega: DatosDespachoUI }) {
     <div className="flex flex-col gap-1">
       <p className="rotulo">Despacho</p>
       <p className="text-sm font-medium">{metodo}</p>
+      {entrega.courier && entrega.metodoEntrega !== "coordinar" ? <p className="text-sm">{DATOS_COURIER[entrega.courier].nombre} · Envío y tarifa simulados</p> : null}
       {destino ? <p className="text-sm text-muted-foreground">{destino}</p> : null}
       <p className="text-xs text-muted-foreground">
         Recibe {entrega.nombreRecibe} · {entrega.telefono}

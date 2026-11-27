@@ -1,5 +1,7 @@
 "use client"
 
+import { DATOS_COURIER } from "@/lib/couriers"
+
 import { useState } from "react"
 import { Clock3, FileText, PackageCheck, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -103,6 +105,8 @@ export function TarjetaOrden({
           <div>
             <dt className="text-xs text-muted-foreground">Entrega</dt>
             <dd className="mt-1 font-medium">{METODO_ENTREGA_LABEL[orden.datosDespacho.metodoEntrega as keyof typeof METODO_ENTREGA_LABEL] ?? orden.datosDespacho.metodoEntrega}</dd>
+            {orden.datosDespacho.courier && orden.datosDespacho.metodoEntrega !== "coordinar" ? <dd className="mt-1 text-xs">{DATOS_COURIER[orden.datosDespacho.courier].nombre} · Envío simulado</dd> : null}
+            {orden.datosDespacho.metodoEntrega === "retiro_punto" && orden.datosDespacho.puntoRetiro ? <dd className="mt-1 text-xs">{orden.datosDespacho.puntoRetiro}</dd> : null}
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Recibe</dt>
