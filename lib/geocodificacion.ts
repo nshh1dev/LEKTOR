@@ -1,5 +1,5 @@
 import { REGIONES } from "@/lib/catalog"
-import { regionDeComuna, type Region } from "@/lib/comunas"
+import { comunaDelCatalogo, regionDeComuna, type Region } from "@/lib/comunas"
 
 const PHOTON_URL = "https://photon.komoot.io/api/"
 const LIMITE_PHOTON = 15
@@ -7,6 +7,8 @@ const LIMITE_PHOTON = 15
 /** Menos de cuatro letras devuelve medio país y no ayuda a nadie. */
 export const MIN_CARACTERES_DIRECCION = 4
 export const MAX_SUGERENCIAS = 6
+
+export type ContextoDireccion = { comuna?: string | null; region?: string | null }
 
 export type SugerenciaDireccion = {
   id: string
@@ -49,23 +51,31 @@ function normalizar(valor: string): string {
 
 /**
  * Photon no acepta `lang=es` (solo default, de, en y fr) y los nombres de Chile vienen tal
- * cual están en OpenStreetMap, así que se consulta sin idioma y se acota al país.
+ * cual están en OpenStreetMap, así que se consulta sin idioma y se acota al país. La comuna
+ * —o, si no hay, la región— entra en el texto para que el proveedor priorice ese lugar:
+ * sin eso, una calle común devuelve homónimas de todo Chile y el filtro posterior las
+ * descarta todas.
  */
-export function urlPhoton(texto: string): string {
+export function urlPhoton(texto: string, contexto: ContextoDireccion = {}): string {
+  const comuna = (contexto.comuna ?? "").trim()
+  const region = (contexto.region ?? "").trim()
   const params = new URLSearchParams({
-    q: `${texto.trim()}, Chile`,
+    q: [texto.trim(), comuna || region, "Chile"].filter(Boolean).join(", "),
     limit: String(LIMITE_PHOTON),
   })
   return `${PHOTON_URL}?${params.toString()}`
 }
 
+/**
+ * La comuna que el catálogo reconoce, con su nombre canónico. El distrito es más preciso
+ * que la ciudad —«Rancagua Sur» es un barrio y «Rancagua» la comuna—, así que se prueba
+ * primero el distrito. La provincia nunca cuenta: `county` agrupa varias comunas.
+ */
 function comunaDe(propiedades: PropiedadesPhoton): string | null {
-  const candidatas = [propiedades.district, propiedades.city, propiedades.county]
-  for (const candidata of candidatas) {
-    const limpia = (candidata ?? "").replace(/^Provincia de\s+/i, "").trim()
-    // La comuna que sirve es la que el catálogo reconoce: "Rancagua Sur" es un distrito
-    // de OpenStreetMap, no una comuna, y la que vale es la ciudad que viene al lado.
-    if (limpia && regionDeComuna(limpia)) return limpia
+  for (const candidata of [propiedades.district, propiedades.city]) {
+    const limpia = (candidata ?? "").trim()
+    const reconocida = limpia ? comunaDelCatalogo(limpia) : null
+    if (reconocida) return reconocida
   }
   const referencia = (propiedades.district ?? propiedades.city ?? "").trim()
   return referencia || null
@@ -74,8 +84,15 @@ function comunaDe(propiedades: PropiedadesPhoton): string | null {
 function regionDe(propiedades: PropiedadesPhoton, comuna: string | null): Region | null {
   const porComuna = comuna ? regionDeComuna(comuna) : null
   if (porComuna) return porComuna
-  const estado = (propiedades.state ?? "").trim()
-  return REGIONES.find((region) => region === estado) ?? null
+  const estado = normalizar(propiedades.state ?? "")
+  if (!estado) return null
+  // OpenStreetMap agrega o quita piezas del nombre: «Región Metropolitana de Santiago» y
+  // «Región Aysén del General…» son las mismas regiones del catálogo.
+  return (
+    REGIONES.find((region) => normalizar(region) === estado) ??
+    REGIONES.find((region) => estado.includes(normalizar(region.replace(/^Región (de |del )?/, "")))) ??
+    null
+  )
 }
 
 function etiquetaDe(
@@ -116,13 +133,14 @@ function mapear(caracteristica: CaracteristicaPhoton, indice: number): Sugerenci
 
 /**
  * Convierte la respuesta de Photon en las sugerencias que ve la persona. Descarta lo que no
- * es de Chile ni una calle, quita las repeticiones que trae el proveedor y, si ya hay una
- * región elegida, deja solo esa región: si no hay ninguna coincidencia ahí, cae a todo el
- * país para que la lista no quede muerta.
+ * es de Chile ni una calle, quita las repeticiones que trae el proveedor y acota a la
+ * ubicación elegida: solo la comuna si hay comuna, solo su región si no la hay. Nunca cae a
+ * otras regiones ni a otras comunas: si no hay coincidencias, la lista queda vacía y quien
+ * decide es la persona —cambiando la ubicación o escribiendo la dirección a mano—.
  */
 export function normalizarSugerencias(
   payload: unknown,
-  opciones: { region?: string | null; comuna?: string | null } = {},
+  opciones: ContextoDireccion = {},
 ): SugerenciaDireccion[] {
   const caracteristicas = (payload as { features?: CaracteristicaPhoton[] } | null)?.features
   if (!Array.isArray(caracteristicas)) return []
@@ -140,20 +158,20 @@ export function normalizarSugerencias(
     sugerencias.push(sugerencia)
   }
 
-  const regionElegida = (opciones.region ?? "").trim()
-  const deLaRegion = regionElegida
-    ? sugerencias.filter((sugerencia) => sugerencia.region === regionElegida)
-    : []
-  const base = deLaRegion.length > 0 ? deLaRegion : sugerencias
+  const comunaElegida = comunaDelCatalogo(opciones.comuna ?? "")
+  // La comuna manda: si la región guardada no es la suya, la pareja está desalineada y se
+  // filtra por la región de la comuna, que es el dato más específico.
+  const regionElegida =
+    (comunaElegida ? regionDeComuna(comunaElegida) : null) ??
+    REGIONES.find((region) => region === (opciones.region ?? "").trim()) ??
+    null
 
-  const comunaElegida = normalizar(opciones.comuna ?? "")
-  const ordenadas = comunaElegida
-    ? [...base].sort(
-        (a, b) =>
-          Number(normalizar(b.comuna ?? "") === comunaElegida) -
-          Number(normalizar(a.comuna ?? "") === comunaElegida),
-      )
-    : base
-
-  return ordenadas.slice(0, MAX_SUGERENCIAS)
+  return sugerencias
+    .filter((sugerencia) => !regionElegida || sugerencia.region === regionElegida)
+    .filter(
+      (sugerencia) =>
+        !comunaElegida ||
+        (sugerencia.comuna !== null && comunaDelCatalogo(sugerencia.comuna) === comunaElegida),
+    )
+    .slice(0, MAX_SUGERENCIAS)
 }

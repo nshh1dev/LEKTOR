@@ -12,8 +12,10 @@ const ESPERA_MS = 350
  * Campo de dirección con autocompletado de OpenStreetMap. Mientras se escribe pide
  * coincidencias al servidor —con la región y la comuna elegidas como contexto— y las
  * muestra en el flujo del formulario, como el índice de comunas: dentro del checkout no
- * conviene una lista flotante. Sigue siendo texto libre: lo que el mapa no tenga se
- * escribe y se guarda igual.
+ * conviene una lista flotante. El servidor no devuelve direcciones de otra comuna ni de
+ * otra región, así que si no hay coincidencias se dice, en vez de llenar la lista con
+ * lugares donde nadie va a recibir el pedido. Sigue siendo texto libre: lo que el mapa no
+ * tenga se escribe y se guarda igual.
  */
 export function DireccionInput({
   id,
@@ -46,9 +48,11 @@ export function DireccionInput({
   const [abierto, setAbierto] = useState(false)
   const [activo, setActivo] = useState(-1)
   const [buscando, setBuscando] = useState(false)
+  const [sinResultados, setSinResultados] = useState(false)
   const [sugerencias, setSugerencias] = useState<SugerenciaDireccion[]>([])
 
   const consulta = value.trim()
+  const lugar = (comuna ?? "").trim() || (region ?? "").trim()
 
   useEffect(() => {
     const actual = ++turno.current
@@ -61,12 +65,14 @@ export function DireccionInput({
     ) {
       setSugerencias([])
       setBuscando(false)
+      setSinResultados(false)
       return
     }
 
     const controlador = new AbortController()
     const temporizador = setTimeout(async () => {
       setBuscando(true)
+      setSinResultados(false)
       try {
         const params = new URLSearchParams({ q: consulta })
         if (region) params.set("region", region)
@@ -80,7 +86,9 @@ export function DireccionInput({
         }
         const datos = (await respuesta.json()) as { sugerencias?: SugerenciaDireccion[] }
         if (vigente()) {
-          setSugerencias(datos.sugerencias ?? [])
+          const lista = datos.sugerencias ?? []
+          setSugerencias(lista)
+          setSinResultados(lista.length === 0)
           setActivo(-1)
         }
       } catch (error) {
@@ -209,6 +217,13 @@ export function DireccionInput({
       {abierto && buscando ? (
         <p className="text-xs text-muted-foreground" aria-live="polite">
           Buscando direcciones…
+        </p>
+      ) : null}
+      {abierto && !buscando && sinResultados ? (
+        <p aria-live="polite" className="text-xs text-muted-foreground">
+          {lugar
+            ? `No encontramos direcciones en ${lugar}. Revisa ${(comuna ?? "").trim() ? "la comuna" : "la región"} o escríbela a mano.`
+            : "No encontramos esa dirección. Puedes escribirla a mano."}
         </p>
       ) : null}
     </>

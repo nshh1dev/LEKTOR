@@ -44,6 +44,17 @@ const CALLE_RANCAGUA = {
   countrycode: "CL",
 }
 
+const CASA_SANTIAGO_CENTRO = {
+  osm_type: "N",
+  osm_id: 4,
+  type: "house",
+  street: "Ahumada",
+  housenumber: "100",
+  city: "Santiago",
+  state: "Región Metropolitana de Santiago",
+  countrycode: "CL",
+}
+
 test("la consulta a Photon se acota a Chile y no pide idioma", () => {
   // Photon solo acepta default, de, en y fr: `lang=es` responde 400.
   const url = urlPhoton("Avenida Providencia 1234")
@@ -51,6 +62,17 @@ test("la consulta a Photon se acota a Chile y no pide idioma", () => {
   const params = new URL(url).searchParams
   assert.equal(params.get("q"), "Avenida Providencia 1234, Chile")
   assert.ok(Number(params.get("limit")) > MAX_SUGERENCIAS)
+})
+
+test("la consulta a Photon lleva la comuna —o la región— para priorizar ese lugar", () => {
+  const conComuna = new URL(
+    urlPhoton("Avenida Providencia 1234", { comuna: "Providencia", region: "Región Metropolitana" }),
+  ).searchParams
+  assert.equal(conComuna.get("q"), "Avenida Providencia 1234, Providencia, Chile")
+  const soloRegion = new URL(
+    urlPhoton("Avenida Providencia 1234", { region: "Región de Tarapacá" }),
+  ).searchParams
+  assert.equal(soloRegion.get("q"), "Avenida Providencia 1234, Región de Tarapacá, Chile")
 })
 
 test("una casa de Providencia se traduce a calle, número, comuna y región", () => {
@@ -106,18 +128,51 @@ test("con región elegida se deja solo esa región", () => {
   assert.deepEqual(sugerencias.map((s) => s.comuna), ["Rancagua"])
 })
 
-test("si la región elegida no tiene coincidencias, se cae a todo el país", () => {
+test("si la región elegida no tiene coincidencias, la lista queda vacía", () => {
   const sugerencias = normalizarSugerencias(photon(CASA_PROVIDENCIA, CALLE_RANCAGUA), {
     region: "Región de Tarapacá",
+  })
+  assert.deepEqual(sugerencias, [])
+})
+
+test("una región que no está en el catálogo no acota nada", () => {
+  const sugerencias = normalizarSugerencias(photon(CASA_PROVIDENCIA, CALLE_RANCAGUA), {
+    region: "Región que no existe",
   })
   assert.equal(sugerencias.length, 2)
 })
 
-test("la comuna elegida queda primero", () => {
+test("con comuna elegida se descarta otra comuna de la misma región", () => {
   const sugerencias = normalizarSugerencias(photon(CASA_PROVIDENCIA, CALLE_NUNOA), {
+    region: "Región Metropolitana",
     comuna: "Ñuñoa",
   })
-  assert.equal(sugerencias[0].comuna, "Ñuñoa")
+  assert.deepEqual(sugerencias.map((s) => s.comuna), ["Ñuñoa"])
+  assert.deepEqual(
+    normalizarSugerencias(photon(CASA_PROVIDENCIA, CALLE_NUNOA), { comuna: "Providencia" }).map(
+      (s) => s.comuna,
+    ),
+    ["Providencia"],
+  )
+})
+
+test("si la región guardada no es la de la comuna, manda la comuna", () => {
+  const sugerencias = normalizarSugerencias(photon(CASA_PROVIDENCIA), {
+    region: "Región de Tarapacá",
+    comuna: "Providencia",
+  })
+  assert.equal(sugerencias.length, 1)
+})
+
+test("el centro de Santiago se compara contra la comuna del catálogo", () => {
+  // OpenStreetMap dice «Santiago» y el catálogo «Santiago Centro»; sin equivalencia la
+  // sugerencia quedaba sin región y se colaba en el filtro.
+  const [sugerencia] = normalizarSugerencias(photon(CASA_SANTIAGO_CENTRO), {
+    comuna: "Santiago Centro",
+  })
+  assert.equal(sugerencia.comuna, "Santiago Centro")
+  assert.equal(sugerencia.region, "Región Metropolitana")
+  assert.equal(sugerencia.etiqueta, "Ahumada 100 · Santiago Centro, Región Metropolitana")
 })
 
 test("nunca devuelve más sugerencias que el tope", () => {

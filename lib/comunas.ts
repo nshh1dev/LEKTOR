@@ -142,18 +142,57 @@ function comparar(a: string, b: string): number {
   return a.localeCompare(b, "es")
 }
 
-function indexarComunas(): Map<string, Region | null> {
-  const indice = new Map<string, Region | null>()
+/** Clave indiferente a tildes, mayúsculas, espacios y puntuación: «Llay-Llay» = «llay llay». */
+function claveDeComuna(valor: string): string {
+  return normalizar(valor).replace(/[^a-z0-9]/g, "")
+}
+
+type ComunaIndexada = { comuna: string; region: Region | null }
+
+function indexarComunas(): Map<string, ComunaIndexada> {
+  const indice = new Map<string, ComunaIndexada>()
   for (const region of REGIONES) {
     for (const comuna of COMUNAS_POR_REGION[region]) {
-      const clave = normalizar(comuna)
-      indice.set(clave, indice.has(clave) ? null : region)
+      const clave = claveDeComuna(comuna)
+      const previa = indice.get(clave)
+      indice.set(clave, previa ? { comuna: previa.comuna, region: null } : { comuna, region })
     }
   }
   return indice
 }
 
-const INDICE_REGION_POR_COMUNA = indexarComunas()
+const INDICE_COMUNAS = indexarComunas()
+
+/**
+ * Cómo escribe otra fuente la misma comuna: OpenStreetMap dice «Santiago», «Coyhaique»,
+ * «Puerto Natales» o «Llay-Llay» donde el catálogo dice «Santiago Centro», «Coihaique»,
+ * «Natales» y «Llaillay». Sin esto, una dirección real queda sin comuna reconocida y su
+ * región se pierde, que es lo que dejaba pasar sugerencias de otras regiones.
+ */
+export const EQUIVALENCIAS_COMUNA: Readonly<Record<string, string>> = {
+  santiago: "Santiago Centro",
+  coyhaique: "Coihaique",
+  trehuaco: "Treguaco",
+  lacalera: "Calera",
+  llayllay: "Llaillay",
+  paihuano: "Paiguano",
+  aisen: "Aysén",
+  puertoaysen: "Aysén",
+  puertonatales: "Natales",
+  sanvicentedetaguatagua: "San Vicente",
+  sanjosedelamariquina: "Mariquina",
+  elcarmenchillan: "El Carmen",
+}
+
+/** El nombre del catálogo para una comuna escrita como la escribe otra fuente, o null. */
+export function comunaDelCatalogo(nombre: string): string | null {
+  const clave = claveDeComuna(nombre)
+  if (!clave) return null
+  const directa = INDICE_COMUNAS.get(clave)
+  if (directa) return directa.comuna
+  const equivalente = EQUIVALENCIAS_COMUNA[clave]
+  return equivalente ? INDICE_COMUNAS.get(claveDeComuna(equivalente))?.comuna ?? null : null
+}
 
 /** Las comunas de una región, como las presenta el índice del campo de comuna. */
 export type GrupoComunas = {
@@ -222,6 +261,6 @@ function recortar(grupos: GrupoComunas[], limite: number): GrupoComunas[] {
  * persona elija: adivinar sería peor que no proponer nada.
  */
 export function regionDeComuna(comuna: string): Region | null {
-  if (!comuna.trim()) return null
-  return INDICE_REGION_POR_COMUNA.get(normalizar(comuna)) ?? null
+  const canonica = comunaDelCatalogo(comuna)
+  return canonica ? INDICE_COMUNAS.get(claveDeComuna(canonica))?.region ?? null : null
 }
