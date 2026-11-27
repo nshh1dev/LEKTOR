@@ -8,6 +8,7 @@ import {
   ESTADO_PUBLICACION_LABEL,
   METODO_ENTREGA_LABEL,
   coverLabel,
+  etiquetaEstadoOrden,
   formatCLP,
   formatDate,
   formatDateTime,
@@ -75,4 +76,11 @@ test("cada estado y método tiene etiqueta y estilo", () => {
   for (const metodo of METODOS_ENTREGA) {
     assert.ok(METODO_ENTREGA_LABEL[metodo], `falta etiqueta de ${metodo}`)
   }
+})
+
+test("la entrega coordinada muestra despachada como Entregada", () => {
+  assert.equal(etiquetaEstadoOrden("despachada", "coordinar"), "Entregada")
+  assert.equal(etiquetaEstadoOrden("despachada", "envio_domicilio"), "Despachada")
+  assert.equal(etiquetaEstadoOrden("despachada", "retiro_punto"), "Despachada")
+  assert.equal(etiquetaEstadoOrden("reservada", "coordinar"), "Reservada")
 })

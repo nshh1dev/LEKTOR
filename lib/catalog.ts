@@ -99,6 +99,26 @@ export function transicionValida(actual: EstadoOrden, siguiente: EstadoOrden): b
   return TRANSICIONES_ORDEN[actual]?.includes(siguiente) ?? false
 }
 
+/**
+ * Pasos que muestra la tarjeta de una orden. Una entrega coordinada no se prepara
+ * ni se despacha: las partes acuerdan el punto por el chat y el vendedor marca la
+ * entrega en mano, así que se salta `en_preparacion`.
+ */
+export function pasosDeOrden(metodo: MetodoEntrega): EstadoOrden[] {
+  return metodo === "coordinar"
+    ? ["reservada", "despachada", "recibida"]
+    : ["reservada", "en_preparacion", "despachada", "recibida"]
+}
+
+export function siguienteEstadoOrden(
+  metodo: MetodoEntrega,
+  actual: EstadoOrden,
+): EstadoOrden | null {
+  const pasos = pasosDeOrden(metodo)
+  const indice = pasos.indexOf(actual)
+  return indice >= 0 && indice < pasos.length - 1 ? pasos[indice + 1] : null
+}
+
 export function estadoSegunStock(stock: number, estadoActual: EstadoPublicacion): EstadoPublicacion {
   if (estadoActual === "pausada") return "pausada"
   return stock <= 0 ? "agotada" : "activa"

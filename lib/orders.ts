@@ -14,7 +14,7 @@ import {
   type Paginacion,
 } from "@/lib/catalog"
 import { ApiError, type SafeUser } from "@/lib/auth"
-import { ESTADO_ORDEN_LABEL } from "@/lib/format"
+import { ESTADO_ORDEN_LABEL, etiquetaEstadoOrden } from "@/lib/format"
 import { destinatarioCambioOrden } from "@/lib/order-notifications"
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
@@ -357,6 +357,20 @@ export async function transitionOrder(
       }
     }
 
+    // Una entrega coordinada se acuerda por el chat y se entrega en mano: no pasa
+    // por preparación. La administración conserva la intervención para empujarla.
+    if (
+      siguiente === "en_preparacion" &&
+      current.datosDespacho?.metodoEntrega === "coordinar" &&
+      user.rol !== "admin"
+    ) {
+      throw new ApiError(
+        409,
+        "transicion-invalida",
+        "Una entrega coordinada no se prepara ni se despacha: acuerden el punto por el chat y marca la entrega cuando la hagas",
+      )
+    }
+
     await tx.update(orders).set({ estado: siguiente }).where(eq(orders.id, id))
 
     await registrarEvento(tx, {
@@ -385,14 +399,16 @@ export async function transitionOrder(
       actorId: user.id,
       siguiente,
     })
+    const metodo = current.datosDespacho?.metodoEntrega ?? "envio_domicilio"
+    const estadoEtiqueta = etiquetaEstadoOrden(siguiente, metodo)
     await tx.insert(notifications).values({
       userId: receiverId,
       tipo: intervencion ? "orden_intervenida" : "orden_actualizada",
       titulo: intervencion
-        ? `Orden por ${current.tituloSnapshot}: ${ESTADO_ORDEN_LABEL[siguiente]} (intervención del equipo)`
-        : `Orden por ${current.tituloSnapshot}: ${ESTADO_ORDEN_LABEL[siguiente]}`,
+        ? `Orden por ${current.tituloSnapshot}: ${estadoEtiqueta} (intervención del equipo)`
+        : `Orden por ${current.tituloSnapshot}: ${estadoEtiqueta}`,
       cuerpo: intervencion
-        ? `El equipo de LEKTOR actualizó esta orden a ${ESTADO_ORDEN_LABEL[siguiente]?.toLowerCase() ?? siguiente}. ${motivo ?? "Si no estás de acuerdo, responde al vendedor por el chat de la orden."}`
+        ? `El equipo de LEKTOR actualizó esta orden a ${estadoEtiqueta.toLowerCase()}. ${motivo ?? "Si no estás de acuerdo, responde al vendedor por el chat de la orden."}`
         : (motivo ?? `La orden cambió de estado. Revisa el detalle para coordinar la entrega.`),
       datos: { orderId: id },
     })

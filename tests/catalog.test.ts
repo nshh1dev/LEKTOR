@@ -36,6 +36,8 @@ import {
   registroSchema,
   loginFormSchema,
   transicionValida,
+  pasosDeOrden,
+  siguienteEstadoOrden,
 } from "@/lib/catalog"
 
 test("editar stock rechaza el campo vacío en vez de convertirlo en cero", () => {
@@ -123,6 +125,17 @@ test("la máquina de estados respeta las transiciones del dominio", () => {
   assert.equal(transicionValida("recibida", "cancelada"), false)
   assert.equal(transicionValida("cancelada", "reservada"), false)
   assert.equal(transicionValida("inventada" as never, "reservada"), false)
+})
+
+test("la entrega coordinada se salta la preparación y se entrega en mano", () => {
+  assert.deepEqual(pasosDeOrden("envio_domicilio"), ["reservada", "en_preparacion", "despachada", "recibida"])
+  assert.deepEqual(pasosDeOrden("retiro_punto"), ["reservada", "en_preparacion", "despachada", "recibida"])
+  assert.deepEqual(pasosDeOrden("coordinar"), ["reservada", "despachada", "recibida"])
+
+  assert.equal(siguienteEstadoOrden("coordinar", "reservada"), "despachada")
+  assert.equal(siguienteEstadoOrden("coordinar", "despachada"), "recibida")
+  assert.equal(siguienteEstadoOrden("coordinar", "recibida"), null)
+  assert.equal(siguienteEstadoOrden("envio_domicilio", "reservada"), "en_preparacion")
 })
 
 test("el costo de envío depende del método de entrega", () => {

@@ -7,27 +7,48 @@ import { ConfirmarAccion } from "@/components/notificacion/confirmar-accion"
 import { ChatOrden } from "@/components/marketplace/chat-orden"
 import { DialogoComprobante } from "@/components/marketplace/comprobante"
 import { DialogoValoracion } from "@/components/marketplace/dialogo-valoracion"
-import { type EstadoOrden, type OrdenUI } from "@/lib/catalog"
+import { type EstadoOrden, type MetodoEntrega, type OrdenUI, pasosDeOrden, siguienteEstadoOrden } from "@/lib/catalog"
 import { formatearTelefono } from "@/lib/entrada"
-import { ESTADO_ORDEN_LABEL, ESTADO_ORDEN_PASOS, METODO_ENTREGA_LABEL, formatCLP, formatDateTime, ordenCode, tiempoRestante } from "@/lib/format"
+import { METODO_ENTREGA_LABEL, etiquetaEstadoOrden, formatCLP, formatDateTime, ordenCode, tiempoRestante } from "@/lib/format"
 
-function PasoOrden({ estado }: { estado: EstadoOrden }) {
+function PasoOrden({ estado, metodo }: { estado: EstadoOrden; metodo: MetodoEntrega }) {
   if (estado === "cancelada") {
     return null
   }
-  const pasoActual = ESTADO_ORDEN_PASOS.indexOf(estado)
+  const pasos = pasosDeOrden(metodo)
+  const pasoActual = pasos.indexOf(estado)
   return (
-    <div aria-label={`Estado de la orden: ${ESTADO_ORDEN_LABEL[estado]}`} className="grid grid-cols-4 gap-1.5">
-      {ESTADO_ORDEN_PASOS.map((paso, index) => (
+    <div aria-label={`Estado de la orden: ${etiquetaEstadoOrden(estado, metodo)}`} className={`grid gap-1.5 ${pasos.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
+      {pasos.map((paso, index) => (
         <div key={paso} className="flex min-w-0 flex-col gap-2">
           <div className={`h-1 ${index <= pasoActual ? "bg-oro" : "bg-muted"}`} />
           <span className={`text-[10px] font-medium leading-snug sm:text-xs ${index === pasoActual ? "text-oro" : "text-muted-foreground"}`}>
-            {ESTADO_ORDEN_LABEL[paso]}
+            {etiquetaEstadoOrden(paso, metodo)}
           </span>
         </div>
       ))}
     </div>
   )
+}
+
+/**
+ * El texto de la tarjeta cambia con el método de entrega: cuando se coordina, el
+ * paso pendiente no es preparar ni despachar, sino acordar el punto por el chat.
+ */
+function indicacionDe(estado: EstadoOrden, rol: "comprador" | "vendedor", coordinar: boolean): string {
+  if (estado === "reservada" && coordinar) {
+    return rol === "comprador"
+      ? "Acuerda con el vendedor el punto y la hora de la entrega por el chat de la orden."
+      : "Acuerda con el comprador el punto y la hora de la entrega por el chat de la orden."
+  }
+  const indicacion: Record<EstadoOrden, string> = {
+    reservada: rol === "comprador" ? "Tu ejemplar está reservado. Coordina el pago con el vendedor." : "Coordina el pago con el comprador y prepara el ejemplar.",
+    en_preparacion: rol === "comprador" ? "El vendedor está preparando tu ejemplar." : "Prepara la entrega y marca el despacho cuando esté listo.",
+    despachada: rol === "comprador" ? "Confirma la recepción cuando tengas el ejemplar." : "El comprador debe confirmar que recibió el ejemplar.",
+    recibida: "Entrega completada.",
+    cancelada: "La orden se canceló. El chat sigue disponible para coordinar cualquier devolución.",
+  }
+  return indicacion[estado]
 }
 
 export function TarjetaOrden({
@@ -42,36 +63,36 @@ export function TarjetaOrden({
   alCambiarEstado: (ordenId: string, estado: EstadoOrden) => void | Promise<void>
 }) {
   const contraparte = rol === "comprador" ? orden.vendedor : orden.comprador
+  const metodoEntrega = orden.datosDespacho.metodoEntrega
+  const coordinar = metodoEntrega === "coordinar"
   const [comprobanteAbierto, setComprobanteAbierto] = useState(false)
   const [cancelacionAbierta, setCancelacionAbierta] = useState(false)
   const [cancelando, setCancelando] = useState(false)
   const [valorando, setValorando] = useState(false)
   const [valoradoLocal, setValoradoLocal] = useState(false)
   const yaValorada = orden.valorada || valoradoLocal
-  // El vendedor recorre los cuatro pasos: prepara, despacha y el comprador confirma.
-  const siguiente: EstadoOrden | null =
-    orden.estado === "reservada"
-      ? "en_preparacion"
-      : orden.estado === "en_preparacion"
-        ? "despachada"
-        : orden.estado === "despachada"
-          ? "recibida"
-          : null
+  // El vendedor recorre los pasos del método: con envío o retiro prepara y despacha;
+  // con entrega coordinada acuerda el punto por el chat y marca la entrega en mano.
+  const siguiente: EstadoOrden | null = siguienteEstadoOrden(metodoEntrega, orden.estado)
   const puedeAvanzar =
     siguiente !== null && (rol === "vendedor" ? siguiente !== "recibida" : siguiente === "recibida")
   const etiquetaAvance: Record<string, string> = {
     en_preparacion: "Marcar en preparación",
-    despachada: "Marcar despachada",
+    despachada: coordinar ? "Marcar entregada" : "Marcar despachada",
     recibida: "Confirmar recepción",
   }
-  const indicacion: Record<EstadoOrden, string> = {
-    reservada: rol === "comprador" ? "Tu ejemplar está reservado. Coordina el pago con el vendedor." : "Coordina el pago con el comprador y prepara el ejemplar.",
-    en_preparacion: rol === "comprador" ? "El vendedor está preparando tu ejemplar." : "Prepara la entrega y marca el despacho cuando esté listo.",
-    despachada: rol === "comprador" ? "Confirma la recepción cuando tengas el ejemplar." : "El comprador debe confirmar que recibió el ejemplar.",
-    recibida: "Entrega completada.",
-    cancelada: "La orden se canceló. El chat sigue disponible para coordinar cualquier devolución.",
-  }
   const restante = orden.estado === "reservada" ? tiempoRestante(orden.reservaExpiraEn) : null
+  const coordinarPorChat = coordinar && orden.estado === "reservada"
+  const chat = (
+    <ChatOrden
+      ordenId={orden.id}
+      yoId={yoId}
+      contraparte={contraparte.nombre}
+      titulo={orden.tituloSnapshot}
+      etiqueta={coordinarPorChat ? "Coordinar entrega por chat" : undefined}
+      destacado={coordinarPorChat}
+    />
+  )
 
   return (
     <article className="flex flex-col gap-5 border-b border-border/60 py-6">
@@ -82,7 +103,7 @@ export function TarjetaOrden({
               <PackageCheck className="mt-1 size-4 shrink-0 text-oro" />
               <span className="break-words">{orden.tituloSnapshot}</span>
             </h3>
-            <span className={`text-xs font-medium ${orden.estado === "cancelada" ? "text-muted-foreground" : "text-oro"}`}>{ESTADO_ORDEN_LABEL[orden.estado]}</span>
+            <span className={`text-xs font-medium ${orden.estado === "cancelada" ? "text-muted-foreground" : "text-oro"}`}>{etiquetaEstadoOrden(orden.estado, metodoEntrega)}</span>
           </div>
           <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="font-mono">{ordenCode(orden.id, orden.fechaCreacion)}</span>
@@ -111,8 +132,8 @@ export function TarjetaOrden({
           </div>
         </dl>
         <div className="flex flex-col gap-3">
-          <PasoOrden estado={orden.estado} />
-          <p className="text-sm leading-relaxed text-muted-foreground">{indicacion[orden.estado]}</p>
+          <PasoOrden estado={orden.estado} metodo={metodoEntrega} />
+          <p className="text-sm leading-relaxed text-muted-foreground">{indicacionDe(orden.estado, rol, coordinar)}</p>
           {restante !== null && (
             <p className="flex items-center gap-2 text-xs text-oro">
               <Clock3 className="size-3 shrink-0" /> {restante === "expirada" ? "El plazo de la reserva venció." : `Reserva disponible por ${restante}`}
@@ -121,6 +142,8 @@ export function TarjetaOrden({
         </div>
       </div>
         <div className="flex flex-wrap items-center gap-2 pt-1">
+          {/* Con entrega coordinada, el chat es la acción principal mientras la reserva está viva. */}
+          {coordinarPorChat && chat}
           {puedeAvanzar && siguiente && (
             <Button
               size="sm"
@@ -151,12 +174,7 @@ export function TarjetaOrden({
             </Button>
           )}
           {/* Cancelada incluida: la conversación sirve para acordar la devolución. */}
-          <ChatOrden
-            ordenId={orden.id}
-            yoId={yoId}
-            contraparte={contraparte.nombre}
-            titulo={orden.tituloSnapshot}
-          />
+          {!coordinarPorChat && chat}
           {rol === "comprador" && orden.estado === "recibida" && orden.publicacionId && !yaValorada && (
             <Button
               size="sm"

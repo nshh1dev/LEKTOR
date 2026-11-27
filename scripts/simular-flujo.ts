@@ -67,6 +67,7 @@ type Orden = {
   total: number
   estado?: string
   compradorEmail?: string
+  metodoEntrega?: string
 }
 type Movimiento = {
   id: string
@@ -763,6 +764,7 @@ etapa("F5 · la compra se completa con los tres métodos de entrega", async () =
       publicacionId: publicacion.id,
       total: orden.total,
       compradorEmail: entrega.compra.email,
+      metodoEntrega: entrega.metodo,
     })
 
     // Al agotarse, la publicación queda `agotada` y por regla de visibilidad solo
@@ -946,7 +948,20 @@ etapa("F8 · el vendedor prepara y despacha la primera orden", async () => {
     igual(r.status, 200, `transición a ${estado}`)
     igual((r.datos.order as Orden)?.estado, estado, `estado tras pedir ${estado}`)
   }
-  return { ok: fallos === 0, detalle: "orden despachada" }
+
+  // Una entrega coordinada no se prepara por logística: se acuerda por chat y el
+  // vendedor la marca entregada directamente. El servidor debe rechazar en_preparacion.
+  const coordinada = ordenes.find((o) => o.metodoEntrega === "coordinar" && o.estado === "reservada")
+  if (coordinada) {
+    const preparar = await pedir(`/api/orders/${coordinada.id}`, {
+      method: "PATCH",
+      cookie: actor.vendedor.cookie,
+      body: { estado: "en_preparacion" },
+    })
+    igual(preparar.status, 409, "coordinar no puede pasar a en_preparacion")
+  }
+
+  return { ok: fallos === 0, detalle: "orden despachada y coordinar bloqueada en preparación" }
 })
 
 etapa("F8b · el chat de la orden es privado entre comprador y vendedor", async () => {

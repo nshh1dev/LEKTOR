@@ -30,11 +30,15 @@ export function ChatOrden({
   yoId,
   contraparte,
   titulo,
+  etiqueta = "Chat de la compra",
+  destacado = false,
 }: {
   ordenId: string
   yoId: string
   contraparte: string
   titulo: string
+  etiqueta?: string
+  destacado?: boolean
 }) {
   const [abierto, setAbierto] = useState(false)
   const [mensajes, setMensajes] = useState<MensajeUI[]>([])
@@ -104,8 +108,16 @@ export function ChatOrden({
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" className="rounded-none hover:bg-transparent">
-          <MessageCircle data-icon="inline-start" /> Chat de la compra
+        <Button
+          size="sm"
+          variant="ghost"
+          className={
+            destacado
+              ? "rounded-none bg-oro text-oro-foreground hover:bg-oro/90"
+              : "rounded-none hover:bg-transparent"
+          }
+        >
+          <MessageCircle data-icon="inline-start" /> {etiqueta}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
