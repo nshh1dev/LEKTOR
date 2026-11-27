@@ -23,12 +23,14 @@ import { PagoView } from "@/components/marketplace/pago-view"
 import { ComprobanteCarga } from "@/components/marketplace/comprobante"
 import { api } from "@/components/marketplace/api"
 import { cuerpoDeOrden } from "@/lib/catalog"
-import { COURIERS, DATOS_COURIER } from "@/lib/couriers"
+import { COURIERS, COURIERS_RETIRO, DATOS_COURIER } from "@/lib/couriers"
+import { PuntoRetiroInput } from "@/components/marketplace/punto-retiro-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Portada } from "@/components/marketplace/hero"
 
 const ETIQUETAS_ENTREGA: Record<string, string> = {
   courier: "Transportista",
+  puntoRetiroId: "Punto de retiro del catálogo",
   nombreRecibe: "Quién recibe",
   telefono: "Teléfono",
   metodoEntrega: "Método de entrega",
@@ -69,12 +71,14 @@ export function CheckoutView({
       comuna: usuario.comuna ?? "",
       region: usuario.region ?? "",
       puntoRetiro: "",
+      puntoRetiroId: "",
       courier: "",
     },
   })
 
   const metodoEntrega = useWatch({ control, name: "metodoEntrega" })
   const courier = useWatch({ control, name: "courier" })
+  const puntoRetiro = useWatch({ control, name: "puntoRetiro" })
   const telefonoActual = useWatch({ control, name: "telefono" })
   const regionActual = useWatch({ control, name: "region" })
   const comunaActual = useWatch({ control, name: "comuna" })
@@ -96,6 +100,7 @@ export function CheckoutView({
     region: "region",
     puntoRetiro: "puntoRetiro",
     courier: "courier",
+    puntoRetiroId: "puntoRetiroId",
   })
 
   if (ordenConfirmada && ordenConfirmada.publicacionId === publicacion.id) {
@@ -205,7 +210,12 @@ export function CheckoutView({
                     <button
                       type="button"
                       aria-pressed={metodoEntrega === opcion}
-                      onClick={() => setValue("metodoEntrega", opcion, { shouldValidate: true })}
+                      onClick={() => {
+                        setValue("metodoEntrega", opcion, { shouldValidate: true })
+                        setValue("puntoRetiroId", "")
+                        setValue("puntoRetiro", "")
+                        if (opcion === "retiro_punto" && courier === "correos_chile") setValue("courier", "")
+                      }}
                       className={`flex cursor-pointer items-center gap-2 rounded-xl border-2 p-3 text-left text-sm transition-colors ${
                         metodoEntrega === opcion ? "border-primary bg-primary/5" : "border-border"
                       }`}
@@ -256,12 +266,13 @@ export function CheckoutView({
                   <Select value={courier} onValueChange={(valor) => {
                     setValue("courier", valor as CheckoutFormValues["courier"], { shouldValidate: true })
                     setValue("puntoRetiro", "")
+                    setValue("puntoRetiroId", "")
                   }}>
                     <SelectTrigger id="courier" aria-invalid={Boolean(errors.courier)} aria-describedby={errors.courier ? "courier-error" : undefined}>
                       <SelectValue placeholder="Selecciona un transportista" />
                     </SelectTrigger>
                     <SelectContent>
-                      {COURIERS.map((valor) => <SelectItem key={valor} value={valor}>{DATOS_COURIER[valor].nombre}</SelectItem>)}
+                      {(metodoEntrega === "retiro_punto" ? COURIERS_RETIRO : COURIERS).map((valor) => <SelectItem key={valor} value={valor}>{DATOS_COURIER[valor].nombre}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <MensajeError campo="courier" mensaje={errors.courier?.message} />
@@ -270,10 +281,18 @@ export function CheckoutView({
               )}
               {metodoEntrega === "retiro_punto" && (
                 <div className="flex flex-col gap-1">
-                  <Label htmlFor="puntoRetiro">Punto de retiro</Label>
-                  {courier && <a className="text-sm underline underline-offset-4" href={DATOS_COURIER[courier].sucursales} target="_blank" rel="noopener noreferrer">Buscar sucursal en sitio oficial (abre otra pestaña)</a>}
-                  <Input aria-invalid={errors.puntoRetiro ? true : undefined} aria-describedby={errors.puntoRetiro ? "puntoRetiro-error" : "puntoRetiro-ayuda"} id="puntoRetiro" placeholder="Nombre y dirección de la sucursal" {...register("puntoRetiro")} />
-                  <p id="puntoRetiro-ayuda" className="text-xs text-muted-foreground">Confirma en el sitio oficial que admite retiro. Ingresa su nombre y dirección y usa la comuna y región de la sucursal. LEKTOR no verifica disponibilidad.</p>
+                  <Label htmlFor="puntoRetiroId">Punto de retiro</Label>
+                  {courier && courier !== "correos_chile" ? <PuntoRetiroInput key={courier}
+                    courier={courier} comuna={comunaActual ?? ""} region={regionActual ?? ""}
+                    seleccionado={puntoRetiro ?? ""} invalid={Boolean(errors.puntoRetiroId)}
+                    onLimpiar={() => { setValue("puntoRetiroId", ""); setValue("puntoRetiro", "") }}
+                    onSeleccionar={(punto) => {
+                      setValue("puntoRetiro", `${punto.nombre} · ${punto.direccion}`, { shouldValidate: true })
+                      setValue("puntoRetiroId", punto.id, { shouldValidate: true })
+                      setValue("comuna", punto.comuna, { shouldValidate: true })
+                      setValue("region", punto.region, { shouldValidate: true })
+                    }} /> : <p className="text-sm text-muted-foreground">Selecciona primero un transportista. CorreosChile no está disponible para retiro.</p>}
+                  <MensajeError campo="puntoRetiroId" mensaje={errors.puntoRetiroId?.message} />
                   <MensajeError campo="puntoRetiro" mensaje={errors.puntoRetiro?.message} />
                 </div>
               )}
@@ -282,8 +301,14 @@ export function CheckoutView({
                 comuna={comunaActual ?? ""}
                 errorComuna={errors.comuna?.message}
                 errorRegion={errors.region?.message}
-                onComunaChange={(valor) => setValue("comuna", valor, { shouldValidate: true })}
-                onRegionChange={(valor) => setValue("region", valor, { shouldValidate: true })}
+                onComunaChange={(valor) => {
+                  setValue("comuna", valor, { shouldValidate: true })
+                  setValue("puntoRetiroId", ""); setValue("puntoRetiro", "")
+                }}
+                onRegionChange={(valor) => {
+                  setValue("region", valor, { shouldValidate: true })
+                  setValue("puntoRetiroId", ""); setValue("puntoRetiro", "")
+                }}
                 region={regionActual ?? ""}
               />
               <p className="text-xs text-muted-foreground">

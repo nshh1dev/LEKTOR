@@ -746,6 +746,13 @@ etapa("F5 · la compra se completa con los tres métodos de entrega", async () =
   const stockAntes = new Map(publicaciones.map((p) => [p.id, p.stock]))
 
   for (const entrega of entregas) {
+    if (entrega.metodo === "retiro_punto") {
+      const catalogo = await pedir("/api/geo/puntos-retiro?courier=starken&comuna=Providencia")
+      const [punto] = lista<{ id: string; nombre: string; direccion: string }>(catalogo.datos, "puntos")
+      if (!punto) throw new Error("El catálogo de Starken no devolvió un punto de prueba")
+      entrega.datos.puntoRetiroId = punto.id
+      entrega.datos.puntoRetiro = `${punto.nombre} · ${punto.direccion}`
+    }
     const publicacion = publicaciones.find((p) => !ordenes.some((o) => o.publicacionId === p.id))!
     const r = await pedir("/api/orders", {
       method: "POST",
