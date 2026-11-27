@@ -98,6 +98,25 @@ export function CheckoutView({
     courier: "courier",
   })
 
+  // La ubicación va arriba de la dirección en domicilio: el autocompletado acota las
+  // sugerencias a esa comuna y región, así que elegirlas después obligaba a escribir a
+  // ciegas. En retiro y coordinar se queda abajo, junto al resto de los datos de entrega.
+  const campoUbicacion = (
+    <>
+      <CampoUbicacion
+        comuna={comunaActual ?? ""}
+        errorComuna={errors.comuna?.message}
+        errorRegion={errors.region?.message}
+        onComunaChange={(valor) => setValue("comuna", valor, { shouldValidate: true })}
+        onRegionChange={(valor) => setValue("region", valor, { shouldValidate: true })}
+        region={regionActual ?? ""}
+      />
+      <p className="text-xs text-muted-foreground">
+        Usamos la ubicación de tu perfil. Puedes cambiarla para esta entrega.
+      </p>
+    </>
+  )
+
   if (ordenConfirmada && ordenConfirmada.publicacionId === publicacion.id) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center gap-6 py-8 text-center">
@@ -228,6 +247,8 @@ export function CheckoutView({
                 ))}
               </div>
 
+              {metodoEntrega === "envio_domicilio" ? campoUbicacion : null}
+
               {metodoEntrega === "envio_domicilio" && (
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="direccion">Dirección completa</Label>
@@ -278,17 +299,7 @@ export function CheckoutView({
                 </div>
               )}
 
-              <CampoUbicacion
-                comuna={comunaActual ?? ""}
-                errorComuna={errors.comuna?.message}
-                errorRegion={errors.region?.message}
-                onComunaChange={(valor) => setValue("comuna", valor, { shouldValidate: true })}
-                onRegionChange={(valor) => setValue("region", valor, { shouldValidate: true })}
-                region={regionActual ?? ""}
-              />
-              <p className="text-xs text-muted-foreground">
-                Usamos la ubicación de tu perfil. Puedes cambiarla para esta entrega.
-              </p>
+              {metodoEntrega !== "envio_domicilio" ? campoUbicacion : null}
             </div>
 
             <Separator />

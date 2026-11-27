@@ -2,7 +2,14 @@ import { test } from "node:test"
 import assert from "node:assert/strict"
 
 import { REGIONES } from "@/lib/catalog"
-import { CIUDADES_PRINCIPALES, COMUNAS_POR_REGION, gruposComunas, regionDeComuna } from "@/lib/comunas"
+import {
+  CIUDADES_PRINCIPALES,
+  COMUNAS_POR_REGION,
+  EQUIVALENCIAS_COMUNA,
+  comunaDelCatalogo,
+  gruposComunas,
+  regionDeComuna,
+} from "@/lib/comunas"
 
 test("el catálogo cubre las 16 regiones con las 346 comunas del país", () => {
   assert.deepEqual(Object.keys(COMUNAS_POR_REGION).sort(), [...REGIONES].sort())
@@ -105,4 +112,31 @@ test("regionDeComuna no adivina cuando no puede saberlo", () => {
   // "San Pedro" también es una comuna de la Metropolitana y "San Pedro de la Paz" del
   // Biobío, así que solo el nombre completo resuelve.
   assert.equal(regionDeComuna("San Pedro de"), null)
+})
+
+test("comunaDelCatalogo reconoce cómo escriben la misma comuna otras fuentes", () => {
+  // OpenStreetMap y los catálogos de courier usan estas variantes; sin equivalencia la
+  // dirección quedaba sin comuna reconocida y su región se perdía.
+  assert.equal(comunaDelCatalogo("Santiago"), "Santiago Centro")
+  assert.equal(comunaDelCatalogo("coyhaique"), "Coihaique")
+  assert.equal(comunaDelCatalogo("Llay-Llay"), "Llaillay")
+  assert.equal(comunaDelCatalogo("Puerto Natales"), "Natales")
+  assert.equal(comunaDelCatalogo("La Calera"), "Calera")
+  assert.equal(comunaDelCatalogo("Providencia"), "Providencia")
+  assert.equal(comunaDelCatalogo("providencia"), "Providencia")
+  assert.equal(comunaDelCatalogo("NoExiste"), null)
+  assert.equal(comunaDelCatalogo(""), null)
+})
+
+test("cada equivalencia apunta a una comuna real del catálogo", () => {
+  for (const [alias, comuna] of Object.entries(EQUIVALENCIAS_COMUNA)) {
+    assert.equal(comunaDelCatalogo(alias), comuna, alias)
+    assert.ok(regionDeComuna(comuna), comuna)
+  }
+})
+
+test("las equivalencias también resuelven la región", () => {
+  assert.equal(regionDeComuna("Santiago"), "Región Metropolitana")
+  assert.equal(regionDeComuna("Coyhaique"), "Región de Aysén del General Carlos Ibáñez del Campo")
+  assert.equal(regionDeComuna("Puerto Natales"), "Región de Magallanes y de la Antártica Chilena")
 })

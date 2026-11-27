@@ -173,8 +173,13 @@ ni la base ni el dev server; `pnpm simular` necesita ambos.
   Al ampliar la simulación, reutilizar cuentas del seed en vez de registrar más actores.
 - El autocompletado de direcciones del checkout consulta Photon (OpenStreetMap) desde
   `app/api/geo/direcciones`: no usa clave, cachea la respuesta diez minutos y, si el servicio o la
-  red fallan, el campo sigue siendo texto libre. Las sugerencias muestran calle, comuna y región, y
-  al elegirlas se completan la comuna y la región del formulario.
+  red fallan, el campo sigue siendo texto libre. La consulta lleva la comuna (o la región) y el
+  servidor solo devuelve calles de esa comuna y región: nunca cae a otras, y si no hay
+  coincidencias la lista queda vacía con un aviso. `comunaDelCatalogo` de `lib/comunas.ts` traduce
+  las variantes de OpenStreetMap («Santiago» → «Santiago Centro», «Coyhaique» → «Coihaique»), que
+  sin equivalencia dejaban la sugerencia sin región. Las sugerencias muestran calle, comuna y
+  región, y al elegirlas se completan la comuna y la región del formulario. En domicilio, región y
+  comuna se eligen antes de la dirección para que el filtro se aplique desde la primera tecla.
 - Todo cambio de stock debe dejar movimiento en `stock_movements` (venta, ajuste y devolución por
   cancelación o reserva vencida). La simulación audita que la cadena de movimientos sea continua y
   termine en el stock actual de la publicación.

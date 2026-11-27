@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       return jsonError(excedido.reason, excedido.mensaje, excedido.status, excedido.headers)
     }
 
-    const respuesta = await fetch(urlPhoton(texto), {
+    const respuesta = await fetch(urlPhoton(texto, { comuna, region }), {
       headers: { Accept: "application/json", "User-Agent": "LEKTOR/1.0 (marketplace de libros)" },
       signal: AbortSignal.timeout(5000),
       cache: "no-store",
