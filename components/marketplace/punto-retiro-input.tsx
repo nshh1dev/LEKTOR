@@ -41,6 +41,21 @@ export function PuntoRetiroInput({ courier, comuna, region, seleccionado, onSele
     <div className="flex flex-col gap-2">
       <Input ref={inputRef} id="puntoRetiroId" value={seleccionado || busqueda} readOnly={Boolean(seleccionado)} placeholder="Buscar por nombre o dirección"
         aria-invalid={invalid} aria-describedby={invalid ? "puntoRetiroId-error punto-retiro-ayuda" : "punto-retiro-ayuda"}
+        onClick={() => {
+          if (seleccionado) {
+            setBusqueda("")
+            setDatos(null)
+            onLimpiar()
+          }
+        }}
+        onKeyDown={(evento) => {
+          if (seleccionado && (evento.key === "Enter" || evento.key === "ArrowDown")) {
+            evento.preventDefault()
+            setBusqueda("")
+            setDatos(null)
+            onLimpiar()
+          }
+        }}
         onChange={(evento) => { setBusqueda(evento.target.value); onLimpiar() }} />
       <p id="punto-retiro-ayuda" className="text-xs text-muted-foreground">
         Filtrado por la comuna y región de entrega indicadas abajo. Puedes cambiarlas para buscar en otro lugar.
@@ -48,13 +63,7 @@ export function PuntoRetiroInput({ courier, comuna, region, seleccionado, onSele
       </p>
       {seleccionado ? (
         <>
-          <p role="status" className="text-sm text-muted-foreground">Punto de retiro seleccionado.</p>
-          <Button type="button" variant="outline" className="w-fit" onClick={() => {
-            setBusqueda("")
-            setDatos(null)
-            onLimpiar()
-            inputRef.current?.focus()
-          }}>Cambiar punto</Button>
+          <p role="status" className="text-sm text-muted-foreground">Punto seleccionado. Pulsa el campo para elegir otro; con teclado usa Enter o flecha abajo.</p>
         </>
       ) : (
         <>

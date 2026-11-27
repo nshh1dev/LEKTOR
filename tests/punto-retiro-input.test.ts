@@ -13,13 +13,14 @@ const props = {
   onLimpiar: () => {},
 }
 
-test("el punto elegido aparece en el campo y ofrece cambiarlo sin mostrar resultados", () => {
+test("el punto elegido aparece en el campo sin botón adicional ni resultados", () => {
   const html = renderToStaticMarkup(createElement(PuntoRetiroInput, {
     ...props, seleccionado: "Sucursal Centro · Avenida 123",
   }))
   assert.match(html, /value="Sucursal Centro · Avenida 123"/)
   assert.match(html, /readOnly=""/i)
-  assert.match(html, /Cambiar punto/)
+  assert.doesNotMatch(html, /Cambiar punto/)
+  assert.match(html, /Pulsa el campo para elegir otro/)
   assert.doesNotMatch(html, /Buscando puntos|puntos encontrados|Puntos de retiro disponibles/)
 })
 
