@@ -12,6 +12,7 @@ const despacho = {
   comuna: "Providencia",
   region: "Región Metropolitana",
   puntoRetiro: "",
+  puntoRetiroId: "blue_express:3167",
 }
 
 test("domicilio y retiro exigen un courier permitido en formulario y API", () => {
@@ -23,7 +24,7 @@ test("domicilio y retiro exigen un courier permitido en formulario y API", () =>
     assert.equal(datosDespachoSchema.safeParse({ ...datos, courier: undefined }).success, false)
     assert.equal(datosDespachoSchema.safeParse({ ...datos, courier: "inventado" }).success, false)
     for (const courier of COURIERS) {
-      assert.equal(datosDespachoSchema.safeParse({ ...datos, courier }).success, true)
+      assert.equal(datosDespachoSchema.safeParse({ ...datos, courier }).success, !(metodoEntrega === "retiro_punto" && courier === "correos_chile"))
     }
   }
 })

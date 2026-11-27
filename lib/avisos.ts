@@ -79,6 +79,7 @@ export const TONO_AVISO: Record<
  * se explica mejor con su propio copy que con el genérico del servidor.
  */
 export const MOTIVO_FALLO: Record<string, string> = {
+  "punto-retiro-invalido": "Selecciona nuevamente un punto del catálogo del transportista",
   "stock-insuficiente": "Ya no quedan ejemplares de esta publicación",
   "vendedor-inactivo": "Esta publicación no está disponible por el momento",
   "ultimo-admin": "Debe quedar al menos una administración activa",

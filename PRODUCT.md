@@ -39,11 +39,13 @@ stock, entrega y estado de la orden; no maximizar una métrica comercial inventa
   y cancelaciones según las reglas del servidor. Usar los estados reales de `lib/catalog.ts`.
 - Pago simulado: no hay cobro real ni integración con un procesador. Los datos de tarjeta se validan
   en el navegador y nunca se envían a la API ni se guardan.
-- En domicilio y retiro se elige Blue Express, Chilexpress, Starken o CorreosChile. En retiro,
-  el comprador consulta el buscador oficial y escribe nombre y dirección de la sucursal; LEKTOR
-  no verifica su disponibilidad. Courier y punto quedan en la orden y el comprobante. Envío y
-  tarifa son simulados: no se contrata transporte ni se generan etiquetas. Coordinar entrega
-  no exige courier. Las órdenes antiguas pueden no tener transportista.
+- En domicilio se elige Blue Express, Chilexpress, Starken o CorreosChile. Retiro usa un catálogo
+  local fechado de Blue Express, Chilexpress y Starken, filtrado por comuna, región, nombre y
+  dirección. No se promete disponibilidad u horarios en tiempo real; la captura no representa
+  todas las comunas ni todos los puntos existentes. El servidor valida el código y transportista
+  y guarda la dirección canónica. CorreosChile queda fuera de retiro. Envío y tarifa son simulados:
+  no se contrata transporte ni se generan etiquetas. Coordinar entrega no exige courier.
+  Las órdenes antiguas pueden no tener transportista ni código de punto.
 - Contacto previo y chat de orden privados entre comprador y vendedor; ni la administración accede a esos hilos.
 - Panel autenticado para operación, stock y reportes; permisos de administración validados en el servidor.
 - Avisos y confirmaciones a través del sistema único del proyecto. Las reglas técnicas viven en `AGENTS.md`;

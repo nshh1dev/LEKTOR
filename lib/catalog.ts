@@ -304,6 +304,7 @@ const REGLAS_DESPACHO = [
 ]
 
 type DatosDespachoCrudo = {
+  puntoRetiroId?: string | null
   courier?: string | null
   metodoEntrega: string
   direccion: string | null
@@ -317,6 +318,10 @@ function validarDespacho(
   if (data.metodoEntrega !== "coordinar" && !data.courier) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Selecciona un transportista", path: ["courier"] })
   }
+  if (data.metodoEntrega === "retiro_punto") {
+    if (!data.puntoRetiroId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Selecciona un punto del catálogo", path: ["puntoRetiroId"] })
+    if (data.courier === "correos_chile") ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CorreosChile solo está disponible para domicilio", path: ["courier"] })
+  }
   for (const regla of REGLAS_DESPACHO) {
     if (regla.cuando(data)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: regla.message, path: [...regla.path] })
@@ -329,13 +334,15 @@ export const datosDespachoSchema = z
   .object({
     ...camposDespacho,
     courier: z.enum(COURIERS).nullable().optional(),
+    puntoRetiroId: z.string().trim().max(100).nullable().optional(),
     direccion: z.string().trim().max(200).nullable(),
-    puntoRetiro: z.string().trim().max(120).nullable(),
+    puntoRetiro: z.string().trim().max(400).nullable(),
   })
   .superRefine(validarDespacho)
   .transform((datos) => ({
     ...datos,
     courier: datos.metodoEntrega === "coordinar" ? null : datos.courier,
+    puntoRetiroId: datos.metodoEntrega === "retiro_punto" ? datos.puntoRetiroId : null,
     direccion: datos.metodoEntrega === "envio_domicilio" ? datos.direccion : null,
     puntoRetiro: datos.metodoEntrega === "retiro_punto" ? datos.puntoRetiro : null,
   }))
@@ -755,8 +762,9 @@ export const checkoutFormSchema = z
   .object({
     ...camposDespacho,
     courier: z.union([z.literal(""), z.enum(COURIERS)]),
+    puntoRetiroId: z.string().trim().max(100).default(""),
     direccion: z.string().trim().max(200),
-    puntoRetiro: z.string().trim().max(120),
+    puntoRetiro: z.string().trim().max(400),
   })
   .superRefine(validarDespacho)
 
@@ -768,6 +776,7 @@ export function cuerpoDeOrden(publicacionId: string, datos: CheckoutFormValues):
     datosDespacho: {
       ...datos,
       courier: datos.metodoEntrega === "coordinar" ? null : datos.courier || null,
+      puntoRetiroId: datos.metodoEntrega === "retiro_punto" ? datos.puntoRetiroId : null,
       direccion: datos.metodoEntrega === "envio_domicilio" ? datos.direccion.trim() || null : null,
       puntoRetiro: datos.metodoEntrega === "retiro_punto" ? datos.puntoRetiro.trim() || null : null,
     },
@@ -966,6 +975,7 @@ export type Paginacion = {
 }
 
 export type DatosDespachoUI = {
+  puntoRetiroId?: string | null
   courier?: Courier | null
   nombreRecibe: string
   telefono: string

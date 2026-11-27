@@ -1,5 +1,15 @@
 export const COURIERS = ["blue_express", "chilexpress", "starken", "correos_chile"] as const
 export type Courier = (typeof COURIERS)[number]
+export const COURIERS_RETIRO = ["blue_express", "chilexpress", "starken"] as const
+
+export type PuntoRetiro = {
+  id: string
+  courier: Courier
+  nombre: string
+  direccion: string
+  comuna: string
+  region: string
+}
 
 export const DATOS_COURIER: Record<Courier, { nombre: string; sucursales: string }> = {
   blue_express: { nombre: "Blue Express", sucursales: "https://www.blue.cl/lockers-puntos/encuentra-tu-punto" },
