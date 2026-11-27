@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Aviso } from "@/components/notificacion/avisos"
@@ -21,7 +21,9 @@ export function PuntoRetiroInput({ courier, comuna, region, seleccionado, onSele
   const [cargando, setCargando] = useState(true)
   const [fallo, setFallo] = useState(false)
   const [intento, setIntento] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
+    if (seleccionado) return
     const controller = new AbortController()
     setCargando(true)
     setFallo(false)
@@ -33,18 +35,29 @@ export function PuntoRetiroInput({ courier, comuna, region, seleccionado, onSele
         .finally(() => { if (!controller.signal.aborted) setCargando(false) })
     }, 300)
     return () => { clearTimeout(timer); controller.abort() }
-  }, [courier, comuna, region, busqueda, intento])
+  }, [courier, comuna, region, busqueda, intento, seleccionado])
 
   return (
     <div className="flex flex-col gap-2">
-      <Input id="puntoRetiroId" value={busqueda} placeholder="Buscar por nombre o dirección"
+      <Input ref={inputRef} id="puntoRetiroId" value={seleccionado || busqueda} readOnly={Boolean(seleccionado)} placeholder="Buscar por nombre o dirección"
         aria-invalid={invalid} aria-describedby={invalid ? "puntoRetiroId-error punto-retiro-ayuda" : "punto-retiro-ayuda"}
         onChange={(evento) => { setBusqueda(evento.target.value); onLimpiar() }} />
       <p id="punto-retiro-ayuda" className="text-xs text-muted-foreground">
         Filtrado por la comuna y región de entrega indicadas abajo. Puedes cambiarlas para buscar en otro lugar.
         Los datos son una captura del catálogo oficial, no disponibilidad en tiempo real.
       </p>
-      {seleccionado && <p className="rounded-lg border border-oro p-3 text-sm">Punto seleccionado: {seleccionado}</p>}
+      {seleccionado ? (
+        <>
+          <p role="status" className="text-sm text-muted-foreground">Punto de retiro seleccionado.</p>
+          <Button type="button" variant="outline" className="w-fit" onClick={() => {
+            setBusqueda("")
+            setDatos(null)
+            onLimpiar()
+            inputRef.current?.focus()
+          }}>Cambiar punto</Button>
+        </>
+      ) : (
+        <>
       <p role="status" className="text-xs text-muted-foreground">
         {cargando ? "Buscando puntos…" : fallo ? "Búsqueda no disponible" : `${datos?.total ?? 0} puntos encontrados${(datos?.total ?? 0) > 30 ? "; se muestran 30. Afina la búsqueda." : "."}`}
       </p>
@@ -61,7 +74,10 @@ export function PuntoRetiroInput({ courier, comuna, region, seleccionado, onSele
           {datos.puntos.map((punto) => (
             <li key={punto.id}>
               <button type="button" className="w-full cursor-pointer p-3 text-left text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-oro"
-                onClick={() => onSeleccionar(punto)}>
+                 onClick={() => {
+                   onSeleccionar(punto)
+                   inputRef.current?.focus()
+                 }}>
                 <span className="block font-medium">{punto.nombre}</span>
                 <span className="block text-muted-foreground">{punto.direccion} · {punto.comuna}</span>
               </button>
@@ -69,6 +85,8 @@ export function PuntoRetiroInput({ courier, comuna, region, seleccionado, onSele
           ))}
         </ul>
       ) : null}
+        </>
+      )}
       {datos?.fuente && <p className="text-xs text-muted-foreground">Catálogo consultado el {datos.fuente.consultadoEn.slice(0, 10)}. Confirma horarios con el transportista.</p>}
     </div>
   )
