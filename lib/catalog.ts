@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { COURIERS, type Courier } from "@/lib/couriers"
 import { precioANumero } from "@/lib/entrada"
 import { isValidIsbn, normalizeIsbn } from "@/lib/isbn"
 import {
@@ -283,6 +284,7 @@ const REGLAS_DESPACHO = [
 ]
 
 type DatosDespachoCrudo = {
+  courier?: string | null
   metodoEntrega: string
   direccion: string | null
   puntoRetiro: string | null
@@ -292,6 +294,9 @@ function validarDespacho(
   data: DatosDespachoCrudo,
   ctx: z.RefinementCtx,
 ): void {
+  if (data.metodoEntrega !== "coordinar" && !data.courier) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Selecciona un transportista", path: ["courier"] })
+  }
   for (const regla of REGLAS_DESPACHO) {
     if (regla.cuando(data)) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: regla.message, path: [...regla.path] })
@@ -303,10 +308,17 @@ function validarDespacho(
 export const datosDespachoSchema = z
   .object({
     ...camposDespacho,
+    courier: z.enum(COURIERS).nullable().optional(),
     direccion: z.string().trim().max(200).nullable(),
     puntoRetiro: z.string().trim().max(120).nullable(),
   })
   .superRefine(validarDespacho)
+  .transform((datos) => ({
+    ...datos,
+    courier: datos.metodoEntrega === "coordinar" ? null : datos.courier,
+    direccion: datos.metodoEntrega === "envio_domicilio" ? datos.direccion : null,
+    puntoRetiro: datos.metodoEntrega === "retiro_punto" ? datos.puntoRetiro : null,
+  }))
 
 export type DatosDespacho = z.infer<typeof datosDespachoSchema>
 
@@ -722,12 +734,25 @@ export type PublicarFormValues = z.infer<typeof publicarFormSchema>
 export const checkoutFormSchema = z
   .object({
     ...camposDespacho,
+    courier: z.union([z.literal(""), z.enum(COURIERS)]),
     direccion: z.string().trim().max(200),
     puntoRetiro: z.string().trim().max(120),
   })
   .superRefine(validarDespacho)
 
 export type CheckoutFormValues = z.infer<typeof checkoutFormSchema>
+
+export function cuerpoDeOrden(publicacionId: string, datos: CheckoutFormValues): z.infer<typeof orderCreateSchema> {
+  return {
+    publicacionId,
+    datosDespacho: {
+      ...datos,
+      courier: datos.metodoEntrega === "coordinar" ? null : datos.courier || null,
+      direccion: datos.metodoEntrega === "envio_domicilio" ? datos.direccion.trim() || null : null,
+      puntoRetiro: datos.metodoEntrega === "retiro_punto" ? datos.puntoRetiro.trim() || null : null,
+    },
+  }
+}
 
 /**
  * Formulario de la pasarela de pago. El número se formatea mientras se escribe y
@@ -921,6 +946,7 @@ export type Paginacion = {
 }
 
 export type DatosDespachoUI = {
+  courier?: Courier | null
   nombreRecibe: string
   telefono: string
   metodoEntrega: MetodoEntrega
