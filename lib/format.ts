@@ -71,7 +71,14 @@ export const ESTADO_ORDEN_BADGE: Record<EstadoOrden, string> = {
   cancelada: "border-border bg-muted text-muted-foreground",
 }
 
-export const ESTADO_ORDEN_PASOS: EstadoOrden[] = ["reservada", "en_preparacion", "despachada", "recibida"]
+/**
+ * La etiqueta depende del método de entrega: en una entrega coordinada el
+ * vendedor entrega en mano, así que `despachada` se lee "Entregada".
+ */
+export function etiquetaEstadoOrden(estado: EstadoOrden, metodo: string): string {
+  if (metodo === "coordinar" && estado === "despachada") return "Entregada"
+  return ESTADO_ORDEN_LABEL[estado]
+}
 
 export const ESTADO_PUBLICACION_LABEL: Record<EstadoPublicacion, string> = {
   activa: "Activa",

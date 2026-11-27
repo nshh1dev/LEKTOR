@@ -15,7 +15,7 @@ import {
   type OrdenDetalleUI,
   type ParteOrdenUI,
 } from "@/lib/catalog"
-import { ESTADO_ORDEN_LABEL, METODO_ENTREGA_LABEL, formatCLP, formatDateTime, ordenCode, tiempoRestante } from "@/lib/format"
+import { METODO_ENTREGA_LABEL, etiquetaEstadoOrden, formatCLP, formatDateTime, ordenCode, tiempoRestante } from "@/lib/format"
 import { DATOS_COURIER } from "@/lib/couriers"
 
 type EstadoCarga = "inactivo" | "cargando" | "listo" | "fallido"
@@ -168,7 +168,7 @@ export function Comprobante({
       <dl className="flex flex-col divide-y divide-dashed divide-border/70">
         <Fila etiqueta="Código de orden" valor={ordenCode(orden.id, orden.fechaCreacion)} />
         <Fila etiqueta="Fecha de emisión" valor={formatDateTime(orden.fechaCreacion)} />
-        <Fila etiqueta="Estado de la orden" valor={ESTADO_ORDEN_LABEL[orden.estado]} />
+        <Fila etiqueta="Estado de la orden" valor={etiquetaEstadoOrden(orden.estado, entrega.metodoEntrega)} />
         {orden.estado === "reservada" ? (
           <Fila etiqueta="Reserva expira en" valor={tiempoRestante(orden.reservaExpiraEn)} />
         ) : null}

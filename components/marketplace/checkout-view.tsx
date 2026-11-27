@@ -201,24 +201,30 @@ export function CheckoutView({
               <Label>Metodo de entrega</Label>
               <div className="grid gap-3 sm:grid-cols-3">
                 {(["envio_domicilio", "retiro_punto", "coordinar"] as const).map((opcion) => (
-                  <button
-                    type="button"
-                    key={opcion}
-                    aria-pressed={metodoEntrega === opcion}
-                    onClick={() => setValue("metodoEntrega", opcion, { shouldValidate: true })}
-                    className={`flex cursor-pointer items-center gap-2 rounded-xl border-2 p-3 text-left text-sm transition-colors ${
-                      metodoEntrega === opcion ? "border-primary bg-primary/5" : "border-border"
-                    }`}
-                  >
-                    {opcion === "envio_domicilio" ? (
-                      <Truck className="size-4" />
-                    ) : opcion === "retiro_punto" ? (
-                      <MapPin className="size-4" />
-                    ) : (
-                      <PackageCheck className="size-4" />
+                  <div key={opcion} className="flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      aria-pressed={metodoEntrega === opcion}
+                      onClick={() => setValue("metodoEntrega", opcion, { shouldValidate: true })}
+                      className={`flex cursor-pointer items-center gap-2 rounded-xl border-2 p-3 text-left text-sm transition-colors ${
+                        metodoEntrega === opcion ? "border-primary bg-primary/5" : "border-border"
+                      }`}
+                    >
+                      {opcion === "envio_domicilio" ? (
+                        <Truck className="size-4" />
+                      ) : opcion === "retiro_punto" ? (
+                        <MapPin className="size-4" />
+                      ) : (
+                        <PackageCheck className="size-4" />
+                      )}
+                      {METODO_ENTREGA_LABEL[opcion]}
+                    </button>
+                    {opcion === "coordinar" && metodoEntrega === "coordinar" && (
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        Acuerdan el punto y la hora por el chat de la orden, después de reservar.
+                      </p>
                     )}
-                    {METODO_ENTREGA_LABEL[opcion]}
-                  </button>
+                  </div>
                 ))}
               </div>
 
