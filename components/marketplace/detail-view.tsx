@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ArrowLeft, ChevronLeft, ChevronRight, LoaderCircle, MessageCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,8 @@ export function DetalleView({
   onValoraciones,
   onVendedor,
   onNecesitaSesion,
+  abrirContactoTrasAcceso = false,
+  onContactoAbiertoTrasAcceso,
 }: {
   publicacion: PublicacionListItem | null
   reviews: ReviewUI[]
@@ -39,9 +41,17 @@ export function DetalleView({
   onValoraciones: (datos: { reviews: ReviewUI[]; reputacion: ReputacionUI }) => void
   onVendedor: (vendedorId: string) => void
   onNecesitaSesion: () => void
+  abrirContactoTrasAcceso?: boolean
+  onContactoAbiertoTrasAcceso?: () => void
 }) {
   const [fotoActiva, setFotoActiva] = useState(0)
   const [contactoAbierto, setContactoAbierto] = useState(false)
+
+  useEffect(() => {
+    if (!abrirContactoTrasAcceso) return
+    setContactoAbierto(true)
+    onContactoAbiertoTrasAcceso?.()
+  }, [abrirContactoTrasAcceso, onContactoAbiertoTrasAcceso])
 
   if (!publicacion) {
     return (

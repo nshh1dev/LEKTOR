@@ -56,6 +56,8 @@ export function LektorMarketplace({
   const [pestanaInicialPerfil, setPestanaInicialPerfil] = useState<"publicaciones" | "compras">("publicaciones")
   const [usuario, setUsuario] = useState<SesionUsuario | null>(null)
   const [authPrompt, setAuthPrompt] = useState<"sell" | "buy" | "contact" | null>(null)
+  const [accionTrasAcceso, setAccionTrasAcceso] = useState<"sell" | "buy" | "contact" | null>(null)
+  const [abrirContactoPendiente, setAbrirContactoPendiente] = useState(false)
 
   const [publicaciones, setPublicaciones] = useState(initialPublications)
   const [facetas, setFacetas] = useState(initialFacetas)
@@ -436,7 +438,14 @@ export function LektorMarketplace({
             </Button>}
             <Button
               className="h-10 rounded-full bg-oro px-5 text-oro-foreground shadow-none hover:bg-oro/90"
-              onClick={() => (usuario ? irAVista("sell") : setAuthPrompt("sell"))}
+              onClick={() => {
+                if (usuario) {
+                  irAVista("sell")
+                  return
+                }
+                setAccionTrasAcceso("sell")
+                setAuthPrompt("sell")
+              }}
             >
               <Tag data-icon="inline-start" />
               <span className="hidden sm:inline">Vender un tomo</span>
@@ -508,6 +517,7 @@ export function LektorMarketplace({
             onVolver={() => irAVista("catalog")}
             onComprar={() => {
               if (!usuario) {
+                setAccionTrasAcceso("buy")
                 setAuthPrompt("buy")
                 return
               }
@@ -516,7 +526,12 @@ export function LektorMarketplace({
             }}
             onValoraciones={actualizarValoraciones}
             onVendedor={abrirVendedor}
-            onNecesitaSesion={() => setAuthPrompt("contact")}
+            onNecesitaSesion={() => {
+              setAccionTrasAcceso("contact")
+              setAuthPrompt("contact")
+            }}
+            abrirContactoTrasAcceso={abrirContactoPendiente}
+            onContactoAbiertoTrasAcceso={() => setAbrirContactoPendiente(false)}
           />
         )}
 
@@ -574,8 +589,25 @@ export function LektorMarketplace({
           <AuthView
             onSuccess={(user) => {
               setUsuario(user)
+              const accion = accionTrasAcceso
+              setAccionTrasAcceso(null)
+              setAuthPrompt(null)
+              if (accion === "buy" && detalle) {
+                setOrdenCreada(null)
+                irAVista("checkout")
+                return
+              }
+              if (accion === "contact" && detalle) {
+                setAbrirContactoPendiente(true)
+                irAVista("detail")
+                return
+              }
+              if (accion === "sell") {
+                irAVista("sell")
+                return
+              }
               setPestanaInicialPerfil("publicaciones")
-              irAVista(user ? "profile" : "catalog")
+              irAVista("profile")
             }}
             onVolver={() => irAVista("catalog")}
           />
@@ -619,13 +651,17 @@ export function LektorMarketplace({
             <Button
               className="rounded-xl bg-oro text-oro-foreground shadow-none hover:bg-oro/90"
               onClick={() => {
+                setAccionTrasAcceso(null)
                 setAuthPrompt(null)
                 irAVista("auth")
               }}
             >
               <LogIn data-icon="inline-start" /> Iniciar Sesión
             </Button>
-            <Button variant="ghost" className="rounded-xl" onClick={() => setAuthPrompt(null)}>
+            <Button variant="ghost" className="rounded-xl" onClick={() => {
+              setAccionTrasAcceso(null)
+              setAuthPrompt(null)
+            }}>
               Seguir mirando el catálogo
             </Button>
           </div>
